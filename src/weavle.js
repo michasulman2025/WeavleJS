@@ -2319,12 +2319,74 @@ export class WeavleJS {
      * Returns the waypoints for the live preview shown while drawing a new edge
      * from a handle toward the current cursor position.
      */
+    /**
+     * Where a new connection would attach if released at (x, y): the hovered handle, otherwise the
+     * best handle of the node under the cursor. Shared by the preview and mouseup so they always agree.
+     * @returns {{ targetNodeId: string|null, targetHandle: string|null }}
+     */
+    resolveConnectionTarget(x, y) {
+        let targetNodeId = this.state.hoverHandleNodeId;
+        let targetHandle = this.state.hoverHandleName;
+
+        if (!targetNodeId) {
+            const targetNode = this.findNodeAt(x, y);
+            if (targetNode) targetNodeId = targetNode.id;
+        }
+
+        if (targetNodeId && !targetHandle) {
+            const sourceNode = this.getNode(this.state.connectingNodeId);
+            const targetNode = this.getNode(targetNodeId);
+
+            if (sourceNode && targetNode) {
+                targetHandle = this.getBestHandleForTargetNode(sourceNode, targetNode);
+            }
+        }
+
+        return { targetNodeId, targetHandle };
+    }
+
+    /**
+     * Routes an edge object that is not (yet) in the model — used for previews, so they show exactly
+     * the route the real edge will get. Pass a copy: the router writes routingMeta onto it.
+     */
+    routeTemporaryEdge(edge) {
+        const sourceNode = this.getNode(edge.sourceNodeId);
+        const targetNode = this.getNode(edge.targetNodeId);
+        if (!sourceNode || !targetNode) return [];
+
+        return this.getEdgeRoute(
+            this.getHandlePoint(sourceNode, edge.sourceHandle),
+            this.getHandlePoint(targetNode, edge.targetHandle),
+            edge.sourceHandle,
+            edge.targetHandle,
+            edge
+        );
+    }
+
     getConnectionPreviewRoute() {
         const sourceNode = this.model.nodes.find(
             n => n.id === this.state.connectingNodeId
         );
         if (!sourceNode) return [];
 
+        // Over a valid target: preview the exact route the edge will get on release.
+        const { targetNodeId, targetHandle } = this.resolveConnectionTarget(
+            this.state.connectionPreviewX,
+            this.state.connectionPreviewY
+        );
+
+        if (targetNodeId && targetHandle && targetNodeId !== sourceNode.id) {
+            return this.routeTemporaryEdge({
+                id:           "__preview__",
+                sourceNodeId: sourceNode.id,
+                targetNodeId,
+                sourceHandle: this.state.connectingHandle,
+                targetHandle,
+                isAutoRoute:  true
+            });
+        }
+
+        // Cursor floating over empty canvas: simple orthogonal line to the cursor.
         const sourcePoint = this.getHandlePoint(sourceNode, this.state.connectingHandle);
         const targetPoint = {
             x: this.state.connectionPreviewX,
@@ -2357,6 +2419,24 @@ export class WeavleJS {
         const sourceNode = this.model.nodes.find(n => n.id === edge.sourceNodeId);
         const targetNode = this.model.nodes.find(n => n.id === edge.targetNodeId);
         if (!sourceNode || !targetNode) return [];
+
+        // Over a handle: preview the exact route the edge will get on release (mirrors mouseup).
+        const hoverNodeId = this.state.hoverHandleNodeId;
+        const hoverHandle = this.state.hoverHandleName;
+
+        if (hoverNodeId && hoverHandle) {
+            const isSource = this.state.reconnectingSide === "source";
+
+            return this.routeTemporaryEdge({
+                ...edge,
+                routePoints:  [],
+                isAutoRoute:  true,
+                sourceNodeId: isSource ? hoverNodeId : edge.sourceNodeId,
+                sourceHandle: isSource ? hoverHandle : edge.sourceHandle,
+                targetNodeId: isSource ? edge.targetNodeId : hoverNodeId,
+                targetHandle: isSource ? edge.targetHandle : hoverHandle
+            });
+        }
 
         let sourcePoint;
         let targetPoint;
@@ -4800,28 +4880,8 @@ export class WeavleJS {
             const sourceNodeId = this.state.connectingNodeId;
             const sourceHandle = this.state.connectingHandle;
 
-            let targetNodeId = this.state.hoverHandleNodeId;
-            let targetHandle = this.state.hoverHandleName;
-
-
-            if (!targetNodeId ) {
-                const pos = this.getMousePosition(evt);
-                const targetNode = this.findNodeAt(pos.x, pos.y);
-
-                if (targetNode) {
-                    targetNodeId = targetNode.id;
-                }
-            }
-
-            if (targetNodeId && !targetHandle) {
-                const sourceNode = this.getNode(sourceNodeId);
-                const targetNode = this.getNode(targetNodeId);
-
-                if (sourceNode && targetNode) {
-                    targetHandle = this.getBestHandleForTargetNode(sourceNode, targetNode);
-                }
-            }
-
+            const pos = this.getMousePosition(evt);
+            const { targetNodeId, targetHandle } = this.resolveConnectionTarget(pos.x, pos.y);
 
             this.resetConnectionState();
 
