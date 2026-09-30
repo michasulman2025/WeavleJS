@@ -499,6 +499,18 @@ export function createFlowchartDefinition() {
             return "docked-panel";
         },
 
+        // Usable text area per shape: a diamond only has room around its middle,
+        // a parallelogram loses its slanted sides, a cylinder its top ellipse.
+        getLabelLayout(node) {
+            switch (node.type) {
+                case "decision":    return { widthFactor: 0.7, heightFactor: 0.6, paddingX: 4, paddingY: 2 };
+                case "inputOutput": return { paddingX: 22 };
+                case "database":    return { paddingY: 14 };
+                case "subProcess":  return { paddingX: 16 };
+                default:            return {};
+            }
+        },
+
         getResizeRules(node) {
             switch (node.type) {
                 case "decision": return { minWidth: 80, minHeight: 60 };

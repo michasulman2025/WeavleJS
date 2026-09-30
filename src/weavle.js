@@ -972,6 +972,13 @@ export class WeavleJS {
         group.appendChild(shape);
         group.appendChild(text);
 
+        // Label cut off → show the full label as a tooltip when hovering the node.
+        if (text.getAttribute("data-truncated")) {
+            const title = document.createElementNS(NS, "title");
+            title.textContent = text.getAttribute("data-full-label");
+            group.insertBefore(title, group.firstChild);
+        }
+
 
         //  Selected → alle 4 ports
         if (isPrimarySelected) {
@@ -1040,20 +1047,187 @@ export class WeavleJS {
     }
 
     /** Creates a centred SVG text element for a node's label. */
+    /**
+     * Renders the node label as a <text> with one <tspan> per wrapped line (see getNodeLabelBox).
+     * If the label had to be cut off, the text gets data-truncated and the full label in data-full-label,
+     * so createNodeGroup can add a tooltip.
+     */
     createNodeText(node) {
         const NS   = "http://www.w3.org/2000/svg";
         const text = document.createElementNS(NS, "text");
+        const box  = this.getNodeLabelBox(node);
 
-        text.setAttribute("x",           node.x + node.width  / 2);
-        text.setAttribute("y",           node.y + node.height / 2 + 4);
         text.setAttribute("text-anchor", "middle");
-
-        text.style.fontSize      = "14px";
+        text.setAttribute("class", "weavle-node-label");
+        text.style.fontSize      = `${box.fontSize}px`;
         text.style.pointerEvents = "none";
         text.style.userSelect    = "none";
-        text.textContent = node.label || "";
+
+        // Centre the block of lines in the label box; 0.35em shifts from line centre to baseline.
+        const blockHeight   = box.lines.length * box.lineHeight;
+        const firstBaseline = box.centerY - blockHeight / 2 + box.lineHeight / 2 + box.fontSize * 0.35;
+
+        box.lines.forEach((line, i) => {
+            const tspan = document.createElementNS(NS, "tspan");
+            tspan.setAttribute("x", box.centerX);
+            tspan.setAttribute("y", firstBaseline + i * box.lineHeight);
+            tspan.textContent = line;
+            text.appendChild(tspan);
+        });
+
+        if (box.truncated) {
+            text.setAttribute("data-truncated", "true");
+            text.setAttribute("data-full-label", node.label || "");
+        }
 
         return text;
+    }
+
+    /**
+     * Label layout for a node, from the diagram definition: getLabelLayout(node, engine) if defined,
+     * otherwise nodeTypes[type].label, merged over the defaults below.
+     *   placement     "inside" (centred in the shape) | "below" (under the shape, BPMN events / gateways)
+     *   paddingX/Y    inner padding of the label box (inside)
+     *   widthFactor   share of the node width / height that is usable for text, e.g. ~0.6 for a diamond
+     *   heightFactor
+     *   belowWidth    minimum wrap width for labels below the shape
+     *   maxLines      line limit (default: whatever fits inside, 3 below)
+     */
+    getLabelLayout(node) {
+        const defaults = {
+            placement:    "inside",
+            paddingX:     8,
+            paddingY:     6,
+            widthFactor:  1,
+            heightFactor: 1,
+            belowWidth:   120,
+            belowGap:     6,
+            fontSize:     14,
+            lineHeight:   1.25,
+            maxLines:     null
+        };
+
+        const custom = typeof this.diagram.getLabelLayout === "function"
+            ? this.diagram.getLabelLayout(node, this)
+            : this.diagram.nodeTypes?.[node.type]?.label;
+
+        return { ...defaults, ...(custom || {}) };
+    }
+
+    /**
+     * Where and how a node's label is drawn: the wrapped lines plus the box they sit in.
+     * @returns {{ lines: string[], truncated: boolean, centerX: number, centerY: number,
+     *             width: number, height: number, fontSize: number, lineHeight: number }}
+     */
+    getNodeLabelBox(node) {
+        const layout     = this.getLabelLayout(node);
+        const fontSize   = layout.fontSize;
+        const lineHeight = fontSize * layout.lineHeight;
+        const centerX    = node.x + node.width / 2;
+
+        if (layout.placement === "below") {
+            const width    = Math.max(node.width, layout.belowWidth);
+            const maxLines = layout.maxLines ?? 3;
+            const wrapped  = this.wrapLabel(node.label, width, maxLines, fontSize);
+            const height   = Math.max(1, wrapped.lines.length) * lineHeight;
+            const top      = node.y + node.height + layout.belowGap;
+
+            return { ...wrapped, centerX, centerY: top + height / 2, width, height, fontSize, lineHeight };
+        }
+
+        const width    = Math.max(10, node.width  * layout.widthFactor  - layout.paddingX * 2);
+        const height   = Math.max(lineHeight, node.height * layout.heightFactor - layout.paddingY * 2);
+        const maxLines = layout.maxLines ?? Math.max(1, Math.floor(height / lineHeight));
+        const wrapped  = this.wrapLabel(node.label, width, maxLines, fontSize);
+
+        return { ...wrapped, centerX, centerY: node.y + node.height / 2, width, height, fontSize, lineHeight };
+    }
+
+    /**
+     * Word-wraps a label to maxWidth (px at fontSize). Respects explicit line breaks, splits words
+     * that are longer than a line, and ends the last allowed line with "…" if the text doesn't fit.
+     */
+    wrapLabel(label, maxWidth, maxLines, fontSize) {
+        const measure = s => this.measureLabelText(s, fontSize);
+        const lines   = [];
+
+        for (const paragraph of String(label ?? "").split(/\r?\n/)) {
+            let line = "";
+
+            for (const word of paragraph.split(/\s+/).filter(Boolean)) {
+                const candidate = line ? `${line} ${word}` : word;
+
+                if (measure(candidate) <= maxWidth) {
+                    line = candidate;
+                    continue;
+                }
+
+                if (line) lines.push(line);
+
+                // A single word wider than the box: break it over as many lines as needed.
+                line = "";
+                for (const ch of word) {
+                    if (line && measure(line + ch) > maxWidth) {
+                        lines.push(line);
+                        line = "";
+                    }
+                    line += ch;
+                }
+            }
+
+            lines.push(line);
+        }
+
+        // Drop trailing empty lines (e.g. a label ending in a newline).
+        while (lines.length > 1 && lines[lines.length - 1] === "") lines.pop();
+
+        if (lines.length <= maxLines) {
+            return { lines, truncated: false };
+        }
+
+        const kept  = lines.slice(0, maxLines);
+        const words = kept[maxLines - 1].split(" ");
+
+        // Prefer cutting at a word boundary; only cut inside a word if the first word alone is too wide.
+        while (words.length > 1 && measure(`${words.join(" ")}…`) > maxWidth) {
+            words.pop();
+        }
+
+        let last = words.join(" ");
+        while (last && measure(`${last}…`) > maxWidth) {
+            last = last.slice(0, -1);
+        }
+
+        kept[maxLines - 1] = `${last.trimEnd()}…`;
+        return { lines: kept, truncated: true };
+    }
+
+    /** Text width in px at fontSize, using the SVG's font. Measured on a canvas and cached. */
+    measureLabelText(text, fontSize) {
+        if (!this.labelMeasure) {
+            const ctx = document.createElement("canvas").getContext("2d");
+            this.labelMeasure = { ctx, family: null, cache: new Map() };
+        }
+
+        const m = this.labelMeasure;
+
+        // Resolve the font lazily: the SVG must be in the document for getComputedStyle.
+        if (!m.family) {
+            m.family = (this.svg && this.svg.isConnected && getComputedStyle(this.svg).fontFamily) || "sans-serif";
+        }
+
+        const key = `${fontSize}|${text}`;
+        let width = m.cache.get(key);
+
+        if (width === undefined) {
+            m.ctx.font = `${fontSize}px ${m.family}`;
+            width = m.ctx.measureText(text).width;
+
+            if (m.cache.size > 5000) m.cache.clear();
+            m.cache.set(key, width);
+        }
+
+        return width;
     }
 
     /**
@@ -3442,9 +3616,11 @@ export class WeavleJS {
 
     /** Returns the text anchor position for a node label (same as its centre). */
     getNodeLabelPosition(node) {
+        const box = this.getNodeLabelBox(node);
+
         return {
-            x: node.x + node.width  / 2,
-            y: node.y + node.height / 2
+            x: box.centerX,
+            y: box.centerY
         };
     }
 
@@ -4033,15 +4209,22 @@ export class WeavleJS {
 
         let value    = "";
         let modelPos = { x: 0, y: 0 };
-        let width    = 120;
+        let width    = 120;     // model units
+        let height   = 28;
+        let fontSize = 14;
 
         if (type === "node") {
             const node = this.model.nodes.find(n => n.id === id);
             if (!node) return;
 
+            // Edit in the same box the label is drawn in, with room for at least two lines.
+            const box = this.getNodeLabelBox(node);
+
             value    = node.label || "";
-            modelPos = this.getNodeLabelPosition(node);
-            width    = node.width - 20;
+            modelPos = { x: box.centerX, y: box.centerY };
+            fontSize = box.fontSize;
+            width    = Math.max(box.width + 12, 80);
+            height   = Math.max(box.height, box.lineHeight * 2) + 8;
         }
 
         if (type === "edge") {
@@ -4054,16 +4237,23 @@ export class WeavleJS {
         }
 
         const view = this.modelToView(modelPos.x, modelPos.y);
+        const zoom = this.state.zoom || 1;
 
-        const input           = document.createElement("input");
-        input.type            = "text";
+        // Node labels may span several lines: Enter commits, Shift+Enter inserts a line break.
+        const input           = document.createElement(type === "node" ? "textarea" : "input");
+        if (type !== "node") input.type = "text";
         input.value           = value;
         input.style.position  = "absolute";
-        input.style.left      = `${view.x - width / 2}px`;
-        input.style.top       = `${view.y - 14}px`;
-        input.style.width     = `${width}px`;
-        input.style.height    = "28px";
-        input.style.fontSize  = "14px";
+        input.style.left      = `${view.x - (width  * zoom) / 2}px`;
+        input.style.top       = `${view.y - (height * zoom) / 2}px`;
+        input.style.width     = `${width  * zoom}px`;
+        input.style.height    = `${height * zoom}px`;
+        input.style.fontSize  = `${fontSize * zoom}px`;
+        input.style.fontFamily = "inherit";
+        input.style.lineHeight = "1.25";
+        input.style.resize    = "none";
+        input.style.padding   = "2px 4px";
+        input.style.boxSizing = "border-box";
         input.style.textAlign = "center";
         input.style.border    = "1px solid #eb6c4c";
         input.style.borderRadius = "4px";
@@ -4080,7 +4270,10 @@ export class WeavleJS {
         input.select();
 
         input.addEventListener("keydown", (e) => {
-            if (e.key === "Enter")  this.commitInlineLabelEdit();
+            if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                this.commitInlineLabelEdit();
+            }
             if (e.key === "Escape") this.cancelInlineLabelEdit();
         });
 

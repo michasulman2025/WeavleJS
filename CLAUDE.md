@@ -42,6 +42,11 @@ This folder (`C:\dev\Weavle\WeavleJS`, engine v0.7.5) is the current codebase. T
   Styled via CSS custom properties `--weavle-grid-color`, `--weavle-grid-dot-radius`,
   `--weavle-grid-line-width`, `--weavle-canvas-bg`. Debug overlays (`debugRouting` + `debugRoutePoints`,
   `debugAStarGrid`, `debugCanvasGrid`) are off by default.
+- Labels: word-wrapped into the node label box (`getNodeLabelBox`, canvas-measured and cached); explicit
+  newlines kept, overflow ends in "…" with the full label as a tooltip. Layout per type via the definition:
+  `getLabelLayout(node)` or `nodeTypes[type].label` (`placement: "inside" | "below"`, paddings, width/height
+  factors, fontSize, maxLines). BPMN events / gateways / data elements put labels below the shape.
+  Inline editing uses a textarea for nodes (Enter commits, Shift+Enter = new line).
 - Edge routing: orthogonal — straight or simple routes first, then A* on a grid (`findPathWithAStar`),
   tuned per definition via `getRoutingConfig`.
 - The diagram definition is the extension point for new diagram types: shapes, nodeTypes, getPorts,

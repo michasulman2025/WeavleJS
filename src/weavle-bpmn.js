@@ -851,6 +851,21 @@ export function createBpmnDefinition() {
             return { minWidth: 80, minHeight: 50 };   // tasks, sub-processes, call activities
         },
 
+        // ── Label layout ─────────────────────────────────────
+        // BPMN convention: events, gateways and data elements carry their label below the shape.
+        getLabelLayout(node) {
+            const type = node.type || "";
+
+            if (type.endsWith("Event") || type.endsWith("Gateway") || type === "gateway" ||
+                type === "dataObject" || type === "dataStore") {
+                return { placement: "below", fontSize: 12, belowWidth: 110 };
+            }
+
+            if (type === "annotation") return { paddingX: 10, paddingY: 6, fontSize: 13 };
+
+            return { paddingX: 10, paddingY: 10 };   // tasks: keep clear of the type icon in the corner
+        },
+
         // ── Routing config ───────────────────────────────────
         getRoutingConfig(edge, engine) {
             return {
