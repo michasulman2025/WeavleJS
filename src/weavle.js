@@ -162,6 +162,7 @@ export class WeavleJS {
         // Ensure the container establishes a positioning context for the overlay layer.
         if (getComputedStyle(this.container).position === "static") {
             this.container.style.position = "relative";
+            this.didSetContainerPosition = true;   // undone by destroy()
         }
 
         this.nodeToolEl = null;
@@ -379,17 +380,54 @@ export class WeavleJS {
     this.emit("weavle:modelchanged", { model: this.getData() });
 }
 
-    /** Appends a node object to the model and re-renders. */
+    /** Appends a node object to the model, records an undo step and re-renders. */
     addNode(node) {
         this.model.nodes.push(node);
+        this.pushHistory();
+        this.emitModelChanged();
         this.render();
     }
 
-    /** Removes all nodes and edges and re-renders. */
+    /** Removes all nodes and edges, records an undo step and re-renders. */
     clear() {
         this.model.nodes = [];
         this.model.edges = [];
+        this.clearTransientStateAfterHistoryRestore();
+        this.pushHistory();
+        this.emitModelChanged();
         this.render();
+    }
+
+    /**
+     * Tears the editor down: removes every DOM listener (including the ones on window), the SVG,
+     * the UI layer and any docked node tools, and restores styles it changed on the page.
+     * Call this before discarding an instance (e.g. when an OutSystems screen or block is destroyed).
+     * The instance cannot be used afterwards.
+     */
+    destroy() {
+        if (this.isDestroyed) return;
+        this.isDestroyed = true;
+
+        if (this.state.editingLabel) {
+            this.cancelInlineLabelEdit();
+        }
+
+        this.svg?.removeEventListener("mousedown", this.onMouseDownBound);
+        this.svg?.removeEventListener("wheel",     this.onWheelBound);
+
+        window.removeEventListener("mousemove", this.onMouseMoveBound);
+        window.removeEventListener("mouseup",   this.onMouseUpBound);
+        window.removeEventListener("keydown",   this.onKeyDownBound);
+
+        this.clearNodeToolSurface();
+        this.setTextSelectionEnabled(true);
+
+        this.svg?.remove();
+        this.uiLayer?.remove();
+
+        if (this.didSetContainerPosition) {
+            this.container.style.position = "";
+        }
     }
 
 
@@ -3937,6 +3975,16 @@ export class WeavleJS {
     // ============================================================
 
     //push to snapshot history
+    /** True if any node in { id: {x, y} } is no longer at its recorded start position. */
+    didNodesMove(startPositions) {
+        if (!startPositions) return false;
+
+        return Object.entries(startPositions).some(([id, start]) => {
+            const node = this.getNode(id);
+            return node && (node.x !== start.x || node.y !== start.y);
+        });
+    }
+
     pushHistory() {
         if (this.isRestoringHistory) return;
 
@@ -4406,6 +4454,9 @@ export class WeavleJS {
 
             this.state.offsetX = pos.x - node.x;
             this.state.offsetY = pos.y - node.y;
+
+            // Remembered so mouseup can tell a real move from a plain click.
+            this.state.dragStartPositions = { [node.id]: { x: node.x, y: node.y } };
         }
 
         this.clearTextSelection();
@@ -4821,6 +4872,7 @@ export class WeavleJS {
         // Finalise group drag.
         if (this.state.draggingNodeIds && this.state.draggingNodeIds.length > 0) {
             const movedNodeIds = [...this.state.draggingNodeIds];
+            const moved        = this.didNodesMove(this.state.dragStartPositions);
 
             this.state.draggingNodeIds = null;
             this.state.dragStartPositions = null;
@@ -4828,6 +4880,12 @@ export class WeavleJS {
             this.state.dragStartMouseY = 0;
 
             this.resetSnapGuides();
+
+            // A click on a multi-selection without moving: no undo step, no change events.
+            if (!moved) {
+                this.render();
+                return;
+            }
 
             movedNodeIds.forEach(nodeId => {
                 this.model.edges
@@ -4847,10 +4905,19 @@ export class WeavleJS {
             return;
         }
 
-        const node = this.model.nodes.find(n => n.id === this.state.draggingNodeId);
+        const node  = this.model.nodes.find(n => n.id === this.state.draggingNodeId);
+        const moved = this.didNodesMove(this.state.dragStartPositions);
+
         this.state.draggingNodeId = null;
+        this.state.dragStartPositions = null;
 
         this.resetSnapGuides();
+
+        // A plain click (or a drag that snapped back to the start): no undo step, no change events.
+        if (!moved) {
+            this.render();
+            return;
+        }
 
         if (node) {
             this.model.edges

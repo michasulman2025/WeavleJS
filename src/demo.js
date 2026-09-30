@@ -190,6 +190,8 @@ function getSampleForDiagram(key) {
  * Rebuild on option changes to keep demo logic simple.
  */
 function createEditor() {
+  // Tear down the previous instance so its window listeners don't keep reacting.
+  editor?.destroy();
   host.innerHTML = "";
 
   currentDiagramDefinition = getDiagramDefinition(currentDiagramKey);

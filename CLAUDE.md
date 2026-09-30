@@ -25,7 +25,9 @@ This folder (`C:\dev\Weavle\WeavleJS`, engine v0.7.5) is the current codebase. T
 - `new WeavleJS(container, options, diagramDefinition)` — container is a selector or element; the definition
   defaults to `createFlowchartDefinition()`.
 - Data: `this.model = { nodes, edges }` (plain objects). Transient UI state lives in `this.state`.
-- Public API: `getVersion()`, `load(data)`, `getData()`, `addNode()`, `clear()`, `undo()`, `redo()`.
+- Public API: `getVersion()`, `load(data)`, `getData()`, `addNode()`, `clear()`, `undo()`, `redo()`, `destroy()`.
+  Every model change a user can make pushes one undo step (`pushHistory()`) and emits `weavle:modelchanged`;
+  a click without movement does neither.
 - Events: `CustomEvent`s dispatched on the container via `emit()`: `weavle:modelchanged`,
   `weavle:nodemoved`, `weavle:selectionchanged`.
 - Rendering: `render()` redraws the SVG layers (grid, edges, nodes, overlay) inside a `<g data-viewport>`
@@ -49,6 +51,6 @@ This folder (`C:\dev\Weavle\WeavleJS`, engine v0.7.5) is the current codebase. T
 ## Known issues
 
 - `weavle.js` imports both definitions (flowchart and BPMN) even though only the flowchart is the default.
-- No `destroy()` method: listeners on `window` (mousemove/mouseup/keydown) are never removed.
+- The engine logs heavily to the console on every render (`this.debug`, `console.log`).
 - `index.html` contains the Export/Load sample/Clear log button group twice (duplicate element ids).
 - No library build (IIFE/ESM for OutSystems), tests or linting yet.
