@@ -1764,41 +1764,51 @@ export class WeavleJS {
             return null;
         }
 
-        let gridPath = this.simplify(result.path);
+        const gridPath = this.simplify(result.path);
 
-        // Only soften tiny kinks near source/target
-        gridPath = this.normalizeFirstAStarPoint(
-            gridPath,
-            sourceExit,
-            sourceHandle,
-            cfg
-        );
+        // The normalizers soften tiny kinks near source/target by pulling the first / last bend
+        // onto the port stub. That bend can then land inside an obstacle margin (a decision's
+        // margin is wider than stubLength), so try variants from prettiest to plainest and keep
+        // the first one that is fully orthogonal and obstacle-free.
+        const normFirst = p => this.normalizeFirstAStarPoint(p, sourceExit, sourceHandle, cfg);
+        const normLast  = p => this.normalizeLastAStarPoint(p, targetExit, targetHandle, cfg);
 
-        gridPath = this.normalizeLastAStarPoint(
-            gridPath,
-            targetExit,
-            targetHandle,
-            cfg
-        );
+        const variants = [
+            normLast(normFirst(gridPath)),
+            normLast(gridPath),
+            normFirst(gridPath),
+            gridPath
+        ];
 
-        const finalPoints = this.simplify([
-            sourcePoint,
-            sourceExit,
-            ...gridPath,
-            targetExit,
-            targetPoint
-        ]);
+        let finalPoints = null;
 
-        const hitsObstacle = this.routeHitsAnyObstacle(
-            finalPoints,
-            edge.sourceNodeId,
-            edge.targetNodeId,
-            sourceHandle,
-            targetHandle,
-            cfg.obstacleMargin
-        );
+        for (const path of variants) {
+            const candidate = this.simplify([
+                sourcePoint,
+                sourceExit,
+                ...this.buildStubJoin(sourceExit, path[0], sourceHandle, false),
+                ...path,
+                ...this.buildStubJoin(path[path.length - 1], targetExit, targetHandle, true),
+                targetExit,
+                targetPoint
+            ]);
 
-        if (hitsObstacle) {
+            const hitsObstacle = this.routeHitsAnyObstacle(
+                candidate,
+                edge.sourceNodeId,
+                edge.targetNodeId,
+                sourceHandle,
+                targetHandle,
+                cfg.obstacleMargin
+            );
+
+            if (this.isOrthogonalPolyline(candidate) && !hitsObstacle) {
+                finalPoints = candidate;
+                break;
+            }
+        }
+
+        if (!finalPoints) {
             return null;
         }
 
@@ -1819,6 +1829,34 @@ export class WeavleJS {
         }
 
         return finalPoints;
+    }
+
+    /**
+     * Corner point(s) that join a port stub end and an A* grid point with right angles only.
+     * They differ when the port is off-grid perpendicular to its handle (e.g. snap disabled).
+     * Source side: keep travelling along the handle axis first, then turn.
+     * Target side: turn first, so the final run into the stub is along the handle axis.
+     */
+    buildStubJoin(from, to, handle, isTarget) {
+        if (!from || !to || from.x === to.x || from.y === to.y) {
+            return [];
+        }
+
+        const horizontalHandle = handle === "left" || handle === "right";
+        const horizontalFirst  = isTarget ? !horizontalHandle : horizontalHandle;
+
+        return [horizontalFirst ? { x: to.x, y: from.y } : { x: from.x, y: to.y }];
+    }
+
+    /** True if every segment of the polyline is horizontal or vertical. */
+    isOrthogonalPolyline(points) {
+        for (let i = 0; i < points.length - 1; i++) {
+            if (points[i].x !== points[i + 1].x && points[i].y !== points[i + 1].y) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     normalizeFirstAStarPoint(path, sourceExit, sourceHandle, cfg) {
