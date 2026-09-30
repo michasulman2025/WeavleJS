@@ -7,6 +7,9 @@ routing and interactions exist. It is embedded in OutSystems apps; the demo play
 This folder (`C:\dev\Weavle\WeavleJS`, engine v0.7.5) is the current codebase. The files one level up
 (`../waevle.js`, `../weavleflowchart.js`, v0.6.5, global-script style) are an older version — don't edit them.
 
+The engine / add-in split and the roadmap (flowchart, BPMN, node editor, pedigree) are in `ARCHITECTURE.md`.
+Rule of thumb: if you need to name a node type, it belongs in the add-in (diagram definition), not the engine.
+
 ## Commands
 
 - `npm run dev` — Vite dev server with the playground at http://localhost:5173 (hot reload).
