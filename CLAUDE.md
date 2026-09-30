@@ -27,7 +27,8 @@ This folder (`C:\dev\Weavle\WeavleJS`, engine v0.7.5) is the current codebase. T
 - Data: `this.model = { nodes, edges }` (plain objects). Transient UI state lives in `this.state`.
 - Public API: `getVersion()`, `load(data)`, `getData()`, `addNode()`, `clear()`, `undo()`, `redo()`, `destroy()`.
   Every model change a user can make pushes one undo step (`pushHistory()`) and emits `weavle:modelchanged`;
-  a click without movement does neither.
+  a click without movement does neither. `addNode()` without x/y auto-places the node on a free spot in the
+  visible area (`findFreePosition`); `createConnectedNode()` picks a free spot with a working route.
 - Events: `CustomEvent`s dispatched on the container via `emit()`: `weavle:modelchanged`,
   `weavle:nodemoved`, `weavle:selectionchanged`.
 - Rendering: `render()` redraws the SVG layers (grid, edges, nodes, overlay) inside a `<g data-viewport>`

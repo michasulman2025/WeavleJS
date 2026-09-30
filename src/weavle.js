@@ -380,8 +380,18 @@ export class WeavleJS {
     this.emit("weavle:modelchanged", { model: this.getData() });
 }
 
-    /** Appends a node object to the model, records an undo step and re-renders. */
+    /**
+     * Appends a node object to the model, records an undo step and re-renders.
+     * Without x / y the node is placed on the nearest free spot around the centre of the visible canvas.
+     */
     addNode(node) {
+        if (node.x == null || node.y == null) {
+            const visible  = this.getVisibleModelRect();
+            const center   = { x: visible.x + visible.width / 2, y: visible.y + visible.height / 2 };
+            const position = this.findFreePosition(node.width, node.height, center, 40, visible);
+            node = { ...node, ...position };
+        }
+
         this.model.nodes.push(node);
         this.pushHistory();
         this.emitModelChanged();
@@ -3459,34 +3469,222 @@ export class WeavleJS {
      * @param {object} sourceNode  Existing node to connect from.
      * @param {string} nodeType    Type of the new node.
      */
+    /**
+     * Adds a node of nodeType next to sourceNode plus an edge between them, and returns the new node
+     * (the caller records history / emits).
+     *
+     * Placement: candidate spots right, below, above and left of the source (in that order of
+     * preference), further out and shifted sideways, sorted by how far they are from the ideal spot
+     * (straight next to the source). The first spot that is free AND gets a real route (not the
+     * fallback line through other nodes) wins, so repeated adds fan out instead of stacking up.
+     */
     createConnectedNode(sourceNode, nodeType) {
         const width  = 140;
         const height = 60;
+        const gap    = 60;     // free space between source and new node, enough for clean routing
+        const step   = this.options.gridSize || 20;
 
-        // Centre-align with the source node so the connecting edge runs straight.
+        const sourceCenter = this.getNodeCenter(sourceNode);
+
+        const directions = [
+            { dx:  1, dy:  0, sourceHandle: "right",  targetHandle: "left"   },
+            { dx:  0, dy:  1, sourceHandle: "bottom", targetHandle: "top"    },
+            { dx:  0, dy: -1, sourceHandle: "top",    targetHandle: "bottom" },
+            { dx: -1, dy:  0, sourceHandle: "left",   targetHandle: "right"  }
+        ];
+
+        const candidates = [];
+
+        directions.forEach((dir, dirIndex) => {
+            const horizontal = dir.dx !== 0;
+            const baseDistance = horizontal
+                ? sourceNode.width  / 2 + gap + width  / 2
+                : sourceNode.height / 2 + gap + height / 2;
+
+            for (let out = 0; out <= 12; out++) {
+                for (let side = -12; side <= 12; side++) {
+                    const distance = baseDistance + out * step;
+                    const offset   = side * step;
+
+                    const x = sourceCenter.x + (horizontal ? dir.dx * distance : offset) - width  / 2;
+                    const y = sourceCenter.y + (horizontal ? offset : dir.dy * distance) - height / 2;
+
+                    // Spots left of / above the canvas origin are unreachable by scrolling: last resort only.
+                    const offCanvas = x < 0 || y < 0 ? 10000 : 0;
+
+                    candidates.push({
+                        dir,
+                        x,
+                        y,
+                        // Prefer: straight (no sideways shift), close, then the direction order above.
+                        score: Math.abs(side) * step + out * step + dirIndex * gap * 1.5 + offCanvas
+                    });
+                }
+            }
+        });
+
+        candidates.sort((a, b) => a.score - b.score);
+
         const newNode = {
             id:     crypto.randomUUID(),
             type:   nodeType,
-            x:      sourceNode.x + 200,
-            y:      sourceNode.y + sourceNode.height / 2 - height / 2,
+            x:      0,
+            y:      0,
             width,
             height,
             label:  this.getDefaultLabelForType(nodeType)
         };
 
-        this.model.nodes.push(newNode);
-
-        this.model.edges.push({
+        const newEdge = {
             id:           crypto.randomUUID(),
             sourceNodeId: sourceNode.id,
             targetNodeId: newNode.id,
             sourceHandle: "right",
             targetHandle: "left",
             label:        ""
-        });
+        };
 
-        this.emitModelChanged();
-        this.render();
+        let placed = false;
+        let routeChecks = 0;
+
+        this.model.nodes.push(newNode);
+
+        for (const c of candidates) {
+            const pos = this.options.snapToGrid
+                ? this.snapNodePosition(newNode, c.x, c.y)
+                : { x: c.x, y: c.y };
+
+            // The new node isn't in the way of itself: check against all other nodes.
+            this.model.nodes.pop();
+            const free = this.isAreaFree(pos.x, pos.y, width, height, gap / 2);
+            this.model.nodes.push(newNode);
+
+            if (!free) continue;
+
+            // Routing is the expensive check, so only run it for the best few free spots.
+            if (routeChecks++ >= 25) break;
+
+            Object.assign(newNode, pos);
+            newEdge.sourceHandle = c.dir.sourceHandle;
+            newEdge.targetHandle = c.dir.targetHandle;
+            newEdge.routingMeta  = null;
+
+            this.updateEdgeRoute(newEdge);
+
+            if (!this.isFallbackRoute(newEdge)) {
+                placed = true;
+                break;
+            }
+        }
+
+        // Crowded everywhere: take the best free-looking spot straight to the right.
+        if (!placed) {
+            const fallback = candidates[0];
+            Object.assign(newNode, this.options.snapToGrid
+                ? this.snapNodePosition(newNode, fallback.x, fallback.y)
+                : { x: fallback.x, y: fallback.y });
+            newEdge.sourceHandle = fallback.dir.sourceHandle;
+            newEdge.targetHandle = fallback.dir.targetHandle;
+            this.updateEdgeRoute(newEdge);
+        }
+
+        this.model.edges.push(newEdge);
+
+        return newNode;
+    }
+
+    /** True if the rect (x, y, width, height), grown by gap on every side, overlaps no node. */
+    isAreaFree(x, y, width, height, gap = 0) {
+        return !this.model.nodes.some(n =>
+            x - gap < n.x + n.width  &&
+            x + width  + gap > n.x   &&
+            y - gap < n.y + n.height &&
+            y + height + gap > n.y
+        );
+    }
+
+    /**
+     * Top-left position for a width × height node as close as possible to the preferred centre
+     * without overlapping existing nodes (keeping gap around them). Searches outward in square
+     * rings on the grid. Snapped to the grid when snapToGrid is on.
+     * With bounds ({ x, y, width, height }), spots fully inside them are preferred; if none is free
+     * within the search range, the nearest free spot outside is used.
+     */
+    findFreePosition(width, height, preferredCenter, gap = 40, bounds = null) {
+        const step = this.options.gridSize || 20;
+
+        const toTopLeft = (cx, cy) => {
+            const p = { x: cx - width / 2, y: cy - height / 2 };
+            return this.options.snapToGrid ? this.snapNodePosition({ width, height }, p.x, p.y) : p;
+        };
+
+        const insideBounds = p => !bounds || (
+            p.x >= bounds.x && p.y >= bounds.y &&
+            p.x + width  <= bounds.x + bounds.width &&
+            p.y + height <= bounds.y + bounds.height
+        );
+
+        let nearestOutside = null;
+
+        for (let ring = 0; ring <= 40; ring++) {
+            let best = null;
+            let bestDistance = Infinity;
+
+            // All grid offsets on the border of this ring; keep the one closest to the preferred centre.
+            for (let i = -ring; i <= ring; i++) {
+                for (let j = -ring; j <= ring; j++) {
+                    if (Math.max(Math.abs(i), Math.abs(j)) !== ring) continue;
+
+                    const p = toTopLeft(preferredCenter.x + i * step, preferredCenter.y + j * step);
+                    if (!this.isAreaFree(p.x, p.y, width, height, gap)) continue;
+
+                    if (!insideBounds(p)) {
+                        nearestOutside ??= p;
+                        continue;
+                    }
+
+                    const distance = i * i + j * j;
+                    if (distance < bestDistance) {
+                        best = p;
+                        bestDistance = distance;
+                    }
+                }
+            }
+
+            if (best) return best;
+        }
+
+        return nearestOutside || toTopLeft(preferredCenter.x, preferredCenter.y);
+    }
+
+    /**
+     * The part of the canvas that is currently visible, in model coordinates: { x, y, width, height }.
+     * The SVG can be larger than its (scrolling) container, and the container larger than the
+     * browser window, so this is the intersection of all three.
+     */
+    getVisibleModelRect() {
+        const svgRect  = this.svg.getBoundingClientRect();
+        const hostRect = this.container.getBoundingClientRect();
+
+        let left   = Math.max(svgRect.left,   hostRect.left,   0);
+        let right  = Math.min(svgRect.right,  hostRect.right,  window.innerWidth);
+        let top    = Math.max(svgRect.top,    hostRect.top,    0);
+        let bottom = Math.min(svgRect.bottom, hostRect.bottom, window.innerHeight);
+
+        // Not laid out / not visible: fall back to the whole SVG.
+        if (right <= left || bottom <= top) {
+            ({ left, right, top, bottom } = svgRect);
+        }
+
+        const topLeft     = this.getMousePosition({ clientX: left,  clientY: top });
+        const bottomRight = this.getMousePosition({ clientX: right, clientY: bottom });
+
+        return {
+            x:      topLeft.x,
+            y:      topLeft.y,
+            width:  bottomRight.x - topLeft.x,
+            height: bottomRight.y - topLeft.y
+        };
     }
 
 
@@ -3710,9 +3908,8 @@ export class WeavleJS {
         if (!action || !node) return;
 
         if (action.type === "addConnectedNode") {
-            this.createConnectedNode(node, action.nodeType);
+            const newNode = this.createConnectedNode(node, action.nodeType);
 
-            const newNode = this.model.nodes[this.model.nodes.length - 1];
             if (newNode) {
                 this.selectSingleNode(newNode.id);
                 this.renderNodeToolSurface(newNode);

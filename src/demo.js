@@ -277,25 +277,23 @@ function addNode(type) {
   if (!editor) return;
 
   const id = "node_" + nodeCounter++;
-  const x = 120 + (nodeCounter * 30);
-  const y = 120 + (nodeCounter * 20);
   const size = getDefaultNodeSize(type);
 
   if (typeof editor.addNode === "function") {
     const label =
       currentDiagramDefinition?.nodeTypes?.[type]?.defaultLabel || type;
 
+    // No x / y: the editor places the node on a free spot in the visible area.
     editor.addNode({
       id,
       type,
-      x,
-      y,
       width: size.width,
       height: size.height,
       label
     });
 
-    logEvent("demo:addNode", { id, type, x, y, diagram: currentDiagramKey });
+    const placed = editor.getData().nodes.find(n => n.id === id);
+    logEvent("demo:addNode", { id, type, x: placed?.x, y: placed?.y, diagram: currentDiagramKey });
     refreshJsonOutput();
     return;
   }
