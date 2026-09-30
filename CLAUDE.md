@@ -7,14 +7,18 @@ routing and interactions exist. It is embedded in OutSystems apps; the demo play
 This folder (`C:\dev\Weavle\WeavleJS`, engine v0.7.5) is the current codebase. The files one level up
 (`../waevle.js`, `../weavleflowchart.js`, v0.6.5, global-script style) are an older version — don't edit them.
 
+## Commands
+
+- `npm run dev` — Vite dev server with the playground at http://localhost:5173 (hot reload).
+- `npm run build` — production build of the playground into `dist/`.
+
 ## Files
 
-- `weavle.js` — the engine, `export class WeavleJS` (~4900 lines).
-- `weavle-flowchart.js` — `export function createFlowchartDefinition()`.
-- `weavle-bpmn.js` — `export function createBpmnDefinition()`.
-- `demo.js`, `index.html`, `style.css` — the playground (diagram type switch, shape buttons, event log,
-  selection info, model JSON). `index.html` expects the files under `src/` (`src/style.css`, `/src/demo.js`),
-  i.e. a Vite-style layout; the files currently sit flat in this folder.
+- `src/weavle.js` — the engine, `export class WeavleJS` (~4900 lines).
+- `src/weavle-flowchart.js` — `export function createFlowchartDefinition()`.
+- `src/weavle-bpmn.js` — `export function createBpmnDefinition()`.
+- `index.html`, `src/demo.js`, `src/style.css` — the playground (diagram type switch, shape buttons,
+  event log, selection info, model JSON).
 
 ## Architecture (class WeavleJS)
 
@@ -43,4 +47,4 @@ This folder (`C:\dev\Weavle\WeavleJS`, engine v0.7.5) is the current codebase. T
 - `weavle.js` imports both definitions (flowchart and BPMN) even though only the flowchart is the default.
 - No `destroy()` method: listeners on `window` (mousemove/mouseup/keydown) are never removed.
 - `index.html` contains the Export/Load sample/Clear log button group twice (duplicate element ids).
-- No package.json, dev server, tests, linting or git repository yet.
+- No library build (IIFE/ESM for OutSystems), tests or linting yet.
