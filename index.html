@@ -48,6 +48,30 @@
       </div>
 
       <div class="panel-group">
+        <label for="selGridType">Grid</label>
+        <select id="selGridType">
+          <option value="dots" selected>Dots</option>
+          <option value="lines">Lines</option>
+          <option value="none">None</option>
+        </select>
+
+        <label for="clrGrid">Grid color</label>
+        <input type="color" id="clrGrid" value="#c3cad3" />
+      </div>
+
+      <div class="panel-group">
+        <label class="checkbox-row">
+          <input type="checkbox" id="chkDebugRoutePoints" />
+          <span>Debug: route points</span>
+        </label>
+
+        <label class="checkbox-row">
+          <input type="checkbox" id="chkDebugAStarGrid" />
+          <span>Debug: routing grid</span>
+        </label>
+      </div>
+
+      <div class="panel-group">
         <label for="rngCornerRadius">Edge corner radius</label>
         <input type="range" id="rngCornerRadius" min="0" max="30" value="10" />
         <div id="lblCornerRadius">10</div>

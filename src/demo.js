@@ -23,6 +23,10 @@ const chkReadonly = document.getElementById("chkReadonly");
 const chkSnap = document.getElementById("chkSnap");
 const rngCornerRadius = document.getElementById("rngCornerRadius");
 const lblCornerRadius = document.getElementById("lblCornerRadius");
+const selGridType = document.getElementById("selGridType");
+const clrGrid = document.getElementById("clrGrid");
+const chkDebugRoutePoints = document.getElementById("chkDebugRoutePoints");
+const chkDebugAStarGrid = document.getElementById("chkDebugAStarGrid");
 const nodeSurfaceEl = document.getElementById("nodeToolDock");
 
 
@@ -198,6 +202,10 @@ function createEditor() {
       snapToGrid: chkSnap.checked,
       readOnly: chkReadonly.checked,
       edgeCornerRadius: Number(rngCornerRadius.value),
+      gridType: selGridType.value,
+      debugRouting: chkDebugRoutePoints.checked || chkDebugAStarGrid.checked,
+      debugRoutePoints: chkDebugRoutePoints.checked,
+      debugAStarGrid: chkDebugAStarGrid.checked,
       toolSurfaceDockHost: nodeSurfaceEl
 
     },
@@ -506,6 +514,14 @@ document.getElementById("btnClearLog").addEventListener("click", clearLog);
 
 chkReadonly.addEventListener("change", rebuildEditorPreserveModel);
 chkSnap.addEventListener("change", rebuildEditorPreserveModel);
+selGridType.addEventListener("change", rebuildEditorPreserveModel);
+chkDebugRoutePoints.addEventListener("change", rebuildEditorPreserveModel);
+chkDebugAStarGrid.addEventListener("change", rebuildEditorPreserveModel);
+
+// The grid colour is pure CSS: no rebuild needed, just set the custom property on the host.
+clrGrid.addEventListener("input", () => {
+  host.style.setProperty("--weavle-grid-color", clrGrid.value);
+});
 
 rngCornerRadius.addEventListener("input", () => {
   lblCornerRadius.textContent = rngCornerRadius.value;

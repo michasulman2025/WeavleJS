@@ -44,10 +44,11 @@ export class WeavleJS {
             edgeCornerRadius: 8,
             edgeStubLength: 24,
             autoEdgeConnect: false,
-            debugRouting: true,
-            debugCanvasGrid: true,
-            debugAStarGrid: true,
-            debugRoutePoints: true,
+            gridType: "dots",          // "dots" | "lines" | "none" — style via CSS vars, see renderGrid
+            debugRouting: false,       // master switch for the debug overlays below
+            debugCanvasGrid: false,
+            debugAStarGrid: false,
+            debugRoutePoints: false,
             toolSurfaceDockHost: null,
         }, options);
 
@@ -186,7 +187,7 @@ export class WeavleJS {
      * Creates the SVG element, arrow-head marker definitions, and the four render layers.
      *
      * Layer stack inside the <g data-viewport> group:
-     *   grid    – background grid lines (currently unused / stub)
+     *   grid    – background grid (dots or lines, per options.gridType)
      *   edges   – rendered edge paths and labels
      *   nodes   – rendered node shapes
      *   overlay – transient previews (new connection, new node, snap guides)
@@ -198,7 +199,7 @@ export class WeavleJS {
         this.svg = document.createElementNS(NS, "svg");
         this.svg.setAttribute("width", this.options.width);
         this.svg.setAttribute("height", this.options.height);
-        this.svg.style.background = "#fafafa";
+        this.svg.style.background = "var(--weavle-canvas-bg, #fafafa)";
         this.svg.style.userSelect = "none";
         this.svg.style.touchAction = "none";
 
@@ -257,12 +258,20 @@ export class WeavleJS {
         hoverGlowFilter.appendChild(blur);
         defs.appendChild(hoverGlowFilter);
 
+        // Background grid pattern — contents are (re)built by renderGrid for the current gridType.
+        // Unique id per instance so several editors can live on one page.
+        this.gridPattern = document.createElementNS(NS, "pattern");
+        this.gridPattern.setAttribute("id", `weavle-grid-${Math.random().toString(36).slice(2, 10)}`);
+        this.gridPattern.setAttribute("patternUnits", "userSpaceOnUse");
+        this.gridPatternKey = null;
+        defs.appendChild(this.gridPattern);
+
         // --- Viewport group (receives pan / zoom transform) ---
         //
         //  <svg>
         //      <defs />
         //      <g data-viewport>
-        //          <g data-layer="grid" />
+        //          <g data-layer="grid" />     (dots / lines pattern, see renderGrid)
         //          <g data-layer="edges" />
         //          <g data-layer="nodes" />
         //          <g data-layer="overlay" />
@@ -398,9 +407,75 @@ export class WeavleJS {
         this.renderDebug();
     }
 
-    /** Renders the background grid layer. Currently a stub — clears the layer only. */
+    /**
+     * Renders the background grid as a single pattern-filled rect covering the visible area.
+     * It lives inside the viewport group, so it pans and zooms with the diagram.
+     *
+     * options.gridType: "dots" (default) | "lines" | "none". Grid points sit on multiples of gridSize.
+     * Styling via CSS custom properties on the container (or any ancestor):
+     *   --weavle-grid-color        dot / line colour          (default #c3cad3)
+     *   --weavle-grid-dot-radius   dot radius                 (default 1px)
+     *   --weavle-grid-line-width   line thickness             (default 0.5px)
+     *   --weavle-canvas-bg         canvas background          (default #fafafa)
+     * or target the classes .weavle-grid-dot / .weavle-grid-line directly.
+     */
     renderGrid() {
         this.layers.grid.innerHTML = "";
+
+        const type = this.options.gridType;
+        if (type !== "dots" && type !== "lines") return;
+
+        const NS   = "http://www.w3.org/2000/svg";
+        const size = this.options.gridSize || 20;
+        const key  = `${type}:${size}`;
+
+        // Rebuild the pattern tile only when type or size changed.
+        if (this.gridPatternKey !== key) {
+            const p = this.gridPattern;
+            p.innerHTML = "";
+
+            // Offset the tile by half a cell so dots / line crossings land exactly on multiples of size.
+            p.setAttribute("x", -size / 2);
+            p.setAttribute("y", -size / 2);
+            p.setAttribute("width", size);
+            p.setAttribute("height", size);
+
+            if (type === "dots") {
+                const dot = document.createElementNS(NS, "circle");
+                dot.setAttribute("class", "weavle-grid-dot");
+                dot.setAttribute("cx", size / 2);
+                dot.setAttribute("cy", size / 2);
+                dot.setAttribute("r", 1);
+                dot.style.r    = "var(--weavle-grid-dot-radius, 1px)";
+                dot.style.fill = "var(--weavle-grid-color, #c3cad3)";
+                p.appendChild(dot);
+            } else {
+                const lines = document.createElementNS(NS, "path");
+                lines.setAttribute("class", "weavle-grid-line");
+                lines.setAttribute("d", `M ${size / 2} 0 V ${size} M 0 ${size / 2} H ${size}`);
+                lines.setAttribute("fill", "none");
+                lines.style.stroke      = "var(--weavle-grid-color, #c3cad3)";
+                lines.style.strokeWidth = "var(--weavle-grid-line-width, 0.5px)";
+                p.appendChild(lines);
+            }
+
+            this.gridPatternKey = key;
+        }
+
+        // Visible area in model coordinates, plus one cell of slack on every side.
+        const zoom   = this.state.zoom || 1;
+        const width  = this.svg.clientWidth  || this.options.width;
+        const height = this.svg.clientHeight || this.options.height;
+
+        const rect = document.createElementNS(NS, "rect");
+        rect.setAttribute("x", -this.state.panX / zoom - size);
+        rect.setAttribute("y", -this.state.panY / zoom - size);
+        rect.setAttribute("width",  width  / zoom + size * 2);
+        rect.setAttribute("height", height / zoom + size * 2);
+        rect.setAttribute("fill", `url(#${this.gridPattern.id})`);
+        rect.setAttribute("pointer-events", "none");
+
+        this.layers.grid.appendChild(rect);
     }
 
     renderDebug() {

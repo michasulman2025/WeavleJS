@@ -30,6 +30,10 @@ This folder (`C:\dev\Weavle\WeavleJS`, engine v0.7.5) is the current codebase. T
   `weavle:nodemoved`, `weavle:selectionchanged`.
 - Rendering: `render()` redraws the SVG layers (grid, edges, nodes, overlay) inside a `<g data-viewport>`
   group; floating HTML (action rail, inline label editing) lives in `this.uiLayer` over the SVG.
+- Grid: `options.gridType` ("dots" default, "lines", "none") rendered as an SVG pattern in the grid layer.
+  Styled via CSS custom properties `--weavle-grid-color`, `--weavle-grid-dot-radius`,
+  `--weavle-grid-line-width`, `--weavle-canvas-bg`. Debug overlays (`debugRouting` + `debugRoutePoints`,
+  `debugAStarGrid`, `debugCanvasGrid`) are off by default.
 - Edge routing: orthogonal — straight or simple routes first, then A* on a grid (`findPathWithAStar`),
   tuned per definition via `getRoutingConfig`.
 - The diagram definition is the extension point for new diagram types: shapes, nodeTypes, getPorts,
