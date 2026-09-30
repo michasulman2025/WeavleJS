@@ -330,6 +330,11 @@ export class WeavleJS {
         this.model.edges = data.edges || [];
 
         this.model.edges.forEach(edge => {
+            // Older versions froze edges as manual when auto-routing failed; give them a fresh attempt.
+            if (edge.isAutoRoute === false && this.isFallbackRoute(edge)) {
+                edge.isAutoRoute = true;
+            }
+
             this.updateEdgeRoute(edge);
         });
 
@@ -638,7 +643,9 @@ export class WeavleJS {
                 this.layers.edges.appendChild(targetHandleCircle);
             }
 
-            if (isSelected && edge.isAutoRoute === false && Array.isArray(points) && points.length >= 2) {
+            const isEditableRoute = edge.isAutoRoute === false || this.isFallbackRoute(edge);
+
+            if (isSelected && isEditableRoute && Array.isArray(points) && points.length >= 2) {
                 const segmentHandles = this.getSegmentHandles(points);
 
                 segmentHandles.forEach(h => {
@@ -1227,6 +1234,11 @@ export class WeavleJS {
         return this.model.nodes.find(n => n.id === nodeId) || null;
     }
 
+    /** True if the edge's current route is the fallback L-route drawn after auto-routing failed. */
+    isFallbackRoute(edge) {
+        return edge?.routingMeta?.algorithm === "manual-fallback";
+    }
+
     /**
      * Returns the ordered list of waypoints for an edge.
      * Delegates to diagram.routeEdge if defined; otherwise uses the built-in router.
@@ -1298,8 +1310,9 @@ export class WeavleJS {
         }
 
         // 5. Final fallback:
-        //    if everything else fails, create editable manual route.
-        //    This is mainly a safety net so rendering never breaks completely.
+        //    if everything else fails, draw a simple L-route so rendering never breaks.
+        //    The edge stays auto-routed, so the next node move gets a fresh routing attempt.
+        //    Its segment handles are shown (see renderEdges) so the user can still fix it by hand.
         const fallback = this.buildManualFallbackRoute(
             sourcePoint,
             targetPoint,
@@ -1309,7 +1322,6 @@ export class WeavleJS {
         );
 
         if (edge) {
-            edge.isAutoRoute = false;
             edge.routePoints = fallback;
             edge.routingMeta = {
                 algorithm: "manual-fallback",
@@ -2793,10 +2805,14 @@ export class WeavleJS {
         }
     }
 
+    /**
+     * True if a grid point lies inside any node's obstacle box — including the edge's own source
+     * and target nodes, so routes can't cut through them (e.g. loop-back edges).
+     * sourceId / targetId are kept for signature compatibility; start and goal points are pushed
+     * outside the source/target boxes by getGridEntry.
+     */
     isBlocked(x, y, sourceId, targetId, obstacleMargin = 16) {
         for (const node of this.model.nodes) {
-            if (node.id === sourceId || node.id === targetId) continue;
-
             const box = this.getNodeObstacleBox(node, obstacleMargin);
 
             if (x >= box.left && x <= box.right &&
@@ -4526,6 +4542,7 @@ export class WeavleJS {
 
             if (edge) {
                 edge.isAutoRoute = false;
+                edge.routingMeta = { algorithm: "manual", found: true };
                 this.pushHistory();
                 this.emit("weavle:modelchanged", { model: this.getData() });
             }
