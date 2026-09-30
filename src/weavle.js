@@ -1086,7 +1086,8 @@ export class WeavleJS {
     /**
      * Label layout for a node, from the diagram definition: getLabelLayout(node, engine) if defined,
      * otherwise nodeTypes[type].label, merged over the defaults below.
-     *   placement     "inside" (centred in the shape) | "below" (under the shape, BPMN events / gateways)
+     *   placement     "inside" (centred in the shape) | "below" (under the shape) |
+     *                 "auto" (inside if the whole label fits there, otherwise below)
      *   paddingX/Y    inner padding of the label box (inside)
      *   widthFactor   share of the node width / height that is usable for text, e.g. ~0.6 for a diamond
      *   heightFactor
@@ -1119,8 +1120,15 @@ export class WeavleJS {
      * @returns {{ lines: string[], truncated: boolean, centerX: number, centerY: number,
      *             width: number, height: number, fontSize: number, lineHeight: number }}
      */
-    getNodeLabelBox(node) {
-        const layout     = this.getLabelLayout(node);
+    getNodeLabelBox(node, layoutOverride = null) {
+        const layout = layoutOverride || this.getLabelLayout(node);
+
+        // "auto": inside the shape if the whole label fits there, otherwise below it.
+        if (layout.placement === "auto") {
+            const inside = this.getNodeLabelBox(node, { ...layout, placement: "inside" });
+            return inside.truncated ? this.getNodeLabelBox(node, { ...layout, placement: "below" }) : inside;
+        }
+
         const fontSize   = layout.fontSize;
         const lineHeight = fontSize * layout.lineHeight;
         const centerX    = node.x + node.width / 2;

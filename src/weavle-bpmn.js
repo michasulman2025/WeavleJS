@@ -852,11 +852,23 @@ export function createBpmnDefinition() {
         },
 
         // ── Label layout ─────────────────────────────────────
-        // BPMN convention: events, gateways and data elements carry their label below the shape.
+        // Plain events / gateways: label inside when it fits, otherwise below (BPMN convention).
+        // Shapes with a marker in the middle (X, +, O, clock, envelope, ...) always label below,
+        // so the text never covers the marker; data elements too.
         getLabelLayout(node) {
             const type = node.type || "";
 
-            if (type.endsWith("Event") || type.endsWith("Gateway") || type === "gateway" ||
+            if (type === "startEvent" || type === "endEvent" || type === "intermediateEvent") {
+                return { placement: "auto", fontSize: 12, belowWidth: 110,
+                         widthFactor: 0.8, heightFactor: 0.7, paddingX: 3, paddingY: 2 };
+            }
+
+            if (type === "gateway") {
+                return { placement: "auto", fontSize: 12, belowWidth: 110,
+                         widthFactor: 0.65, heightFactor: 0.5, paddingX: 2, paddingY: 1 };
+            }
+
+            if (type.endsWith("Event") || type.endsWith("Gateway") ||
                 type === "dataObject" || type === "dataStore") {
                 return { placement: "below", fontSize: 12, belowWidth: 110 };
             }

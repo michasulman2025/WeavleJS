@@ -44,8 +44,9 @@ This folder (`C:\dev\Weavle\WeavleJS`, engine v0.7.5) is the current codebase. T
   `debugAStarGrid`, `debugCanvasGrid`) are off by default.
 - Labels: word-wrapped into the node label box (`getNodeLabelBox`, canvas-measured and cached); explicit
   newlines kept, overflow ends in "…" with the full label as a tooltip. Layout per type via the definition:
-  `getLabelLayout(node)` or `nodeTypes[type].label` (`placement: "inside" | "below"`, paddings, width/height
-  factors, fontSize, maxLines). BPMN events / gateways / data elements put labels below the shape.
+  `getLabelLayout(node)` or `nodeTypes[type].label` (`placement: "inside" | "below" | "auto"`, paddings,
+  width/height factors, fontSize, maxLines). "auto" = inside if the whole label fits, else below; used for plain
+  BPMN events and gateways. Marker shapes (X, +, timer, ...) and data elements always label below.
   Inline editing uses a textarea for nodes (Enter commits, Shift+Enter = new line).
 - Edge routing: orthogonal — straight or simple routes first, then A* on a grid (`findPathWithAStar`),
   tuned per definition via `getRoutingConfig`.
