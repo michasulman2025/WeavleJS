@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WeavleJS Playground</title>
+  <link rel="stylesheet" href="src/style.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="left-panel">
+      <h2>WeavleJS</h2>
+
+<div class="panel-group">
+  <label for="selDiagram">Diagram type</label>
+  <select id="selDiagram">
+    <option value="flowchart">Flowchart</option>
+    <option value="bpmn">BPMN</option>
+  </select>
+</div>
+
+<div class="panel-group">
+  <div id="shapeButtons"></div>
+</div>
+
+<div class="panel-group">
+  <button id="btnExport">Export JSON</button>
+  <button id="btnLoadSample">Load sample</button>
+  <button id="btnClearLog">Clear log</button>
+</div>
+
+      <div class="panel-group">
+        <button id="btnExport">Export JSON</button>
+        <button id="btnLoadSample">Load sample</button>
+        <button id="btnClearLog">Clear log</button>
+      </div>
+
+      <div class="panel-group">
+        <label class="checkbox-row">
+          <input type="checkbox" id="chkReadonly" />
+          <span>Readonly</span>
+        </label>
+
+        <label class="checkbox-row">
+          <input type="checkbox" id="chkSnap" checked />
+          <span>Snap to grid</span>
+        </label>
+      </div>
+
+      <div class="panel-group">
+        <label for="rngCornerRadius">Edge corner radius</label>
+        <input type="range" id="rngCornerRadius" min="0" max="30" value="10" />
+        <div id="lblCornerRadius">10</div>
+      </div>
+    </aside>
+
+    <main class="canvas-area">
+      <div class="canvas-toolbar">
+        <span id="statusText">Ready</span>
+      </div>
+      <div id="canvasHost"></div>
+    </main>
+
+    <aside class="right-panel">
+      <div class="debug-card">
+        <h3>Node tools</h3>
+        <div id="nodeToolDock"></div>
+      </div>
+      <div class="debug-card">
+        <h3>Selection1</h3>
+        <pre id="selectionInfo">Nothing selected</pre>
+      </div>
+
+      <div class="debug-card">
+        <h3>Event log</h3>
+        <div id="eventLog" class="event-log"></div>
+      </div>
+
+      <div class="debug-card">
+        <h3>Model JSON</h3>
+        <textarea id="jsonOutput" spellcheck="false"></textarea>
+      </div>
+    </aside>
+  </div>
+
+  <script type="module" src="/src/demo.js"></script>
+</body>
+</html>

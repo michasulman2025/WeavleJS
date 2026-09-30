@@ -1,0 +1,46 @@
+# WeavleJS
+
+WeavleJS is a browser-only SVG diagram editor library in vanilla JavaScript (ES modules, no dependencies).
+A generic engine manages nodes and edges; swappable diagram definitions decide which shapes, ports,
+routing and interactions exist. It is embedded in OutSystems apps; the demo playground is for local debugging.
+
+This folder (`C:\dev\Weavle\WeavleJS`, engine v0.7.5) is the current codebase. The files one level up
+(`../waevle.js`, `../weavleflowchart.js`, v0.6.5, global-script style) are an older version — don't edit them.
+
+## Files
+
+- `weavle.js` — the engine, `export class WeavleJS` (~4900 lines).
+- `weavle-flowchart.js` — `export function createFlowchartDefinition()`.
+- `weavle-bpmn.js` — `export function createBpmnDefinition()`.
+- `demo.js`, `index.html`, `style.css` — the playground (diagram type switch, shape buttons, event log,
+  selection info, model JSON). `index.html` expects the files under `src/` (`src/style.css`, `/src/demo.js`),
+  i.e. a Vite-style layout; the files currently sit flat in this folder.
+
+## Architecture (class WeavleJS)
+
+- `new WeavleJS(container, options, diagramDefinition)` — container is a selector or element; the definition
+  defaults to `createFlowchartDefinition()`.
+- Data: `this.model = { nodes, edges }` (plain objects). Transient UI state lives in `this.state`.
+- Public API: `getVersion()`, `load(data)`, `getData()`, `addNode()`, `clear()`, `undo()`, `redo()`.
+- Events: `CustomEvent`s dispatched on the container via `emit()`: `weavle:modelchanged`,
+  `weavle:nodemoved`, `weavle:selectionchanged`.
+- Rendering: `render()` redraws the SVG layers (grid, edges, nodes, overlay) inside a `<g data-viewport>`
+  group; floating HTML (action rail, inline label editing) lives in `this.uiLayer` over the SVG.
+- Edge routing: orthogonal — straight or simple routes first, then A* on a grid (`findPathWithAStar`),
+  tuned per definition via `getRoutingConfig`.
+- The diagram definition is the extension point for new diagram types: shapes, nodeTypes, getPorts,
+  routeEdge, getContextActions, getNodeInteractionMode, getRoutingConfig.
+
+## Conventions
+
+- ES modules with named exports, ES2020+ classes, 4-space indentation, double quotes, JSDoc on public
+  methods, section banners (`// ====== N. SECTION ======`).
+- UI strings (default labels, context actions) are in Dutch.
+- Bump the version in `getVersion()` for releases.
+
+## Known issues
+
+- `weavle.js` imports both definitions (flowchart and BPMN) even though only the flowchart is the default.
+- No `destroy()` method: listeners on `window` (mousemove/mouseup/keydown) are never removed.
+- `index.html` contains the Export/Load sample/Clear log button group twice (duplicate element ids).
+- No package.json, dev server, tests, linting or git repository yet.
