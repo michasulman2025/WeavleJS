@@ -310,6 +310,7 @@ function attachEditorEventListeners() {
   const eventNames = [
     "weavle:modelchanged",
     "weavle:nodemoved",
+    "weavle:noderesized",
     "weavle:selectionchanged",
     "weavle:edgecreated",
     "weavle:edgereconnected",

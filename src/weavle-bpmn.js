@@ -835,6 +835,22 @@ export function createBpmnDefinition() {
             return "action-rail";
         },
 
+        // ── Resize rules ─────────────────────────────────────
+        // Events and gateways keep their proportions (circle / diamond); containers stay large.
+        getResizeRules(node) {
+            const type = node.type || "";
+
+            if (type.endsWith("Event"))    return { keepAspectRatio: true, minWidth: 30, minHeight: 30, maxWidth: 120, maxHeight: 120 };
+            if (type.endsWith("Gateway") || type === "gateway")
+                                           return { keepAspectRatio: true, minWidth: 40, minHeight: 40, maxWidth: 160, maxHeight: 160 };
+            if (type === "dataObject")     return { keepAspectRatio: true, minWidth: 30, minHeight: 45 };
+            if (type === "dataStore")      return { minWidth: 40, minHeight: 35 };
+            if (type === "annotation")     return { minWidth: 60, minHeight: 30 };
+            if (type === "swimlane" || type === "pool") return { minWidth: 300, minHeight: 100 };
+
+            return { minWidth: 80, minHeight: 50 };   // tasks, sub-processes, call activities
+        },
+
         // ── Routing config ───────────────────────────────────
         getRoutingConfig(edge, engine) {
             return {

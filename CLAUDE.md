@@ -25,12 +25,17 @@ This folder (`C:\dev\Weavle\WeavleJS`, engine v0.7.5) is the current codebase. T
 - `new WeavleJS(container, options, diagramDefinition)` — container is a selector or element; the definition
   defaults to `createFlowchartDefinition()`.
 - Data: `this.model = { nodes, edges }` (plain objects). Transient UI state lives in `this.state`.
-- Public API: `getVersion()`, `load(data)`, `getData()`, `addNode()`, `clear()`, `undo()`, `redo()`, `destroy()`.
+- Public API: `getVersion()`, `load(data)`, `getData()`, `addNode()`, `clear()`, `undo()`, `redo()`, `destroy()`,
+  `setNodeSize(id, w, h)`.
   Every model change a user can make pushes one undo step (`pushHistory()`) and emits `weavle:modelchanged`;
   a click without movement does neither. `addNode()` without x/y auto-places the node on a free spot in the
   visible area (`findFreePosition`); `createConnectedNode()` picks a free spot with a working route.
 - Events: `CustomEvent`s dispatched on the container via `emit()`: `weavle:modelchanged`,
-  `weavle:nodemoved`, `weavle:selectionchanged`.
+  `weavle:nodemoved`, `weavle:noderesized`, `weavle:selectionchanged`.
+- Resizing: corner handles on a single selected node (side midpoints are connection ports). Shift keeps the
+  ratio, Alt resizes from the centre, Escape cancels. With snap on, sizes change in steps of 2 × gridSize and
+  the centre stays on the grid. Rules per type via the definition: `getResizeRules(node)` or
+  `nodeTypes[type].resize` (`false` = fixed size; `{ minWidth, minHeight, maxWidth, maxHeight, keepAspectRatio }`).
 - Rendering: `render()` redraws the SVG layers (grid, edges, nodes, overlay) inside a `<g data-viewport>`
   group; floating HTML (action rail, inline label editing) lives in `this.uiLayer` over the SVG.
 - Grid: `options.gridType` ("dots" default, "lines", "none") rendered as an SVG pattern in the grid layer.

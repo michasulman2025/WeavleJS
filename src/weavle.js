@@ -112,6 +112,10 @@ export class WeavleJS {
             snapGuideX: null,
             snapGuideY: null,
 
+            resizingNodeId: null,
+            resizeCorner: null,        // "nw" | "ne" | "sw" | "se"
+            resizeStart: null,         // { x, y, width, height, mouseX, mouseY }
+
             zoom: 1,
             panX: 0,
             panY: 0,
@@ -396,6 +400,29 @@ export class WeavleJS {
         this.pushHistory();
         this.emitModelChanged();
         this.render();
+    }
+
+    /**
+     * Sets a node's size (keeping its centre in place), respecting the node type's resize rules.
+     * Records an undo step and emits weavle:noderesized + weavle:modelchanged.
+     * Returns false if the node doesn't exist or its type isn't resizable.
+     */
+    setNodeSize(nodeId, width, height) {
+        const node  = this.getNode(nodeId);
+        const rules = node && this.getResizeRules(node);
+        if (!rules) return false;
+
+        const size = this.clampNodeSize(Math.round(width), Math.round(height), rules);
+        const cx   = node.x + node.width  / 2;
+        const cy   = node.y + node.height / 2;
+
+        node.width  = size.width;
+        node.height = size.height;
+        node.x      = cx - size.width  / 2;
+        node.y      = cy - size.height / 2;
+
+        this.finishNodeResize(node);
+        return true;
     }
 
     /** Removes all nodes and edges, records an undo step and re-renders. */
@@ -700,10 +727,12 @@ export class WeavleJS {
             let points = edge.routePoints;
 
             // Drawing edges whil draggging a node accross the canvas. Preview will be shown
+            const liveNodeId = this.state.draggingNodeId || this.state.resizingNodeId;
+
             const isConnectedToDraggingNode =
-                this.state.draggingNodeId &&
-                (edge.sourceNodeId === this.state.draggingNodeId ||
-                edge.targetNodeId === this.state.draggingNodeId);
+                liveNodeId &&
+                (edge.sourceNodeId === liveNodeId ||
+                edge.targetNodeId === liveNodeId);
 
             if (isConnectedToDraggingNode) {
                 if (edge.isAutoRoute === false) {
@@ -950,6 +979,19 @@ export class WeavleJS {
             handles.forEach(h => group.appendChild(h));
         }
 
+        // Single selection → resize handles on the corners (if this node type may be resized).
+        const canShowResize =
+            isPrimarySelected &&
+            !this.options.readOnly &&
+            this.state.selectedNodeIds.length === 1 &&
+            !this.state.connectingNodeId &&
+            !this.state.reconnectingEdgeId &&
+            this.getResizeRules(node);
+
+        if (canShowResize) {
+            this.createResizeHandles(node).forEach(h => group.appendChild(h));
+        }
+
         // Hot → alleen actieve port
         if (isHotNode && this.state.hoverHandleName) {
             const hotHandle = this.createHotHandle(node, this.state.hoverHandleName);
@@ -1047,6 +1089,38 @@ export class WeavleJS {
         });
 
         return handles;
+    }
+
+    /**
+     * Square resize handles on the four corners of the node's bounding box.
+     * The side midpoints are connection ports, so resizing lives on the corners only.
+     */
+    createResizeHandles(node) {
+        const NS   = "http://www.w3.org/2000/svg";
+        const size = 8;
+
+        const corners = {
+            nw: { x: node.x,              y: node.y,               cursor: "nwse-resize" },
+            ne: { x: node.x + node.width, y: node.y,               cursor: "nesw-resize" },
+            sw: { x: node.x,              y: node.y + node.height, cursor: "nesw-resize" },
+            se: { x: node.x + node.width, y: node.y + node.height, cursor: "nwse-resize" }
+        };
+
+        return Object.entries(corners).map(([corner, c]) => {
+            const r = document.createElementNS(NS, "rect");
+            r.setAttribute("x", c.x - size / 2);
+            r.setAttribute("y", c.y - size / 2);
+            r.setAttribute("width", size);
+            r.setAttribute("height", size);
+            r.setAttribute("rx", 1.5);
+            r.setAttribute("fill", "#ffffff");
+            r.setAttribute("stroke", "#2ea8df");
+            r.setAttribute("stroke-width", "1.5");
+            r.setAttribute("data-resize-corner", corner);
+            r.setAttribute("class", "weavle-resize-handle");
+            r.style.cursor = c.cursor;
+            return r;
+        });
     }
 
     createSelectionHandles(node) {
@@ -4252,6 +4326,145 @@ export class WeavleJS {
     // ============================================================
 
     //push to snapshot history
+    // ------------------------------------------------------------
+    // Node resizing
+    // ------------------------------------------------------------
+
+    /**
+     * Resize rules for a node, or null if it may not be resized.
+     * Taken from the diagram definition: getResizeRules(node, engine) if defined, otherwise
+     * nodeTypes[type].resize. Either may return false (not resizable) or a partial rules object:
+     *   { minWidth, minHeight, maxWidth, maxHeight, keepAspectRatio }
+     */
+    getResizeRules(node) {
+        const defaults = {
+            minWidth:        40,
+            minHeight:       30,
+            maxWidth:        Infinity,
+            maxHeight:       Infinity,
+            keepAspectRatio: false
+        };
+
+        let rules = typeof this.diagram.getResizeRules === "function"
+            ? this.diagram.getResizeRules(node, this)
+            : undefined;
+
+        if (rules === undefined) {
+            rules = this.diagram.nodeTypes?.[node.type]?.resize;
+        }
+
+        if (rules === false) return null;
+
+        return { ...defaults, ...(rules || {}) };
+    }
+
+    /** Clamps a size to the min / max of the rules. */
+    clampNodeSize(width, height, rules) {
+        return {
+            width:  Math.min(rules.maxWidth,  Math.max(rules.minWidth,  width)),
+            height: Math.min(rules.maxHeight, Math.max(rules.minHeight, height))
+        };
+    }
+
+    /**
+     * New rect for the node being resized, from the start rect and the mouse delta (model units).
+     *  - The opposite corner stays fixed; with fromCenter (Alt) the centre stays fixed.
+     *  - keepAspectRatio (rule or Shift) follows whichever dimension changed most.
+     *  - With snapToGrid, sizes change in steps of 2 × gridSize: the centre then moves by whole
+     *    grid cells, so the node stays aligned with its neighbours (see snapNodePosition).
+     */
+    computeResizeRect(start, corner, dx, dy, { keepAspectRatio, fromCenter }, rules) {
+        const signX  = corner.includes("e") ? 1 : -1;
+        const signY  = corner.includes("s") ? 1 : -1;
+        const factor = fromCenter ? 2 : 1;
+
+        const snap     = this.options.snapToGrid;
+        const step     = (this.options.gridSize || 20) * 2;
+        const snapSize = (value, from) => from + Math.round((value - from) / step) * step;
+
+        let width  = start.width  + signX * dx * factor;
+        let height = start.height + signY * dy * factor;
+
+        if (snap) {
+            width  = snapSize(width,  start.width);
+            height = snapSize(height, start.height);
+        }
+
+        if (keepAspectRatio) {
+            const ratio = start.width / start.height;
+
+            if (Math.abs(width / start.width - 1) >= Math.abs(height / start.height - 1)) {
+                height = width / ratio;
+                if (snap && ratio !== 1) height = snapSize(height, start.height);   // approx. ratio, clean size
+            } else {
+                width = height * ratio;
+                if (snap && ratio !== 1) width = snapSize(width, start.width);
+            }
+        }
+
+        const clamped = this.clampNodeSize(width, height, rules);
+        const wasClamped = clamped.width !== width || clamped.height !== height;
+        ({ width, height } = clamped);
+
+        // Clamping one side can break the ratio: grow the other side back into proportion.
+        if (keepAspectRatio && wasClamped) {
+            const ratio = start.width / start.height;
+            if (width / height > ratio) height = width / ratio;
+            else width = height * ratio;
+        }
+
+        width  = Math.round(width);
+        height = Math.round(height);
+
+        let x = fromCenter
+            ? start.x + (start.width - width) / 2
+            : (signX > 0 ? start.x : start.x + start.width - width);
+
+        let y = fromCenter
+            ? start.y + (start.height - height) / 2
+            : (signY > 0 ? start.y : start.y + start.height - height);
+
+        // Min / max clamping and ratios can leave the centre between grid points:
+        // nudge the node (at most half a cell) so it stays aligned with its neighbours.
+        if (snap) {
+            ({ x, y } = this.snapNodePosition({ width, height }, x, y));
+        }
+
+        return { x, y, width, height };
+    }
+
+    /** Reroutes the node's edges, records an undo step and emits resize / change events. */
+    finishNodeResize(node) {
+        this.model.edges
+            .filter(e => e.sourceNodeId === node.id || e.targetNodeId === node.id)
+            .forEach(e => this.updateEdgeRoute(e));
+
+        this.pushHistory();
+
+        this.emit("weavle:noderesized", {
+            node:  JSON.parse(JSON.stringify(node)),
+            model: this.getData()
+        });
+
+        this.emit("weavle:modelchanged", { model: this.getData() });
+        this.render();
+    }
+
+    /** Returns { nodeId, corner } if the event target is a resize handle, otherwise null. */
+    findResizeHandleAtEventTarget(target) {
+        const corner = target?.getAttribute?.("data-resize-corner");
+        if (!corner) return null;
+
+        const nodeId = target.closest("[data-node-id]")?.getAttribute("data-node-id");
+        return nodeId ? { nodeId, corner } : null;
+    }
+
+    resetResizeState() {
+        this.state.resizingNodeId = null;
+        this.state.resizeCorner   = null;
+        this.state.resizeStart    = null;
+    }
+
     /** True if any node in { id: {x, y} } is no longer at its recorded start position. */
     didNodesMove(startPositions) {
         if (!startPositions) return false;
@@ -4554,6 +4767,31 @@ export class WeavleJS {
 
         if (this.options.readOnly) return;
 
+        // 0. Click on a resize handle → start resizing (before double-click detection,
+        //    since the handle sits on the node).
+        const resizeInfo = this.findResizeHandleAtEventTarget(evt.target);
+
+        if (resizeInfo) {
+            const resizeNode = this.getNode(resizeInfo.nodeId);
+            const mouse      = this.getMousePosition(evt);
+
+            if (resizeNode) {
+                this.state.resizingNodeId = resizeNode.id;
+                this.state.resizeCorner   = resizeInfo.corner;
+                this.state.resizeStart    = {
+                    x: resizeNode.x, y: resizeNode.y,
+                    width: resizeNode.width, height: resizeNode.height,
+                    mouseX: mouse.x, mouseY: mouse.y
+                };
+
+                this.clearNodeToolSurface();
+                this.clearTextSelection();
+                this.setTextSelectionEnabled(false);
+                this.render();
+                return;
+            }
+        }
+
         const handleInfo        = this.findHandleAtEventTarget(evt.target);
         const edgeEndpointInfo  = this.findEdgeEndpointAtEventTarget(evt.target);
         const edgeSegmentInfo   = this.findEdgeSegmentHandleAtEventTarget(evt.target);
@@ -4760,6 +4998,28 @@ export class WeavleJS {
             this.state.panX = this.state.panOriginX + dx;
             this.state.panY = this.state.panOriginY + dy;
             this.render();
+            return;
+        }
+
+        // Resizing a node: Shift keeps the aspect ratio, Alt resizes from the centre.
+        if (this.state.resizingNodeId) {
+            const node  = this.getNode(this.state.resizingNodeId);
+            const start = this.state.resizeStart;
+            const rules = node && this.getResizeRules(node);
+
+            if (node && start && rules) {
+                const rect = this.computeResizeRect(
+                    start,
+                    this.state.resizeCorner,
+                    pos.x - start.mouseX,
+                    pos.y - start.mouseY,
+                    { keepAspectRatio: rules.keepAspectRatio || evt.shiftKey, fromCenter: evt.altKey },
+                    rules
+                );
+
+                Object.assign(node, rect);
+                this.render();
+            }
             return;
         }
 
@@ -4986,6 +5246,25 @@ export class WeavleJS {
         }
 
         this.setTextSelectionEnabled(true);
+
+        // Finalise node resize (only a real size change counts as an undo step).
+        if (this.state.resizingNodeId) {
+            const node  = this.getNode(this.state.resizingNodeId);
+            const start = this.state.resizeStart;
+            this.resetResizeState();
+
+            const changed = node && start && (
+                node.x !== start.x || node.y !== start.y ||
+                node.width !== start.width || node.height !== start.height
+            );
+
+            if (changed) {
+                this.finishNodeResize(node);
+            } else {
+                this.render();
+            }
+            return;
+        }
 
         if (this.state.draggingSegmentEdgeId) {
             const edge = this.model.edges.find(e => e.id === this.state.draggingSegmentEdgeId);
@@ -5215,6 +5494,19 @@ export class WeavleJS {
         // ESC — cancel the current interaction.
         if (evt.key === "Escape") {
             let didCancel = false;
+
+            // Cancel a resize: restore the original rect.
+            if (this.state.resizingNodeId) {
+                const node  = this.getNode(this.state.resizingNodeId);
+                const start = this.state.resizeStart;
+
+                if (node && start) {
+                    Object.assign(node, { x: start.x, y: start.y, width: start.width, height: start.height });
+                }
+
+                this.resetResizeState();
+                didCancel = true;
+            }
 
             if (this.state.connectingNodeId) {
                 this.resetConnectionState();

@@ -499,6 +499,14 @@ export function createFlowchartDefinition() {
             return "docked-panel";
         },
 
+        getResizeRules(node) {
+            switch (node.type) {
+                case "decision": return { minWidth: 80, minHeight: 60 };
+                case "database": return { minWidth: 60, minHeight: 50 };
+                default:         return { minWidth: 80, minHeight: 40 };
+            }
+        },
+
         getRoutingConfig(edge, engine) {
             return {
                 gridSize: 20,
