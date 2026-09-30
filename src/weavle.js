@@ -1145,6 +1145,20 @@ export class WeavleJS {
         return Math.round(value / gridSize) * gridSize;
     }
 
+    /**
+     * Returns the top-left position for a node at (x, y) such that its centre lands on the grid.
+     * Snapping the centre (not the corner) keeps nodes of different sizes aligned on one line,
+     * so their side ports line up and edges between them run straight.
+     */
+    snapNodePosition(node, x, y) {
+        const g = this.options.gridSize || 20;
+
+        return {
+            x: this.snapToGrid(x + node.width  / 2, g) - node.width  / 2,
+            y: this.snapToGrid(y + node.height / 2, g) - node.height / 2
+        };
+    }
+
     toGridPoint(p) {
         const g = this.routing.gridSize;
         return {
@@ -3290,13 +3304,17 @@ export class WeavleJS {
      * @param {string} nodeType    Type of the new node.
      */
     createConnectedNode(sourceNode, nodeType) {
+        const width  = 140;
+        const height = 60;
+
+        // Centre-align with the source node so the connecting edge runs straight.
         const newNode = {
             id:     crypto.randomUUID(),
             type:   nodeType,
             x:      sourceNode.x + 200,
-            y:      sourceNode.y,
-            width:  140,
-            height: 60,
+            y:      sourceNode.y + sourceNode.height / 2 - height / 2,
+            width,
+            height,
             label:  this.getDefaultLabelForType(nodeType)
         };
 
@@ -4463,29 +4481,29 @@ export class WeavleJS {
         // Group drag
         if (this.state.draggingNodeIds) {
 
-            const dx = pos.x - this.state.dragStartMouseX;
-            const dy = pos.y - this.state.dragStartMouseY;
+            let dx = pos.x - this.state.dragStartMouseX;
+            let dy = pos.y - this.state.dragStartMouseY;
+
+            const primaryNode = this.getPrimarySelectedNode();
+
+            // Snap only the primary node and move the whole group by the same delta,
+            // so the group keeps its internal layout while the primary node lands on the grid.
+            const primaryStart = primaryNode && this.state.dragStartPositions[primaryNode.id];
+
+            if (this.options.snapToGrid && primaryStart) {
+                const snapped = this.snapNodePosition(primaryNode, primaryStart.x + dx, primaryStart.y + dy);
+                dx = snapped.x - primaryStart.x;
+                dy = snapped.y - primaryStart.y;
+            }
 
             this.state.draggingNodeIds.forEach(id => {
                 const node = this.getNode(id);
                 const start = this.state.dragStartPositions[id];
                 if (!node || !start) return;
 
-                let newX = start.x + dx;
-                let newY = start.y + dy;
-
-                if (this.options.snapToGrid) {
-                    const g = this.options.gridSize || 20;
-                    newX = this.snapToGrid(newX, g);
-                    newY = this.snapToGrid(newY, g);
-                }
-
-                node.x = newX;
-                node.y = newY;
+                node.x = start.x + dx;
+                node.y = start.y + dy;
             });
-
-
-            const primaryNode = this.getPrimarySelectedNode();
 
             if (primaryNode) {
                 const guides = this.findAlignmentGuides(primaryNode, 8);
@@ -4536,9 +4554,7 @@ export class WeavleJS {
             let newY = pos.y - this.state.offsetY;
 
             if (this.options.snapToGrid) {
-                const g = this.options.gridSize || 20;
-                newX = this.snapToGrid(newX, g);
-                newY = this.snapToGrid(newY, g);
+                ({ x: newX, y: newY } = this.snapNodePosition(node, newX, newY));
             }
 
             node.x = newX;

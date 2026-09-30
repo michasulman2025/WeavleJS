@@ -70,8 +70,8 @@ function getSampleForDiagram(key) {
         {
           id: "b1",
           type: "startEvent",
-          x: 120,
-          y: 140,
+          x: 130,
+          y: 130,
           width: 60,
           height: 60,
           label: "Start"
@@ -79,7 +79,7 @@ function getSampleForDiagram(key) {
         {
           id: "b2",
           type: "task",
-          x: 280,
+          x: 290,
           y: 120,
           width: 140,
           height: 80,
@@ -88,8 +88,8 @@ function getSampleForDiagram(key) {
         {
           id: "b3",
           type: "gateway",
-          x: 500,
-          y: 120,
+          x: 495,
+          y: 115,
           width: 90,
           height: 90,
           label: "OK?"
@@ -97,8 +97,8 @@ function getSampleForDiagram(key) {
         {
           id: "b4",
           type: "endEvent",
-          x: 700,
-          y: 140,
+          x: 690,
+          y: 130,
           width: 60,
           height: 60,
           label: "End"
@@ -138,8 +138,8 @@ function getSampleForDiagram(key) {
       {
         id: "n1",
         type: "process",
-        x: 120,
-        y: 120,
+        x: 110,
+        y: 125,
         width: 140,
         height: 70,
         label: "Start process"
@@ -148,7 +148,7 @@ function getSampleForDiagram(key) {
         id: "n2",
         type: "decision",
         x: 420,
-        y: 120,
+        y: 115,
         width: 120,
         height: 90,
         label: "Valid?"
@@ -156,8 +156,8 @@ function getSampleForDiagram(key) {
       {
         id: "n3",
         type: "terminator",
-        x: 720,
-        y: 120,
+        x: 725,
+        y: 125,
         width: 150,
         height: 70,
         label: "Done"
