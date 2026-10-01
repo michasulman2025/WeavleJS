@@ -55,8 +55,11 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
   geometry on drop/create/load (`applyContainment`). Drawn in their own layer below edges; hit testing picks the
   topmost node; dragging moves descendants; deleting removes contents; not routing obstacles
   (`getObstacleNodes`). Definition hooks: `canContain(container, child)`, `layoutContainer(container, engine,
-  { changedNode })` (BPMN: stacked lanes), `getDragTarget(node)` (lane drags its pool), `handleAction(action,
-  node, engine)` for custom context actions (BPMN `addLane`). BPMN message flow = edge between two pools.
+  { changedNode, previousRect, reason })` (reason: resize | move | add | remove; BPMN: lanes tile the pool, edges
+  stop at the contents), `getDragTarget(node, engine, pos)` (lane body drags its pool, lane header reorders),
+  `constrainNodePosition(node, {x, y})` (lane moves vertically only), `handleAction(action, node, engine)` for
+  custom context actions (BPMN `addLane`). Container layouts run live while resizing (geometry snapshot +
+  restore); resize rules may ask for edge handles (`handles: ["n", "s"]`). BPMN message flow = edge between two pools.
 - Edge types: `edge.type` keys into the definition's `edgeTypes` (`router: "orthogonal" | "straight"`,
   `marker: "arrow" | "openArrow" | "none"`, `dash`). `getEdgeTypeForConnection({source, target})` picks the type
   when an edge is created or reconnected; `defaultEdgeType` otherwise. Untyped saved edges get a type on load.

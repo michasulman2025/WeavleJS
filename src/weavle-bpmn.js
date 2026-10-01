@@ -3,6 +3,12 @@ const NS = "http://www.w3.org/2000/svg";
 // Width of the label strip on the left of pools and lanes (shapes, label layout and lane stacking).
 const POOL_HEADER = 30;
 
+// Lanes never get smaller than this when a neighbour or the pool is resized.
+const LANE_MIN_HEIGHT = 60;
+
+// Pool / lane edges stop this far from the shapes inside them.
+const CONTENT_PADDING = 10;
+
 // ============================================================
 // BPMN SHAPE RENDERERS
 // Each function receives (node, engine) and returns an SVG element or group.
@@ -892,49 +898,176 @@ export function createBpmnDefinition() {
             return false;
         },
 
-        // Lanes fill the pool's width (right of its header) and are stacked top to bottom in their
-        // current vertical order. Resizing a lane resizes the pool; resizing the pool lets the
-        // bottom lane absorb the difference. Lanes take their contents along when they shift.
-        layoutContainer(container, engine, { changedNode } = {}) {
+        // Lanes always span the pool's width (right of its header) and tile it top to bottom.
+        //  - Lane edge resized: an inner edge moves the boundary with the neighbouring lane (the pool
+        //    keeps its size); the top edge of the first / bottom edge of the last lane moves the pool.
+        //  - Pool edge resized: the first / last lane grows or shrinks (down to LANE_MIN_HEIGHT).
+        //  - Anything else (lane added, removed or moved, node dropped): lanes are stacked in their
+        //    vertical order from the pool top, taking their contents along; the pool fits the lanes.
+        // In the two resize cases the contents stay where they are.
+        layoutContainer(container, engine, { changedNode, previousRect, reason } = {}) {
             if (container.type !== "pool") return;
 
-            const header = POOL_HEADER;
-            const lanes  = engine.getChildren(container)
+            // Lanes in vertical order of their centres. A lane that was just dragged onto the same
+            // height as another one passes it in the direction it was dragged (reordering).
+            const center    = lane => lane.y + lane.height / 2;
+            const movedDown = reason === "move" && previousRect && changedNode && changedNode.y > previousRect.y;
+
+            const lanes = engine.getChildren(container)
                 .filter(n => n.type === "swimlane")
-                .sort((a, b) => a.y - b.y);
+                .sort((a, b) => {
+                    const diff = center(a) - center(b);
+                    if (diff !== 0 || reason !== "move") return diff;
+                    if (a === changedNode) return movedDown ? 1 : -1;
+                    if (b === changedNode) return movedDown ? -1 : 1;
+                    return 0;
+                });
 
-            if (lanes.length === 0) return;
+            const min      = LANE_MIN_HEIGHT;
+            const pad      = CONTENT_PADDING;
+            const first    = lanes[0];
+            const last     = lanes[lanes.length - 1];
+            const laneEdit = reason === "resize" && previousRect && lanes.includes(changedNode);
+            const poolEdit = reason === "resize" && previousRect && changedNode === container;
 
-            // A lane was resized, added or removed: the pool follows the lanes.
-            const laneChanged = changedNode && changedNode.type === "swimlane";
-            const total       = lanes.reduce((sum, lane) => sum + lane.height, 0);
+            // Bounding box of nodes (null if none); used so edges never cut through the contents.
+            const bounds = nodes => nodes.length === 0 ? null : {
+                top:    Math.min(...nodes.map(n => n.y)),
+                bottom: Math.max(...nodes.map(n => n.y + n.height)),
+                left:   Math.min(...nodes.map(n => n.x)),
+                right:  Math.max(...nodes.map(n => n.x + n.width))
+            };
+            const contentTop    = lane => bounds(engine.getDescendants(lane))?.top    ?? Infinity;
+            const contentBottom = lane => bounds(engine.getDescendants(lane))?.bottom ?? -Infinity;
 
-            if (!laneChanged && container.height > total) {
-                lanes[lanes.length - 1].height += container.height - total;
+            if (poolEdit) {
+                // Left / right edges stop before the contents (and the lane header).
+                const content = bounds(engine.getDescendants(container).filter(n => n.type !== "swimlane"));
+
+                if (content) {
+                    const right = Math.max(container.x + container.width, content.right + pad);
+                    const left  = Math.min(container.x, content.left - pad - POOL_HEADER - (lanes.length ? POOL_HEADER : 0));
+                    container.x     = left;
+                    container.width = right - left;
+                }
             }
 
-            let y = container.y;
+            if (lanes.length === 0) {
+                // Pool without lanes: top / bottom edges stop before the contents.
+                const content = poolEdit && bounds(engine.getDescendants(container));
 
+                if (content) {
+                    const top    = Math.min(container.y, content.top - pad);
+                    const bottom = Math.max(container.y + container.height, content.bottom + pad);
+                    container.y      = top;
+                    container.height = bottom - top;
+                }
+                return;
+            }
+
+            if (laneEdit) {
+                const lane = changedNode;
+                const i    = lanes.indexOf(lane);
+
+                if (lane.y !== previousRect.y) {
+                    // Top edge dragged; the bottom edge stays.
+                    const bottom = lane.y + lane.height;
+                    const above  = lanes[i - 1];
+                    let top      = Math.min(lane.y, bottom - min, contentTop(lane) - pad);
+
+                    if (above) {
+                        // Boundary with the lane above: both keep their minimum height and contents.
+                        top = Math.max(top, above.y + min, contentBottom(above) + pad);
+                        above.height = top - above.y;
+                    } else {
+                        container.height += container.y - top;
+                        container.y       = top;
+                    }
+
+                    lane.y      = top;
+                    lane.height = bottom - top;
+                }
+
+                if (lane.y + lane.height !== previousRect.y + previousRect.height) {
+                    // Bottom edge dragged; the top edge stays.
+                    const below  = lanes[i + 1];
+                    let boundary = Math.max(lane.y + lane.height, lane.y + min, contentBottom(lane) + pad);
+
+                    if (below) {
+                        const belowBottom = below.y + below.height;
+                        boundary     = Math.min(boundary, belowBottom - min, contentTop(below) - pad);
+                        below.y      = boundary;
+                        below.height = belowBottom - boundary;
+                    } else {
+                        container.height = boundary - container.y;
+                    }
+
+                    lane.height = boundary - lane.y;
+                }
+            } else if (poolEdit) {
+                const firstBottom = first.y + first.height;
+                const top    = Math.min(container.y, contentTop(first) - pad,
+                                        first === last ? Infinity : firstBottom - min);
+                const bottom = Math.max(container.y + container.height, contentBottom(last) + pad,
+                                        first === last ? -Infinity : last.y + min);
+
+                if (first === last) {
+                    // Single lane: it is the inner area of the pool.
+                    first.y      = top;
+                    first.height = Math.max(min, bottom - top);
+                } else {
+                    first.y      = top;
+                    first.height = firstBottom - top;
+                    last.height  = bottom - last.y;
+                }
+
+                container.y      = first.y;
+                container.height = last.y + last.height - first.y;
+            } else {
+                let y = container.y;
+
+                for (const lane of lanes) {
+                    engine.translateNodes(
+                        [lane, ...engine.getDescendants(lane)],
+                        container.x + POOL_HEADER - lane.x,
+                        y - lane.y
+                    );
+                    y += lane.height;
+                }
+
+                container.height = y - container.y;
+            }
+
+            // Lanes always span the pool width; contents don't move when the pool is resized sideways.
             for (const lane of lanes) {
-                engine.translateNodes(
-                    [lane, ...engine.getDescendants(lane)],
-                    container.x + header - lane.x,
-                    y - lane.y
-                );
-
-                lane.width = container.width - header;
-                y += lane.height;
+                lane.x     = container.x + POOL_HEADER;
+                lane.width = container.width - POOL_HEADER;
             }
-
-            container.height = y - container.y;
         },
 
-        // Lanes don't move on their own: grabbing a lane drags the whole pool (as in bpmn.io).
-        getDragTarget(node, engine) {
+        // Grabbing a lane by its header strip moves that lane (to reorder it within the pool);
+        // grabbing it anywhere else drags the whole pool, as in bpmn.io.
+        getDragTarget(node, engine, pos) {
             if (node.type !== "swimlane") return null;
 
             const parent = engine.getNode(node.parentId);
-            return parent && parent.type === "pool" ? parent : null;
+            if (!parent || parent.type !== "pool") return null;
+
+            const onHeader = pos && pos.x <= node.x + POOL_HEADER;
+            return onHeader ? node : parent;
+        },
+
+        // A lane being reordered only moves vertically, and its centre stays inside the pool.
+        constrainNodePosition(node, { x, y }, engine) {
+            if (node.type !== "swimlane") return null;
+
+            const pool = engine.getNode(node.parentId);
+            if (!pool || pool.type !== "pool") return null;
+
+            const minY = pool.y - node.height / 2;
+            const maxY = pool.y + pool.height - node.height / 2;
+
+            return { x: pool.x + POOL_HEADER, y: Math.min(maxY, Math.max(minY, y)) };
         },
 
         handleAction(action, node, engine) {
@@ -961,7 +1094,7 @@ export function createBpmnDefinition() {
             }
 
             engine.model.nodes.push(lane);
-            engine.layoutContainers([node.id], lane);
+            engine.layoutContainers([node.id], { changedNode: lane, reason: "add" });
             return true;
         },
 
@@ -976,8 +1109,10 @@ export function createBpmnDefinition() {
             if (type === "dataObject")     return { keepAspectRatio: true, minWidth: 30, minHeight: 45 };
             if (type === "dataStore")      return { minWidth: 40, minHeight: 35 };
             if (type === "annotation")     return { minWidth: 60, minHeight: 30 };
-            if (type === "swimlane")       return { minWidth: 300, minHeight: 60 };
-            if (type === "pool")           return { minWidth: 300, minHeight: 100 };
+            // Lanes follow the pool's width: only their top / bottom edge can be dragged.
+            if (type === "swimlane")       return { minWidth: 300, minHeight: LANE_MIN_HEIGHT, handles: ["n", "s"] };
+            if (type === "pool")           return { minWidth: 300, minHeight: LANE_MIN_HEIGHT,
+                                                    handles: ["nw", "ne", "sw", "se", "n", "s", "e", "w"] };
 
             return { minWidth: 80, minHeight: 50 };   // tasks, sub-processes, call activities
         },

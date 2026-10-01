@@ -473,6 +473,7 @@ export class WeavleJS {
         if (!rules) return false;
 
         const size = this.clampNodeSize(Math.round(width), Math.round(height), rules);
+        const previousRect = { x: node.x, y: node.y, width: node.width, height: node.height };
         const cx   = node.x + node.width  / 2;
         const cy   = node.y + node.height / 2;
 
@@ -481,7 +482,7 @@ export class WeavleJS {
         node.x      = cx - size.width  / 2;
         node.y      = cy - size.height / 2;
 
-        this.finishNodeResize(node);
+        this.finishNodeResize(node, previousRect);
         return true;
     }
 
@@ -1385,19 +1386,30 @@ export class WeavleJS {
     }
 
     /**
-     * Square resize handles on the four corners of the node's bounding box.
-     * The side midpoints are connection ports, so resizing lives on the corners only.
+     * Square resize handles. By default on the four corners — the side midpoints are connection
+     * ports. Types without ports (e.g. BPMN lanes) can ask for edge handles via the resize rule
+     * `handles: ["n", "s"]` (any of nw, ne, sw, se, n, s, e, w).
      */
     createResizeHandles(node) {
-        const NS   = "http://www.w3.org/2000/svg";
-        const size = 8;
+        const NS      = "http://www.w3.org/2000/svg";
+        const size    = 8;
+        const handles = this.getResizeRules(node)?.handles || ["nw", "ne", "sw", "se"];
 
-        const corners = {
+        const cx = node.x + node.width  / 2;
+        const cy = node.y + node.height / 2;
+
+        const all = {
             nw: { x: node.x,              y: node.y,               cursor: "nwse-resize" },
             ne: { x: node.x + node.width, y: node.y,               cursor: "nesw-resize" },
             sw: { x: node.x,              y: node.y + node.height, cursor: "nesw-resize" },
-            se: { x: node.x + node.width, y: node.y + node.height, cursor: "nwse-resize" }
+            se: { x: node.x + node.width, y: node.y + node.height, cursor: "nwse-resize" },
+            n:  { x: cx,                  y: node.y,               cursor: "ns-resize"   },
+            s:  { x: cx,                  y: node.y + node.height, cursor: "ns-resize"   },
+            e:  { x: node.x + node.width, y: cy,                   cursor: "ew-resize"   },
+            w:  { x: node.x,              y: cy,                   cursor: "ew-resize"   }
         };
+
+        const corners = Object.fromEntries(handles.filter(h => all[h]).map(h => [h, all[h]]));
 
         return Object.entries(corners).map(([corner, c]) => {
             const r = document.createElementNS(NS, "rect");
@@ -4813,8 +4825,10 @@ export class WeavleJS {
      * Puts nodes into the container they were dropped on (or takes them out), lets the affected
      * containers re-arrange their children, and reroutes the edges whose nodes may have moved.
      * Call after a node or group was dropped, created or resized.
+     * context: { changedNode, previousRect, reason: "resize" | "move" | "add" | "remove" } is passed on to
+     * diagram.layoutContainer, so it can tell e.g. a dragged lane edge from a reordered lane.
      */
-    applyContainment(nodes, changedNode = null) {
+    applyContainment(nodes, context = {}) {
         const affected = new Set();
 
         for (const node of nodes) {
@@ -4830,15 +4844,15 @@ export class WeavleJS {
             if (this.isContainer(node)) affected.add(node.id);
         }
 
-        this.layoutContainers([...affected], changedNode || nodes[0] || null);
+        this.layoutContainers([...affected], { changedNode: nodes[0] || null, ...context });
     }
 
     /**
      * Lets each container (and its ancestors) re-arrange its children via
-     * diagram.layoutContainer(container, engine, { changedNode }), then re-derives edge types
+     * diagram.layoutContainer(container, engine, context), then re-derives edge types
      * (containment can change them, e.g. a BPMN message flow between pools) and reroutes all edges.
      */
-    layoutContainers(containerIds, changedNode = null) {
+    layoutContainers(containerIds, context = {}) {
         if (typeof this.diagram.layoutContainer === "function") {
             const done = new Set();
 
@@ -4848,7 +4862,7 @@ export class WeavleJS {
                 // Inner first, then outward: a lane change may resize its pool.
                 while (container && !done.has(container.id)) {
                     done.add(container.id);
-                    this.diagram.layoutContainer(container, this, { changedNode });
+                    this.diagram.layoutContainer(container, this, context);
                     container = this.getNode(container.parentId);
                 }
             }
@@ -4858,6 +4872,18 @@ export class WeavleJS {
             this.assignEdgeType(edge);
             this.updateEdgeRoute(edge);
         });
+    }
+
+    /** Layout context for a drop: the grabbed node and where it started (lets e.g. BPMN reorder lanes). */
+    moveContext(nodes, startPositions) {
+        const node  = nodes.length === 1 ? nodes[0] : null;
+        const start = node && startPositions[node.id];
+
+        return {
+            changedNode:  node,
+            previousRect: start ? { x: start.x, y: start.y, width: node.width, height: node.height } : null,
+            reason:       "move"
+        };
     }
 
     /**
@@ -4876,7 +4902,20 @@ export class WeavleJS {
         );
 
         // Pass the removed node, so e.g. a pool knows a lane disappeared and shrinks.
-        this.layoutContainers(parentIds, roots[0] || null);
+        this.layoutContainers(parentIds, { changedNode: roots[0] || null, reason: "remove" });
+    }
+
+    /**
+     * Where a dragged node may actually go: diagram.constrainNodePosition(node, { x, y }, engine)
+     * can adjust the proposed top-left position (e.g. lock an axis); otherwise it's unchanged.
+     */
+    constrainNodePosition(node, x, y) {
+        if (node && typeof this.diagram.constrainNodePosition === "function") {
+            const result = this.diagram.constrainNodePosition(node, { x, y }, this);
+            if (result) return { x: result.x, y: result.y };
+        }
+
+        return { x, y };
     }
 
     /** Moves nodes by (dx, dy) without any snapping or containment logic. */
@@ -4943,9 +4982,10 @@ export class WeavleJS {
      *  - With snapToGrid, sizes change in steps of 2 × gridSize: the centre then moves by whole
      *    grid cells, so the node stays aligned with its neighbours (see snapNodePosition).
      */
-    computeResizeRect(start, corner, dx, dy, { keepAspectRatio, fromCenter }, rules) {
-        const signX  = corner.includes("e") ? 1 : -1;
-        const signY  = corner.includes("s") ? 1 : -1;
+    computeResizeRect(start, corner, dx, dy, { keepAspectRatio, fromCenter, centerSnap = true }, rules) {
+        // Edge handles (n / s / e / w) only change one dimension: sign 0 on the other axis.
+        const signX  = corner.includes("e") ? 1 : corner.includes("w") ? -1 : 0;
+        const signY  = corner.includes("s") ? 1 : corner.includes("n") ? -1 : 0;
         const factor = fromCenter ? 2 : 1;
 
         const snap     = this.options.snapToGrid;
@@ -4986,17 +5026,18 @@ export class WeavleJS {
         width  = Math.round(width);
         height = Math.round(height);
 
-        let x = fromCenter
-            ? start.x + (start.width - width) / 2
-            : (signX > 0 ? start.x : start.x + start.width - width);
+        const anchor = (sign, startPos, startSize, size) =>
+            fromCenter || sign === 0
+                ? startPos + (startSize - size) / 2           // centre stays (Alt, or the untouched axis)
+                : (sign > 0 ? startPos : startPos + startSize - size);
 
-        let y = fromCenter
-            ? start.y + (start.height - height) / 2
-            : (signY > 0 ? start.y : start.y + start.height - height);
+        let x = anchor(signX, start.x, start.width,  width);
+        let y = anchor(signY, start.y, start.height, height);
 
         // Min / max clamping and ratios can leave the centre between grid points:
         // nudge the node (at most half a cell) so it stays aligned with its neighbours.
-        if (snap) {
+        // Not for containers: their centre is irrelevant and the opposite edge must stay put.
+        if (snap && centerSnap) {
             ({ x, y } = this.snapNodePosition({ width, height }, x, y));
         }
 
@@ -5004,9 +5045,9 @@ export class WeavleJS {
     }
 
     /** Reroutes the node's edges, records an undo step and emits resize / change events. */
-    finishNodeResize(node) {
+    finishNodeResize(node, previousRect = null) {
         // A resized lane / pool re-arranges its container; also reroutes the edges.
-        this.applyContainment([node], node);
+        this.applyContainment([node], { changedNode: node, previousRect, reason: "resize" });
 
         this.pushHistory();
 
@@ -5032,6 +5073,39 @@ export class WeavleJS {
         this.state.resizingNodeId = null;
         this.state.resizeCorner   = null;
         this.state.resizeStart    = null;
+    }
+
+    /** Position and size of every node, to restore around a live preview. */
+    snapshotGeometry() {
+        return new Map(this.model.nodes.map(n => [n.id, { x: n.x, y: n.y, width: n.width, height: n.height }]));
+    }
+
+    restoreGeometry(snapshot, exceptId = null) {
+        if (!snapshot) return;
+
+        for (const node of this.model.nodes) {
+            const g = snapshot.get(node.id);
+            if (g && node.id !== exceptId) Object.assign(node, g);
+        }
+    }
+
+    /**
+     * Live container layout while a node is being resized (no reroute, no history): the resized
+     * container itself first, then its parent chain — so lanes and pools follow the mouse.
+     */
+    previewContainerLayout(node, previousRect) {
+        if (typeof this.diagram.layoutContainer !== "function") return;
+
+        const done  = new Set();
+        const start = [this.isContainer(node) ? node : null, this.getNode(node.parentId)].filter(Boolean);
+
+        for (let container of start) {
+            while (container && !done.has(container.id)) {
+                done.add(container.id);
+                this.diagram.layoutContainer(container, this, { changedNode: node, previousRect, reason: "resize" });
+                container = this.getNode(container.parentId);
+            }
+        }
     }
 
     /** True if any node in { id: {x, y} } is no longer at its recorded start position. */
@@ -5350,7 +5424,8 @@ export class WeavleJS {
                 this.state.resizeStart    = {
                     x: resizeNode.x, y: resizeNode.y,
                     width: resizeNode.width, height: resizeNode.height,
-                    mouseX: mouse.x, mouseY: mouse.y
+                    mouseX: mouse.x, mouseY: mouse.y,
+                    snapshot: this.snapshotGeometry()   // for live container layout and Escape
                 };
 
                 this.clearNodeToolSurface();
@@ -5515,7 +5590,7 @@ export class WeavleJS {
         // The nodes the user grabbed (the selection, or just this node), plus everything inside
         // grabbed containers: dragging a pool or lane moves its contents along.
         // The definition may redirect a drag to another node (BPMN: dragging a lane moves its pool).
-        const dragTarget = (typeof this.diagram.getDragTarget === "function" && this.diagram.getDragTarget(node, this)) || node;
+        const dragTarget = (typeof this.diagram.getDragTarget === "function" && this.diagram.getDragTarget(node, this, pos)) || node;
 
         const rootIds   = selectedIds.length > 1 && selectedIds.includes(node.id) ? [...selectedIds] : [dragTarget.id];
         const dragNodes = this.withDescendants(rootIds.map(id => this.getNode(id)).filter(Boolean));
@@ -5597,11 +5672,15 @@ export class WeavleJS {
                     this.state.resizeCorner,
                     pos.x - start.mouseX,
                     pos.y - start.mouseY,
-                    { keepAspectRatio: rules.keepAspectRatio || evt.shiftKey, fromCenter: evt.altKey },
+                    { keepAspectRatio: rules.keepAspectRatio || evt.shiftKey, fromCenter: evt.altKey, centerSnap: !this.isContainer(node) },
                     rules
                 );
 
+                // Start from the original geometry every frame, so container layouts don't pile up.
+                this.restoreGeometry(start.snapshot, node.id);
                 Object.assign(node, rect);
+                this.previewContainerLayout(node, start);
+
                 this.render();
             }
             return;
@@ -5706,6 +5785,14 @@ export class WeavleJS {
                 dy = snapped.y - primaryStart.y;
             }
 
+            // The definition may restrict where the primary node can go (BPMN: a lane only moves
+            // vertically inside its pool); the rest of the group follows the same delta.
+            if (primaryStart) {
+                const constrained = this.constrainNodePosition(primaryNode, primaryStart.x + dx, primaryStart.y + dy);
+                dx = constrained.x - primaryStart.x;
+                dy = constrained.y - primaryStart.y;
+            }
+
             this.state.draggingNodeIds.forEach(id => {
                 const node = this.getNode(id);
                 const start = this.state.dragStartPositions[id];
@@ -5786,6 +5873,8 @@ export class WeavleJS {
                 node.y = guides.snapGuideY - node.height / 2;
             }
 
+            Object.assign(node, this.constrainNodePosition(node, node.x, node.y));
+
             // Highlight the container the node would be dropped into.
             this.state.dropTargetId = this.findContainerFor(node)?.id || null;
 
@@ -5849,8 +5938,11 @@ export class WeavleJS {
                 node.width !== start.width || node.height !== start.height
             );
 
+            // Undo the live preview of the other nodes; the final layout is applied once, properly.
+            this.restoreGeometry(start?.snapshot, node?.id);
+
             if (changed) {
-                this.finishNodeResize(node);
+                this.finishNodeResize(node, start);
             } else {
                 this.render();
             }
@@ -6004,6 +6096,7 @@ export class WeavleJS {
         if (this.state.draggingNodeIds && this.state.draggingNodeIds.length > 0) {
             const movedNodeIds = [...this.state.draggingNodeIds];
             const rootIds      = this.state.dragRootIds || movedNodeIds;
+            const startPositions = this.state.dragStartPositions || {};
             const moved        = this.didNodesMove(this.state.dragStartPositions);
 
             this.state.draggingNodeIds = null;
@@ -6024,7 +6117,8 @@ export class WeavleJS {
 
             // The grabbed nodes may have landed in (or left) a container; their contents just follow.
             // applyContainment also lets containers re-arrange and reroutes the edges.
-            this.applyContainment(rootIds.map(id => this.getNode(id)).filter(Boolean));
+            const rootNodes = rootIds.map(id => this.getNode(id)).filter(Boolean);
+            this.applyContainment(rootNodes, this.moveContext(rootNodes, startPositions));
 
             this.pushHistory();
             this.emit("weavle:modelchanged", { model: this.getData() });
@@ -6039,6 +6133,7 @@ export class WeavleJS {
         }
 
         const node  = this.model.nodes.find(n => n.id === this.state.draggingNodeId);
+        const startPositions = this.state.dragStartPositions || {};
         const moved = this.didNodesMove(this.state.dragStartPositions);
 
         this.state.draggingNodeId = null;
@@ -6057,7 +6152,7 @@ export class WeavleJS {
 
         if (node) {
             // Dropped into / out of a container; also reroutes the edges.
-            this.applyContainment([node]);
+            this.applyContainment([node], this.moveContext([node], startPositions));
 
             this.emit("weavle:nodemoved", {
                 node: JSON.parse(JSON.stringify(node)),
@@ -6101,6 +6196,7 @@ export class WeavleJS {
 
                 if (node && start) {
                     Object.assign(node, { x: start.x, y: start.y, width: start.width, height: start.height });
+                    this.restoreGeometry(start.snapshot);   // lanes / pool changed by the live preview
                 }
 
                 this.resetResizeState();

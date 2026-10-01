@@ -220,7 +220,15 @@ Na stap 5 kan de stamboom eventueel vóór de node-editor, als die meer priorite
 
 ---
 
-## 8. Open vragen (stamboom)
+## 8. Backlog
+
+- **Verticale pools en lanes** (kopstrook boven, lanes naast elkaar).
+- **Verbindingsregels** voor BPMN (roadmap stap 3): geen sequence flow tussen pools, geen inkomende lijn op een
+  start-event, geen uitgaande op een eind-event, message flow alleen tussen pools.
+- **Live preview bij het herschikken van lanes** (nu zie je het resultaat pas na het loslaten).
+- **Geneste lanes** (lanes binnen lanes).
+
+## 9. Open vragen (stamboom)
 
 1. **Databron:** levert OutSystems de personen en relaties? Opent "Add father" daar een formulier, of moet
    het bewerken in de chart zelf gebeuren?
