@@ -912,6 +912,21 @@ export function createBpmnDefinition() {
             const def = this.nodeTypes[node.type];
             if (def && def.isContainer) return {};
 
+            // Events are drawn as a circle inside their box: put the ports on the circle itself,
+            // so they stay right even if the box isn't square (e.g. older saved diagrams).
+            if (EVENT_TYPES[node.type]) {
+                const r  = Math.min(node.width, node.height) / 2;
+                const cx = node.x + node.width  / 2;
+                const cy = node.y + node.height / 2;
+
+                return {
+                    top:    { x: cx,     y: cy - r },
+                    right:  { x: cx + r, y: cy     },
+                    bottom: { x: cx,     y: cy + r },
+                    left:   { x: cx - r, y: cy     }
+                };
+            }
+
             return {
                 top:    { x: node.x + node.width  / 2, y: node.y                  },
                 right:  { x: node.x + node.width,       y: node.y + node.height / 2 },

@@ -448,6 +448,10 @@ export class WeavleJS {
      * Without x / y the node is placed on the nearest free spot around the centre of the visible canvas.
      */
     addNode(node) {
+        // Without a size: the default size of the type, from the diagram definition.
+        const size = this.getDefaultNodeSize(node.type);
+        node = { ...node, width: node.width ?? size.width, height: node.height ?? size.height };
+
         if (node.x == null || node.y == null) {
             const visible  = this.getVisibleModelRect();
             const center   = { x: visible.x + visible.width / 2, y: visible.y + visible.height / 2 };
@@ -3876,8 +3880,9 @@ export class WeavleJS {
      */
     startNodeCreation(nodeType, width, height) {
         this.state.creatingNodeType   = nodeType;
-        this.state.creatingNodeWidth  = width  || 140;
-        this.state.creatingNodeHeight = height || 60;
+        const size = this.getDefaultNodeSize(nodeType);
+        this.state.creatingNodeWidth  = width  || size.width;
+        this.state.creatingNodeHeight = height || size.height;
 
         // Initialise the preview position to the last known cursor location,
         // or the canvas centre if the cursor has not been tracked yet.
@@ -3933,8 +3938,7 @@ export class WeavleJS {
      * fallback line through other nodes) wins, so repeated adds fan out instead of stacking up.
      */
     createConnectedNode(sourceNode, nodeType) {
-        const width  = 140;
-        const height = 60;
+        const { width, height } = this.getDefaultNodeSize(nodeType);
         const gap    = 60;     // free space between source and new node, enough for clean routing
         const step   = this.options.gridSize || 20;
 
@@ -4048,6 +4052,12 @@ export class WeavleJS {
         this.applyContainment([newNode]);
 
         return newNode;
+    }
+
+    /** Default size for a new node of this type: diagram.getDefaultSize(type), else 140 x 60. */
+    getDefaultNodeSize(type) {
+        const size = typeof this.diagram.getDefaultSize === "function" ? this.diagram.getDefaultSize(type) : null;
+        return size && size.width && size.height ? { width: size.width, height: size.height } : { width: 140, height: 60 };
     }
 
     /**
