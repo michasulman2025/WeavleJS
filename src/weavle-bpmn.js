@@ -659,168 +659,6 @@ const bpmnShapes = {
 
 
 // ============================================================
-// TOOL ICON FACTORY  (used inside the floating action rail)
-// ============================================================
-
-function createToolIcon(action, engine) {
-    const svg = document.createElementNS(NS, "svg");
-    svg.setAttribute("width", "20"); svg.setAttribute("height", "20"); svg.setAttribute("viewBox", "0 0 40 40");
-
-    if (action.type === "deleteNode") {
-        [["10","10","30","30"],["30","10","10","30"]].forEach(([x1,y1,x2,y2]) => {
-            const l = document.createElementNS(NS, "line");
-            l.setAttribute("x1",x1); l.setAttribute("y1",y1); l.setAttribute("x2",x2); l.setAttribute("y2",y2);
-            l.setAttribute("stroke", "#d11a2a"); l.setAttribute("stroke-width", "3"); l.setAttribute("stroke-linecap", "round");
-            svg.appendChild(l);
-        });
-        return svg;
-    }
-
-    if (action.type === "changeType") {
-        // Wrench
-        _el(svg, "path", {
-            d: "M 26 8 A 7 7 0 0 0 19 17 L 9 27 A 3 3 0 0 0 13 31 L 23 21 A 7 7 0 0 0 32 14 L 27 17 L 23 13 Z",
-            fill: "none", stroke: "#555", "stroke-width": "2.2", "stroke-linejoin": "round"
-        });
-        return svg;
-    }
-
-    appendTypePreview(svg, action.nodeType, engine);
-    return svg;
-}
-
-/**
- * Draws a small preview of a node type into an SVG with viewBox 0 0 40 40, using the real shape.
- * Containers get a simple framed rectangle (their header strip doesn't scale down well).
- */
-function appendTypePreview(svg, type, engine) {
-    const typeDef = engine.diagram.nodeTypes[type];
-    const colors  = engine.getNodeColors(type);
-
-    if (!typeDef || typeDef.isContainer) {
-        _iconRoundedRect(svg, colors, 4, 8, 32, 24, 3);
-        return;
-    }
-
-    const box = EVENT_TYPES[type]            ? { x: 6,  y: 6,  width: 28, height: 28 }
-              : GATEWAY_TYPES.includes(type) ? { x: 5,  y: 5,  width: 30, height: 30 }
-              : type === "dataObject"        ? { x: 11, y: 5,  width: 18, height: 30 }
-              : type === "dataStore"         ? { x: 6,  y: 8,  width: 28, height: 24 }
-              :                                { x: 2,  y: 9,  width: 36, height: 22 };
-
-    const fakeNode = { id: "__preview__", type, label: "", ...box };
-    const factory  = engine.diagram.shapes[typeDef.shape];
-
-    if (factory) svg.appendChild(factory(fakeNode, engine));
-}
-
-/** Toggles the "change type" list in the tool surface: one row per type of the node's family. */
-function toggleTypeMenu(surfaceEl, node, engine, definition) {
-    const existing = surfaceEl.querySelector("[data-weavle-type-menu]");
-    if (existing) { existing.remove(); return; }
-
-    const menu = document.createElement("div");
-    menu.setAttribute("data-weavle-type-menu", "true");
-    Object.assign(menu.style, {
-        display: "flex", flexDirection: "column", gap: "2px", padding: "4px",
-        marginTop: "4px", maxHeight: "260px", overflowY: "auto", minWidth: "170px",
-        background: "#fff", border: "1px solid #d9d9d9", borderRadius: "6px",
-        boxShadow: "0 2px 8px rgba(0,0,0,0.12)", pointerEvents: "auto"
-    });
-
-    for (const type of definition.getTypeFamily(node.type) || []) {
-        const row = document.createElement("button");
-        row.type = "button";
-        Object.assign(row.style, {
-            display: "flex", alignItems: "center", gap: "8px", padding: "3px 6px",
-            border: "none", borderRadius: "4px", cursor: "pointer", textAlign: "left", font: "inherit", fontSize: "12px",
-            background: type === node.type ? "#fdeee8" : "transparent"
-        });
-
-        const icon = document.createElementNS(NS, "svg");
-        icon.setAttribute("width", "22"); icon.setAttribute("height", "22"); icon.setAttribute("viewBox", "0 0 40 40");
-        appendTypePreview(icon, type, engine);
-
-        const label = document.createElement("span");
-        label.textContent = definition.nodeTypes[type].defaultLabel;
-
-        row.append(icon, label);
-        row.addEventListener("mouseenter", () => { if (type !== node.type) row.style.background = "#f3f6fa"; });
-        row.addEventListener("mouseleave", () => { if (type !== node.type) row.style.background = "transparent"; });
-        row.addEventListener("click", e => {
-            e.stopPropagation();
-            engine.handleContextAction({ type: "changeType", nodeType: type }, node);
-        });
-
-        menu.appendChild(row);
-    }
-
-    surfaceEl.appendChild(menu);
-}
-
-function _iconRoundedRect(svg, colors, x, y, w, h, rx, sw = 2) {
-    const r = document.createElementNS(NS, "rect");
-    r.setAttribute("x", x); r.setAttribute("y", y); r.setAttribute("width", w); r.setAttribute("height", h); r.setAttribute("rx", rx);
-    r.setAttribute("fill", colors.fill); r.setAttribute("stroke", colors.stroke); r.setAttribute("stroke-width", sw);
-    svg.appendChild(r);
-}
-
-function _iconCircle(svg, colors, cx, cy, r, sw = 2) {
-    const c = document.createElementNS(NS, "circle");
-    c.setAttribute("cx", cx); c.setAttribute("cy", cy); c.setAttribute("r", r);
-    c.setAttribute("fill", colors.fill); c.setAttribute("stroke", colors.stroke); c.setAttribute("stroke-width", sw);
-    svg.appendChild(c);
-}
-
-function _iconDiamond(svg, colors) {
-    const p = document.createElementNS(NS, "polygon");
-    p.setAttribute("points", "20,6 34,20 20,34 6,20");
-    p.setAttribute("fill", colors.fill); p.setAttribute("stroke", colors.stroke); p.setAttribute("stroke-width", "2");
-    svg.appendChild(p);
-}
-
-
-// ============================================================
-// TOOL ITEM FACTORY  (clickable button in the floating rail)
-// ============================================================
-
-function createToolItem(action, node, engine, variant = "normal", onClick = null) {
-    const item = document.createElement("div");
-    const isDanger = variant === "danger";
-
-    Object.assign(item.style, {
-        width: "32px", height: "32px", display: "flex",
-        alignItems: "center", justifyContent: "center",
-        border: isDanger ? "1px solid #f1b0b7" : "1px solid #d9d9d9",
-        borderRadius: "6px", background: "#fff", cursor: "pointer",
-        transition: "all 0.15s ease", boxShadow: "0 1px 3px rgba(0,0,0,0.08)"
-    });
-    item.title = action.label || action.type;
-    item.appendChild(createToolIcon(action, engine));
-
-    item.addEventListener("mouseenter", () => {
-        item.style.background   = isDanger ? "#fff5f5" : "#f3f6fa";
-        item.style.borderColor  = isDanger ? "#d11a2a" : "#eb6c4c";
-        item.style.boxShadow    = "0 2px 6px rgba(0,0,0,0.15)";
-        item.style.transform    = "scale(1.05)";
-    });
-    item.addEventListener("mouseleave", () => {
-        item.style.background   = "#fff";
-        item.style.borderColor  = isDanger ? "#f1b0b7" : "#d9d9d9";
-        item.style.boxShadow    = "0 1px 3px rgba(0,0,0,0.08)";
-        item.style.transform    = "scale(1)";
-    });
-    item.addEventListener("click", e => {
-        e.stopPropagation();
-        if (onClick) onClick();
-        else engine.handleContextAction(action, node);
-    });
-
-    return item;
-}
-
-
-// ============================================================
 // EXPORTED DEFINITION
 // ============================================================
 
@@ -991,22 +829,37 @@ export function createBpmnDefinition() {
                 return [{ type: "deleteNode", label: "Verwijderen" }];
             }
 
-            const changeType = this.getTypeFamily(node.type)
-                ? [{ type: "changeType", label: "Type wijzigen" }]
-                : [];
+            // Data objects, stores and annotations: nothing to add from there.
+            if (["dataObject", "dataStore", "annotation"].includes(node.type)) {
+                return [{ type: "deleteNode", label: "Verwijderen" }];
+            }
 
-            return [
-                ...changeType,
-                { type: "addConnectedNode", nodeType: "task",             label: "Task"              },
-                { type: "addConnectedNode", nodeType: "userTask",         label: "User task"         },
-                { type: "addConnectedNode", nodeType: "serviceTask",      label: "Service task"      },
-                { type: "addConnectedNode", nodeType: "exclusiveGateway", label: "Exclusive gateway" },
-                { type: "addConnectedNode", nodeType: "parallelGateway",  label: "Parallel gateway"  },
-                { type: "addConnectedNode", nodeType: "intermediateEvent",label: "Intermediate event"},
-                { type: "addConnectedNode", nodeType: "endEvent",         label: "End event"         },
-                { type: "addConnectedNode", nodeType: "annotation",       label: "Annotation"        },
-                { type: "deleteNode",       label: "Verwijderen" }
-            ];
+            const label  = type => this.nodeTypes[type].defaultLabel;
+            const add    = type => ({ type: "addConnectedNode", nodeType: type, label: label(type) });
+            const family = this.getTypeFamily(node.type);
+            const actions = [];
+
+            if (family) {
+                actions.push({
+                    type: "group", label: "Type wijzigen", icon: "wrench",
+                    children: family.map(t => ({ type: "changeType", nodeType: t, label: label(t), active: t === node.type }))
+                });
+            }
+
+            // Nothing follows an end event.
+            if (EVENT_TYPES[node.type]?.kind !== "end") {
+                actions.push(
+                    { type: "group", label: "Activiteit toevoegen", nodeType: "task",              children: ACTIVITY_TYPES.map(add) },
+                    { type: "group", label: "Gateway toevoegen",    nodeType: "exclusiveGateway",  children: GATEWAY_TYPES.map(add) },
+                    { type: "group", label: "Event toevoegen",      nodeType: "intermediateEvent",
+                      children: Object.keys(EVENT_TYPES).filter(t => EVENT_TYPES[t].kind !== "start").map(add) },
+                    { type: "group", label: "Data & annotatie",     nodeType: "dataObject",
+                      children: ["dataObject", "dataStore", "annotation"].map(add) }
+                );
+            }
+
+            actions.push({ type: "deleteNode", label: "Verwijderen" });
+            return actions;
         },
 
         // Node tools float next to the selected node (like the bpmn.io context pad).
@@ -1381,27 +1234,6 @@ export function createBpmnDefinition() {
                 preferredDirection: null, backtrackPenalty: 0,
                 allowedDirections: ["up", "right", "down", "left"],
                 searchMargin: 200, maxIterations: 3000, storeRoutingMeta: true
-            };
-        },
-
-        // ── Node tool renderer ───────────────────────────────
-        getNodeToolRenderer(node, engine) {
-            return ({ node, actions, engine, surfaceEl }) => {
-                const primaryActions = actions.filter(a => a.type !== "deleteNode");
-                const dangerActions  = actions.filter(a => a.type === "deleteNode");
-
-                primaryActions.forEach(a => {
-                    const onClick = a.type === "changeType" ? () => toggleTypeMenu(surfaceEl, node, engine, this) : null;
-                    surfaceEl.appendChild(createToolItem(a, node, engine, "normal", onClick));
-                });
-
-                if (primaryActions.length && dangerActions.length) {
-                    const div = document.createElement("div");
-                    Object.assign(div.style, { width: "100%", height: "1px", background: "#eee", margin: "4px 0" });
-                    surfaceEl.appendChild(div);
-                }
-
-                dangerActions.forEach(a => surfaceEl.appendChild(createToolItem(a, node, engine, "danger")));
             };
         },
 

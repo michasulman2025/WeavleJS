@@ -46,7 +46,7 @@ body {
   gap: 8px;
 }
 
-button {
+.left-panel button {
   border: 1px solid #c7d0da;
   background: #fff;
   padding: 10px 12px;
@@ -55,7 +55,7 @@ button {
   text-align: left;
 }
 
-button:hover {
+.left-panel button:hover {
   background: #f7f9fb;
 }
 

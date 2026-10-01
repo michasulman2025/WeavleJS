@@ -175,11 +175,11 @@ export class WeavleJS {
         // (node tool surface, inline label inputs). pointer-events are disabled by default
         // so mouse events fall through to the SVG unless a child re-enables them.
         this.uiLayer = document.createElement("div");
+        this.uiLayer.className = "weavle-ui-layer";
+
+        // Structural only (it must overlay the SVG and let clicks through); the look lives in weavle.css.
         this.uiLayer.style.position = "absolute";
-        this.uiLayer.style.left = "0";
-        this.uiLayer.style.top = "0";
-        this.uiLayer.style.width = "100%";
-        this.uiLayer.style.height = "100%";
+        this.uiLayer.style.inset = "0";
         this.uiLayer.style.pointerEvents = "none";
 
         this.container.appendChild(this.uiLayer);
@@ -204,9 +204,8 @@ export class WeavleJS {
         this.svg = document.createElementNS(NS, "svg");
         this.svg.setAttribute("width", this.options.width);
         this.svg.setAttribute("height", this.options.height);
-        this.svg.style.background = "var(--weavle-canvas-bg, #fafafa)";
-        this.svg.style.userSelect = "none";
-        this.svg.style.touchAction = "none";
+        this.svg.setAttribute("class", "weavle-canvas");   // background, cursor: weavle.css
+        this.svg.style.touchAction = "none";                // functional: no browser panning while dragging
 
         // --- SVG <defs>: arrow-head markers ---
 
@@ -588,16 +587,15 @@ export class WeavleJS {
                 dot.setAttribute("cx", size / 2);
                 dot.setAttribute("cy", size / 2);
                 dot.setAttribute("r", 1);
-                dot.style.r    = "var(--weavle-grid-dot-radius, 1px)";
-                dot.style.fill = "var(--weavle-grid-color, #c3cad3)";
+                dot.setAttribute("fill", "#c3cad3");
                 p.appendChild(dot);
             } else {
                 const lines = document.createElementNS(NS, "path");
                 lines.setAttribute("class", "weavle-grid-line");
                 lines.setAttribute("d", `M ${size / 2} 0 V ${size} M 0 ${size / 2} H ${size}`);
                 lines.setAttribute("fill", "none");
-                lines.style.stroke      = "var(--weavle-grid-color, #c3cad3)";
-                lines.style.strokeWidth = "var(--weavle-grid-line-width, 0.5px)";
+                lines.setAttribute("stroke", "#c3cad3");
+                lines.setAttribute("stroke-width", 0.5);
                 p.appendChild(lines);
             }
 
@@ -1147,16 +1145,15 @@ export class WeavleJS {
 
         text.setAttribute("text-anchor", "middle");
         text.setAttribute("class", "weavle-node-label");
-        text.style.fontSize      = `${box.fontSize}px`;
+        text.setAttribute("font-size", box.fontSize);
+        text.setAttribute("pointer-events", "none");
 
         const color = this.getLabelLayout(node).color;
-        if (color) text.style.fill = color;
+        if (color) text.setAttribute("fill", color);
 
         if (box.rotate) {
             text.setAttribute("transform", `rotate(${box.rotate} ${box.centerX} ${box.centerY})`);
         }
-        text.style.pointerEvents = "none";
-        text.style.userSelect    = "none";
 
         // Centre the block of lines in the label box; 0.35em shifts from line centre to baseline.
         const blockHeight   = box.lines.length * box.lineHeight;
@@ -1383,7 +1380,8 @@ export class WeavleJS {
             circle.setAttribute("stroke",       "#eb6c4c");
             circle.setAttribute("stroke-width", isHovered ? "3" : "2");
             circle.setAttribute("data-handle-position", positionName);
-            circle.style.cursor = "crosshair";
+            circle.setAttribute("class", isHovered ? "weavle-port weavle-port--hot" : "weavle-port");
+            circle.setAttribute("cursor", "crosshair");
 
             handles.push(circle);
         });
@@ -1398,7 +1396,7 @@ export class WeavleJS {
      */
     createResizeHandles(node) {
         const NS      = "http://www.w3.org/2000/svg";
-        const size    = 8;
+        const size    = 7;
         const handles = this.getResizeRules(node)?.handles || ["nw", "ne", "sw", "se"];
 
         const cx = node.x + node.width  / 2;
@@ -1423,13 +1421,13 @@ export class WeavleJS {
             r.setAttribute("y", c.y - size / 2);
             r.setAttribute("width", size);
             r.setAttribute("height", size);
-            r.setAttribute("rx", 1.5);
-            r.setAttribute("fill", "#ffffff");
-            r.setAttribute("stroke", "#2ea8df");
-            r.setAttribute("stroke-width", "1.5");
+            r.setAttribute("rx", 1);
+            r.setAttribute("fill", "#2563eb");
+            r.setAttribute("stroke", "#ffffff");
+            r.setAttribute("stroke-width", "1");
             r.setAttribute("data-resize-corner", corner);
-            r.setAttribute("class", "weavle-resize-handle");
-            r.style.cursor = c.cursor;
+            r.setAttribute("class", `weavle-resize-handle weavle-resize-handle--${corner}`);
+            r.setAttribute("cursor", c.cursor);
             return r;
         });
     }
@@ -1452,7 +1450,8 @@ export class WeavleJS {
             c.setAttribute("stroke-width", "2");
 
             c.setAttribute("data-handle-position", handleName);
-            c.style.cursor = "crosshair";
+            c.setAttribute("class", "weavle-port");
+            c.setAttribute("cursor", "crosshair");
 
             handles.push(c);
         });
@@ -1476,7 +1475,8 @@ export class WeavleJS {
         c.setAttribute("stroke-width", "2.5");
 
         c.setAttribute("data-handle-position", handleName);
-        c.style.cursor = "crosshair";
+        c.setAttribute("class", "weavle-port weavle-port--hot");
+        c.setAttribute("cursor", "crosshair");
 
         return c;
     }
@@ -1537,9 +1537,11 @@ export class WeavleJS {
         shape.setAttribute("fill",         colors.fill);
         shape.setAttribute("stroke",       colors.stroke);
         shape.setAttribute("stroke-width", "1.5");
+        shape.classList.add("weavle-node-shape");
 
         // Override stroke colour and width when the node is selected.
         if (this.isNodeSelected(node.id)) {
+            shape.classList.add("is-selected");
             shape.setAttribute("stroke",       "#F57100");
             shape.setAttribute("stroke-width", "2.5");
         }
@@ -1566,6 +1568,12 @@ export class WeavleJS {
         const def  = edgeDef || this.getEdgeTypeDefinition(null);
 
         path.setAttribute("d",           pathData);
+        path.setAttribute("class", [
+            "weavle-edge",
+            def.type ? `weavle-edge--${def.type}` : "",
+            isSelected ? "is-selected" : "",
+            isPreview ? "is-preview" : ""
+        ].filter(Boolean).join(" "));
         path.setAttribute("stroke",      isSelected ? "#F57100" : "#666");
         path.setAttribute("stroke-width", isSelected ? "2.5" : "1.5");
         path.setAttribute("fill",        "none");
@@ -1608,7 +1616,7 @@ export class WeavleJS {
         const defaults = { router: "orthogonal", marker: "arrow", dash: null };
         const type     = edge?.type || this.diagram.defaultEdgeType;
 
-        return { ...defaults, ...(this.diagram.edgeTypes?.[type] || {}) };
+        return { ...defaults, ...(this.diagram.edgeTypes?.[type] || {}), type: type || null };
     }
 
     /**
@@ -1677,8 +1685,9 @@ export class WeavleJS {
         path.setAttribute("stroke",       "transparent");
         path.setAttribute("stroke-width", "12");
         path.setAttribute("data-edge-id", edgeId);
-        path.style.cursor       = "pointer";
-        path.style.pointerEvents = "stroke";
+        path.setAttribute("class", "weavle-edge-hit");
+        path.setAttribute("cursor", "pointer");
+        path.setAttribute("pointer-events", "stroke");
 
         return path;
     }
@@ -1705,8 +1714,9 @@ export class WeavleJS {
         text.setAttribute("x",           labelX);
         text.setAttribute("y",           labelY - 6);
         text.setAttribute("text-anchor", "middle");
-        text.style.fontSize = "12px";
-        text.style.fill     = "#444";
+        text.setAttribute("class", "weavle-edge-label");
+        text.setAttribute("font-size", 12);
+        text.setAttribute("fill", "#444");
         text.textContent    = textValue;
 
         return text;
@@ -1724,7 +1734,8 @@ export class WeavleJS {
         circle.setAttribute("stroke",                "#eb6c4c");
         circle.setAttribute("stroke-width",          "2");
         circle.setAttribute("data-edge-control-id",  edgeId);
-        circle.style.cursor = "move";
+        circle.setAttribute("class", "weavle-edge-handle");
+        circle.setAttribute("cursor", "move");
 
         return circle;
     }
@@ -1749,7 +1760,8 @@ export class WeavleJS {
         circle.setAttribute("stroke-width",             "2");
         circle.setAttribute("data-edge-endpoint-id",   edgeId);
         circle.setAttribute("data-edge-endpoint-side", side);
-        circle.style.cursor = "crosshair";
+        circle.setAttribute("class", "weavle-edge-handle weavle-edge-handle--endpoint");
+        circle.setAttribute("cursor", "crosshair");
 
         return circle;
     }
@@ -1769,7 +1781,8 @@ export class WeavleJS {
     circle.setAttribute("data-edge-segment-index", segmentIndex);
     circle.setAttribute("data-edge-segment-orientation", orientation);
 
-    circle.style.cursor = orientation === "vertical" ? "ew-resize" : "ns-resize";
+    circle.setAttribute("class", "weavle-edge-handle weavle-edge-handle--segment");
+    circle.setAttribute("cursor", orientation === "vertical" ? "ew-resize" : "ns-resize");
 
     return circle;
 }
@@ -4198,27 +4211,24 @@ export class WeavleJS {
         this.state.nodeToolNodeId = node.id;
     }
 
+
+
     /**
-     * Creates only the visual shell/container of the tool surface.
-     * No action content is rendered here.
+     * The node tool surface (context pad). Only structural styles are set inline (positioning);
+     * the look comes from weavle.css: .weavle-tool-surface, .weavle-tool-button, .weavle-tool-submenu, ...
      */
     createToolSurfaceShell(node, mode) {
         const surfaceEl = document.createElement("div");
 
-        surfaceEl.className = "weavle-tool-surface";
+        surfaceEl.className    = `weavle-tool-surface weavle-tool-surface--${mode}`;
         surfaceEl.dataset.mode = mode;
 
-        surfaceEl.style.position = mode === "docked-panel" ? "relative" : "absolute";
-        surfaceEl.style.display = "flex";
-        surfaceEl.style.flexDirection = "column";
-        surfaceEl.style.gap = "6px";
-        surfaceEl.style.padding = "8px";
-        surfaceEl.style.background = "#ffffff";
-        surfaceEl.style.border = "1px solid #e3e7ec";
-        surfaceEl.style.borderRadius = "10px";
-        surfaceEl.style.boxShadow = "0 4px 14px rgba(0,0,0,0.08)";
+        if (mode !== "docked-panel") {
+            surfaceEl.style.position = "absolute";
+        }
+
+        // The surface is interactive inside the (pointer-events: none) UI layer.
         surfaceEl.style.pointerEvents = "auto";
-        surfaceEl.style.zIndex = "20";
 
         // Prevent the surface itself from triggering canvas mouse interactions.
         surfaceEl.addEventListener("mousedown", (e) => {
@@ -4229,8 +4239,13 @@ export class WeavleJS {
     }
 
     /**
-     * Lets the diagram/plugin render the content.
-     * Falls back to a default button list if no custom renderer is provided.
+     * Fills the tool surface. A definition may render it itself (getNodeToolRenderer); otherwise
+     * every action becomes an icon button. Actions with `children` become a button with a submenu
+     * (e.g. "Activity ▸" listing all activity types). Delete-like actions (deleteNode, or
+     * `danger: true`) are grouped at the end, after a separator.
+     *
+     * Action fields: type, label, nodeType (icon = preview of that type), icon ("wrench" |
+     * "delete" | "plus"), children, active (highlighted in a submenu), danger.
      */
     renderToolSurfaceContent(surfaceEl, node, actions) {
         const renderer = this.getNodeToolRenderer(node);
@@ -4243,34 +4258,165 @@ export class WeavleJS {
                 surfaceEl          // renderers may fill this directly instead of returning content
             });
 
-            // Preferred new contract:
-            // renderer returns an HTMLElement or DocumentFragment
             if (content instanceof HTMLElement || content instanceof DocumentFragment) {
                 surfaceEl.appendChild(content);
                 return;
             }
 
-            // Backward compatibility:
-            // existing renderer mutates surfaceEl directly and returns nothing
             if (surfaceEl.childNodes.length > 0) {
                 return;
             }
         }
 
-        actions.forEach(action => {
-            const btn = document.createElement("button");
-            btn.type = "button";
-            btn.textContent = action.label || action.type;
-            btn.style.whiteSpace = "nowrap";
-            btn.style.cursor = "pointer";
+        const isDanger = a => a.type === "deleteNode" || a.danger;
+        const main     = actions.filter(a => !isDanger(a));
+        const danger   = actions.filter(isDanger);
 
-            btn.addEventListener("click", (e) => {
-                e.stopPropagation();
+        main.forEach(action => surfaceEl.appendChild(this.createToolButton(action, node, surfaceEl)));
+
+        if (main.length && danger.length) {
+            const separator = document.createElement("div");
+            separator.className = "weavle-tool-separator";
+            surfaceEl.appendChild(separator);
+        }
+
+        danger.forEach(action => surfaceEl.appendChild(this.createToolButton(action, node, surfaceEl)));
+    }
+
+    /** One icon button in the tool surface; a group button toggles its submenu. */
+    createToolButton(action, node, surfaceEl) {
+        const item = document.createElement("div");
+        item.className = "weavle-tool-item";
+
+        const btn = document.createElement("button");
+        btn.type      = "button";
+        btn.className = "weavle-tool-button";
+        btn.title     = action.label || action.type;
+        btn.setAttribute("aria-label", btn.title);
+
+        if (action.children) btn.classList.add("weavle-tool-button--group");
+        if (action.type === "deleteNode" || action.danger) btn.classList.add("weavle-tool-button--danger");
+
+        btn.appendChild(this.createActionIcon(action));
+
+        btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+
+            if (action.children) {
+                this.toggleToolSubmenu(surfaceEl, item, btn, action, node);
+            } else {
                 this.handleContextAction(action, node);
+            }
+        });
+
+        item.appendChild(btn);
+        return item;
+    }
+
+    /** Opens (or closes) the submenu of a group action; only one submenu is open at a time. */
+    toggleToolSubmenu(surfaceEl, item, btn, action, node) {
+        const wasOpen = btn.classList.contains("is-open");
+
+        surfaceEl.querySelectorAll(".weavle-tool-submenu").forEach(menu => menu.remove());
+        surfaceEl.querySelectorAll(".weavle-tool-button.is-open").forEach(b => b.classList.remove("is-open"));
+
+        if (wasOpen) return;
+
+        const menu = document.createElement("div");
+        menu.className = "weavle-tool-submenu";
+        menu.setAttribute("role", "menu");
+
+        const title = document.createElement("div");
+        title.className   = "weavle-tool-submenu-title";
+        title.textContent = action.label || "";
+        menu.appendChild(title);
+
+        for (const child of action.children) {
+            const row = document.createElement("button");
+            row.type      = "button";
+            row.className = "weavle-tool-menu-item";
+            row.setAttribute("role", "menuitem");
+            if (child.active) row.classList.add("is-active");
+
+            const label = document.createElement("span");
+            label.className   = "weavle-tool-menu-label";
+            label.textContent = child.label || child.nodeType || child.type;
+
+            row.append(this.createActionIcon(child), label);
+
+            row.addEventListener("click", (e) => {
+                e.stopPropagation();
+                this.handleContextAction(child, node);
             });
 
-            surfaceEl.appendChild(btn);
-        });
+            menu.appendChild(row);
+        }
+
+        btn.classList.add("is-open");
+        item.appendChild(menu);
+    }
+
+    /** Icon for an action: a built-in symbol, or a small preview of the node type it creates. */
+    createActionIcon(action) {
+        const NS  = "http://www.w3.org/2000/svg";
+        const svg = document.createElementNS(NS, "svg");
+        svg.setAttribute("class", "weavle-tool-icon");
+        svg.setAttribute("viewBox", "0 0 40 40");
+        svg.setAttribute("width", "20");
+        svg.setAttribute("height", "20");
+
+        const icon = action.icon || (action.type === "deleteNode" ? "delete" : null);
+
+        const add = (tag, attrs) => {
+            const el = document.createElementNS(NS, tag);
+            for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+            el.setAttribute("class", "weavle-tool-glyph");
+            svg.appendChild(el);
+        };
+
+        if (icon === "delete") {
+            add("path", { d: "M 12 12 L 28 28 M 28 12 L 12 28", fill: "none", stroke: "currentColor", "stroke-width": 3, "stroke-linecap": "round" });
+        } else if (icon === "wrench") {
+            add("path", {
+                d: "M 26 8 A 7 7 0 0 0 19 17 L 9 27 A 3 3 0 0 0 13 31 L 23 21 A 7 7 0 0 0 32 14 L 27 17 L 23 13 Z",
+                fill: "none", stroke: "currentColor", "stroke-width": 2.2, "stroke-linejoin": "round"
+            });
+        } else if (icon === "plus") {
+            add("path", { d: "M 20 10 L 20 30 M 10 20 L 30 20", fill: "none", stroke: "currentColor", "stroke-width": 3, "stroke-linecap": "round" });
+        } else if (action.nodeType) {
+            this.appendTypePreview(svg, action.nodeType);
+        }
+
+        return svg;
+    }
+
+    /**
+     * Draws a small preview of a node type (its real shape, scaled to fit) into an SVG with
+     * viewBox 0 0 40 40. Containers get a simple framed rectangle.
+     */
+    appendTypePreview(svg, type) {
+        const NS      = "http://www.w3.org/2000/svg";
+        const typeDef = this.diagram.nodeTypes?.[type];
+        const factory = typeDef && this.diagram.shapes?.[typeDef.shape];
+
+        if (!factory || typeDef.isContainer) {
+            const colors = this.getNodeColors(type);
+            const rect   = document.createElementNS(NS, "rect");
+            rect.setAttribute("x", 4);  rect.setAttribute("y", 8);
+            rect.setAttribute("width", 32); rect.setAttribute("height", 24); rect.setAttribute("rx", 3);
+            rect.setAttribute("fill", colors.fill); rect.setAttribute("stroke", colors.stroke); rect.setAttribute("stroke-width", 2);
+            svg.appendChild(rect);
+            return;
+        }
+
+        // Fit the type's default size into a 34 x 30 box, centred.
+        const size   = this.getDefaultNodeSize(type);
+        const scale  = Math.min(34 / size.width, 30 / size.height);
+        const width  = size.width  * scale;
+        const height = size.height * scale;
+
+        const preview = { id: "__preview__", type, label: "", x: (40 - width) / 2, y: (40 - height) / 2, width, height };
+        svg.appendChild(factory(preview, this));
     }
 
     /**
@@ -4480,23 +4626,15 @@ export class WeavleJS {
         const input           = document.createElement(type === "node" ? "textarea" : "input");
         if (type !== "node") input.type = "text";
         input.value           = value;
+        input.className       = "weavle-label-editor";
+
+        // Geometry only (depends on position and zoom); the look lives in weavle.css.
         input.style.position  = "absolute";
         input.style.left      = `${view.x - (width  * zoom) / 2}px`;
         input.style.top       = `${view.y - (height * zoom) / 2}px`;
         input.style.width     = `${width  * zoom}px`;
         input.style.height    = `${height * zoom}px`;
         input.style.fontSize  = `${fontSize * zoom}px`;
-        input.style.fontFamily = "inherit";
-        input.style.lineHeight = "1.25";
-        input.style.resize    = "none";
-        input.style.padding   = "2px 4px";
-        input.style.boxSizing = "border-box";
-        input.style.textAlign = "center";
-        input.style.border    = "1px solid #eb6c4c";
-        input.style.borderRadius = "4px";
-        input.style.zIndex    = "1000";
-        input.style.background = "white";
-        input.style.boxShadow  = "0 0 6px rgba(0,0,0,0.15)";
         input.style.pointerEvents = "auto";
 
         this.uiLayer.appendChild(input);
@@ -5443,7 +5581,7 @@ export class WeavleJS {
             this.state.panStartY  = evt.clientY;
             this.state.panOriginX = this.state.panX;
             this.state.panOriginY = this.state.panY;
-            this.svg.style.cursor = "grabbing";
+            this.svg.classList.add("is-panning");
             return;
         }
 
@@ -5691,7 +5829,7 @@ export class WeavleJS {
 
         // Pan mode.
         if (this.state.isPanning) {
-            this.svg.style.cursor = "grabbing";
+            this.svg.classList.add("is-panning");
             const dx = evt.clientX - this.state.panStartX;
             const dy = evt.clientY - this.state.panStartY;
             this.state.panX = this.state.panOriginX + dx;
@@ -5961,7 +6099,7 @@ export class WeavleJS {
         // End pan mode.
         if (this.state.isPanning) {
             this.state.isPanning  = false;
-            this.svg.style.cursor = "";
+            this.svg.classList.remove("is-panning");
             return;
         }
 

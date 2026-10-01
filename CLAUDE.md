@@ -81,6 +81,12 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
 
 ## Conventions
 
+- No visual inline styles (OutSystems apps style through external CSS). UI chrome gets classes styled in
+  `src/weavle.css`; SVG colours are presentation attributes (overridable by CSS). Inline style is only for
+  computed geometry (left/top/width/height/font-size of floating elements) and functional bits
+  (pointer-events, touch-action, body user-select during drags).
+- Node tools are rendered generically by the engine from `getContextActions` (an action with `children` is a
+  button with a submenu; icons are type previews via `appendTypePreview`). Definitions do not render tools.
 - ES modules with named exports, ES2020+ classes, 4-space indentation, double quotes, JSDoc on public
   methods, section banners (`// ====== N. SECTION ======`).
 - UI strings (default labels, context actions) are in Dutch.

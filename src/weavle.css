@@ -1,0 +1,249 @@
+/*
+  WeavleJS — default stylesheet.
+
+  Include it next to weavle.js (in OutSystems: add it to your theme or as a resource). The engine only
+  sets structural styles inline (positions and sizes computed while dragging / zooming); everything
+  visual is here. Override the custom properties below on the container (or any ancestor), or
+  restyle the classes directly.
+*/
+
+:root {
+    /* Canvas and grid */
+    --weavle-canvas-bg:          #fafafa;
+    --weavle-grid-color:         #c3cad3;
+    --weavle-grid-dot-radius:    1px;
+    --weavle-grid-line-width:    0.5px;
+
+    /* Selection, handles and ports */
+    --weavle-selection-color:    #f57100;
+    --weavle-handle-fill:        #2563eb;
+    --weavle-handle-stroke:      #ffffff;
+    --weavle-port-fill:          #ffffff;
+    --weavle-port-stroke:        #2ea8df;
+    --weavle-port-hot:           #eb6c4c;
+
+    /* Node tools (context pad) and menus */
+    --weavle-ui-font:            12px/1.35 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --weavle-ui-bg:              #ffffff;
+    --weavle-ui-border:          #e2e8f0;
+    --weavle-ui-radius:          8px;
+    --weavle-ui-shadow:          0 4px 16px rgba(15, 23, 42, 0.10), 0 1px 3px rgba(15, 23, 42, 0.08);
+    --weavle-ui-text:            #1e293b;
+    --weavle-ui-muted:           #64748b;
+    --weavle-ui-icon:            #475569;
+    --weavle-ui-hover:           #f1f5f9;
+    --weavle-ui-active-bg:       #eff6ff;
+    --weavle-ui-active-text:     #1d4ed8;
+    --weavle-ui-danger:          #dc2626;
+    --weavle-ui-danger-hover:    #fef2f2;
+    --weavle-tool-size:          30px;
+}
+
+/* ── Canvas ───────────────────────────────────────────────── */
+
+.weavle-canvas {
+    background: var(--weavle-canvas-bg);
+    user-select: none;
+}
+
+.weavle-canvas.is-panning {
+    cursor: grabbing;
+}
+
+.weavle-grid-dot {
+    fill: var(--weavle-grid-color);
+    r: var(--weavle-grid-dot-radius);
+}
+
+.weavle-grid-line {
+    stroke: var(--weavle-grid-color);
+    stroke-width: var(--weavle-grid-line-width);
+}
+
+.weavle-node-label,
+.weavle-edge-label {
+    user-select: none;
+}
+
+/* ── Selection, handles, ports ────────────────────────────── */
+
+.weavle-node-shape.is-selected {
+    stroke: var(--weavle-selection-color);
+}
+
+.weavle-resize-handle {
+    fill: var(--weavle-handle-fill);
+    stroke: var(--weavle-handle-stroke);
+    stroke-width: 1px;
+}
+
+.weavle-port {
+    fill: var(--weavle-port-fill);
+    stroke: var(--weavle-port-stroke);
+}
+
+.weavle-port--hot {
+    stroke: var(--weavle-port-hot);
+}
+
+/* ── Node tools (context pad) ─────────────────────────────── */
+
+.weavle-tool-surface {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 4px;
+    font: var(--weavle-ui-font);
+    color: var(--weavle-ui-text);
+    background: var(--weavle-ui-bg);
+    border: 1px solid var(--weavle-ui-border);
+    border-radius: var(--weavle-ui-radius);
+    box-shadow: var(--weavle-ui-shadow);
+    z-index: 20;
+}
+
+.weavle-tool-surface--docked-panel {
+    width: max-content;
+    box-shadow: none;
+}
+
+.weavle-tool-item {
+    position: relative;
+}
+
+.weavle-tool-button {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--weavle-tool-size);
+    height: var(--weavle-tool-size);
+    padding: 0;
+    color: var(--weavle-ui-icon);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.weavle-tool-button:hover,
+.weavle-tool-button.is-open {
+    background: var(--weavle-ui-hover);
+    border-color: var(--weavle-ui-border);
+}
+
+.weavle-tool-button:focus-visible,
+.weavle-tool-menu-item:focus-visible {
+    outline: 2px solid var(--weavle-handle-fill);
+    outline-offset: 1px;
+}
+
+/* Small corner triangle: this button opens a submenu */
+.weavle-tool-button--group::after {
+    content: "";
+    position: absolute;
+    right: 2px;
+    bottom: 2px;
+    border-left: 4px solid transparent;
+    border-bottom: 4px solid currentColor;
+    opacity: 0.45;
+}
+
+.weavle-tool-button--danger {
+    color: var(--weavle-ui-danger);
+}
+
+.weavle-tool-button--danger:hover {
+    background: var(--weavle-ui-danger-hover);
+    border-color: transparent;
+}
+
+.weavle-tool-separator {
+    height: 1px;
+    margin: 2px 4px;
+    background: var(--weavle-ui-border);
+}
+
+.weavle-tool-icon {
+    flex: none;
+    width: 20px;
+    height: 20px;
+    overflow: visible;
+}
+
+/* ── Submenus ─────────────────────────────────────────────── */
+
+.weavle-tool-submenu {
+    position: absolute;
+    top: -5px;
+    left: calc(100% + 8px);
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 200px;
+    max-height: 340px;
+    overflow-y: auto;
+    padding: 4px;
+    background: var(--weavle-ui-bg);
+    border: 1px solid var(--weavle-ui-border);
+    border-radius: var(--weavle-ui-radius);
+    box-shadow: var(--weavle-ui-shadow);
+}
+
+/* A docked panel usually sits at the right edge of the screen: open submenus to the left. */
+.weavle-tool-surface--docked-panel .weavle-tool-submenu {
+    left: auto;
+    right: calc(100% + 8px);
+}
+
+.weavle-tool-submenu-title {
+    padding: 4px 8px 4px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--weavle-ui-muted);
+}
+
+.weavle-tool-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 3px 8px;
+    font: inherit;
+    color: var(--weavle-ui-text);
+    text-align: left;
+    background: transparent;
+    border: 0;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.weavle-tool-menu-item:hover {
+    background: var(--weavle-ui-hover);
+}
+
+.weavle-tool-menu-item.is-active {
+    font-weight: 600;
+    color: var(--weavle-ui-active-text);
+    background: var(--weavle-ui-active-bg);
+}
+
+/* ── Inline label editor ──────────────────────────────────── */
+
+.weavle-label-editor {
+    box-sizing: border-box;
+    z-index: 1000;
+    padding: 2px 4px;
+    font-family: inherit;
+    line-height: 1.25;
+    text-align: center;
+    resize: none;
+    background: #ffffff;
+    border: 1px solid var(--weavle-selection-color);
+    border-radius: 4px;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(245, 113, 0, 0.15);
+}

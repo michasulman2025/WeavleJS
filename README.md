@@ -38,6 +38,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the design and roadmap.
 | `src/weavle.js` | The engine — `export class WeavleJS` |
 | `src/weavle-flowchart.js` | Flowchart definition — `export function createFlowchartDefinition()` |
 | `src/weavle-bpmn.js` | BPMN definition — `export function createBpmnDefinition()` |
+| `src/weavle.css` | Default stylesheet — node tools, menus, handles, label editor, canvas and grid |
 | `index.html`, `src/demo.js`, `src/style.css` | The playground |
 
 ---
@@ -205,14 +206,19 @@ auto-layout) and the planned node-editor and pedigree add-ins.
 
 ## Theming
 
-The grid and canvas are styled with CSS custom properties on the container (or any ancestor):
+All styling lives in **`src/weavle.css`** — include it next to the scripts. The engine sets no visual inline
+styles: only positions and sizes it computes while dragging and zooming (tool surface, label editor) and a few
+functional ones (`pointer-events`, `touch-action`). Colours in the SVG are presentation attributes, so your CSS
+always wins over them.
+
+Override the custom properties on the container (or any ancestor):
 
 ```css
 #diagram {
   --weavle-canvas-bg: #ffffff;
   --weavle-grid-color: #d6dbe1;
-  --weavle-grid-dot-radius: 1.2px;
-  --weavle-grid-line-width: 0.5px;
+  --weavle-handle-fill: #0f766e;
+  --weavle-ui-radius: 4px;
 }
 ```
 
@@ -222,8 +228,32 @@ The grid and canvas are styled with CSS custom properties on the container (or a
 | `--weavle-grid-color` | `#c3cad3` | Dot / line colour |
 | `--weavle-grid-dot-radius` | `1px` | Dot size (`gridType: "dots"`) |
 | `--weavle-grid-line-width` | `0.5px` | Line thickness (`gridType: "lines"`) |
+| `--weavle-selection-color` | `#f57100` | Selected node outline, label editor border |
+| `--weavle-handle-fill` / `--weavle-handle-stroke` | `#2563eb` / `#fff` | Resize handles |
+| `--weavle-port-fill` / `--weavle-port-stroke` / `--weavle-port-hot` | `#fff` / `#2ea8df` / `#eb6c4c` | Connection ports |
+| `--weavle-ui-font`, `--weavle-ui-bg`, `--weavle-ui-border`, `--weavle-ui-radius`, `--weavle-ui-shadow` | | Node tools and submenus |
+| `--weavle-ui-text`, `--weavle-ui-muted`, `--weavle-ui-icon`, `--weavle-ui-hover` | | Text, titles, icons, hover |
+| `--weavle-ui-active-bg` / `--weavle-ui-active-text` | | Current type in the "change type" menu |
+| `--weavle-ui-danger` / `--weavle-ui-danger-hover` | | Delete button |
+| `--weavle-tool-size` | `30px` | Size of a node tool button |
 
-You can also target `.weavle-grid-dot`, `.weavle-grid-line`, `.weavle-node-label` and `.weavle-resize-handle`.
+Classes you can target directly:
+
+| Class | Element |
+|---|---|
+| `.weavle-canvas`, `.weavle-canvas.is-panning` | The SVG canvas |
+| `.weavle-grid-dot`, `.weavle-grid-line` | Grid |
+| `.weavle-node-shape`, `.weavle-node-shape.is-selected` | Node shapes |
+| `.weavle-node-label`, `.weavle-edge-label` | Labels |
+| `.weavle-edge`, `.weavle-edge--<type>`, `.is-selected`, `.is-preview` | Edges |
+| `.weavle-resize-handle`, `.weavle-resize-handle--<corner>` | Resize handles |
+| `.weavle-port`, `.weavle-port--hot` | Connection ports |
+| `.weavle-tool-surface`, `.weavle-tool-surface--action-surface`, `.weavle-tool-surface--docked-panel` | Node tools |
+| `.weavle-tool-button`, `--group`, `--danger`, `.is-open`; `.weavle-tool-separator`; `.weavle-tool-icon` | Tool buttons |
+| `.weavle-tool-submenu`, `.weavle-tool-submenu-title`, `.weavle-tool-menu-item`, `.is-active` | Submenus |
+| `.weavle-label-editor` | Inline label editor |
+| `.weavle-drop-target` | Container highlight while dragging into it |
+
 Node colours come from the diagram definition.
 
 ---
@@ -231,7 +261,8 @@ Node colours come from the diagram definition.
 ## OutSystems Integration
 
 Weavle is a set of ES modules today. Until the single-file (IIFE) build lands, load it with a dynamic `import()`
-from the module's scripts location — the three files must sit next to each other.
+from the module's scripts location — the three files must sit next to each other. Add `weavle.css` to your theme
+(or as a stylesheet resource) and restyle it there; nothing visual is set inline.
 
 **OnReady** (JavaScript node):
 

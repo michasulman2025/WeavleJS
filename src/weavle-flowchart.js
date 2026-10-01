@@ -160,228 +160,6 @@ const flowchartShapes = {
 };
 
 
-function createToolIcon(action, engine) {
-    const svg = document.createElementNS(NS, "svg");
-    svg.setAttribute("width", "20");
-    svg.setAttribute("height", "20");
-    svg.setAttribute("viewBox", "0 0 40 40");
-
-    if (action.type === "deleteNode") {
-        const line1 = document.createElementNS(NS, "line");
-        line1.setAttribute("x1", "10");
-        line1.setAttribute("y1", "10");
-        line1.setAttribute("x2", "30");
-        line1.setAttribute("y2", "30");
-        line1.setAttribute("stroke", "#d11a2a");
-        line1.setAttribute("stroke-width", "3");
-        line1.setAttribute("stroke-linecap", "round");
-
-        const line2 = document.createElementNS(NS, "line");
-        line2.setAttribute("x1", "30");
-        line2.setAttribute("y1", "10");
-        line2.setAttribute("x2", "10");
-        line2.setAttribute("y2", "30");
-        line2.setAttribute("stroke", "#d11a2a");
-        line2.setAttribute("stroke-width", "3");
-        line2.setAttribute("stroke-linecap", "round");
-
-        svg.appendChild(line1);
-        svg.appendChild(line2);
-        return svg;
-    }
-
-    const colors = engine.getNodeColors(action.nodeType);
-
-    switch (action.nodeType) {
-        case "process": {
-            const rect = document.createElementNS(NS, "rect");
-            rect.setAttribute("x", "6");
-            rect.setAttribute("y", "10");
-            rect.setAttribute("width", "28");
-            rect.setAttribute("height", "20");
-            rect.setAttribute("rx", "4");
-            rect.setAttribute("fill", colors.fill);
-            rect.setAttribute("stroke", colors.stroke);
-            rect.setAttribute("stroke-width", "2");
-            svg.appendChild(rect);
-            break;
-        }
-
-        case "decision": {
-            const polygon = document.createElementNS(NS, "polygon");
-            polygon.setAttribute("points", "20,6 34,20 20,34 6,20");
-            polygon.setAttribute("fill", colors.fill);
-            polygon.setAttribute("stroke", colors.stroke);
-            polygon.setAttribute("stroke-width", "2");
-            svg.appendChild(polygon);
-            break;
-        }
-
-        case "terminator": {
-            const rect = document.createElementNS(NS, "rect");
-            rect.setAttribute("x", "6");
-            rect.setAttribute("y", "10");
-            rect.setAttribute("width", "28");
-            rect.setAttribute("height", "20");
-            rect.setAttribute("rx", "10");
-            rect.setAttribute("fill", colors.fill);
-            rect.setAttribute("stroke", colors.stroke);
-            rect.setAttribute("stroke-width", "2");
-            svg.appendChild(rect);
-            break;
-        }
-
-        case "inputOutput": {
-            const polygon = document.createElementNS(NS, "polygon");
-            polygon.setAttribute("points", "12,10 34,10 28,30 6,30");
-            polygon.setAttribute("fill", colors.fill);
-            polygon.setAttribute("stroke", colors.stroke);
-            polygon.setAttribute("stroke-width", "2");
-            svg.appendChild(polygon);
-            break;
-        }
-
-        case "document": {
-            const path = document.createElementNS(NS, "path");
-            path.setAttribute(
-                "d",
-                "M 8 10 L 32 10 L 32 26 Q 26 32 20 26 Q 14 20 8 26 Z"
-            );
-            path.setAttribute("fill", colors.fill);
-            path.setAttribute("stroke", colors.stroke);
-            path.setAttribute("stroke-width", "2");
-            svg.appendChild(path);
-            break;
-        }
-
-        case "database": {
-            const body = document.createElementNS(NS, "rect");
-            body.setAttribute("x", "8");
-            body.setAttribute("y", "12");
-            body.setAttribute("width", "24");
-            body.setAttribute("height", "16");
-            body.setAttribute("fill", colors.fill);
-            body.setAttribute("stroke", colors.stroke);
-            body.setAttribute("stroke-width", "2");
-
-            const top = document.createElementNS(NS, "ellipse");
-            top.setAttribute("cx", "20");
-            top.setAttribute("cy", "12");
-            top.setAttribute("rx", "12");
-            top.setAttribute("ry", "5");
-            top.setAttribute("fill", colors.fill);
-            top.setAttribute("stroke", colors.stroke);
-            top.setAttribute("stroke-width", "2");
-
-            const bottom = document.createElementNS(NS, "ellipse");
-            bottom.setAttribute("cx", "20");
-            bottom.setAttribute("cy", "28");
-            bottom.setAttribute("rx", "12");
-            bottom.setAttribute("ry", "5");
-            bottom.setAttribute("fill", "none");
-            bottom.setAttribute("stroke", colors.stroke);
-            bottom.setAttribute("stroke-width", "2");
-
-            svg.appendChild(body);
-            svg.appendChild(top);
-            svg.appendChild(bottom);
-            break;
-        }
-
-        case "subProcess": {
-            const rect = document.createElementNS(NS, "rect");
-            rect.setAttribute("x", "6");
-            rect.setAttribute("y", "10");
-            rect.setAttribute("width", "28");
-            rect.setAttribute("height", "20");
-            rect.setAttribute("rx", "4");
-            rect.setAttribute("fill", colors.fill);
-            rect.setAttribute("stroke", colors.stroke);
-            rect.setAttribute("stroke-width", "2");
-
-            const leftLine = document.createElementNS(NS, "line");
-            leftLine.setAttribute("x1", "11");
-            leftLine.setAttribute("y1", "12");
-            leftLine.setAttribute("x2", "11");
-            leftLine.setAttribute("y2", "28");
-            leftLine.setAttribute("stroke", colors.stroke);
-            leftLine.setAttribute("stroke-width", "2");
-
-            const rightLine = document.createElementNS(NS, "line");
-            rightLine.setAttribute("x1", "29");
-            rightLine.setAttribute("y1", "12");
-            rightLine.setAttribute("x2", "29");
-            rightLine.setAttribute("y2", "28");
-            rightLine.setAttribute("stroke", colors.stroke);
-            rightLine.setAttribute("stroke-width", "2");
-
-            svg.appendChild(rect);
-            svg.appendChild(leftLine);
-            svg.appendChild(rightLine);
-            break;
-        }
-
-        default: {
-            const fallback = document.createElementNS(NS, "rect");
-            fallback.setAttribute("x", "8");
-            fallback.setAttribute("y", "8");
-            fallback.setAttribute("width", "24");
-            fallback.setAttribute("height", "24");
-            fallback.setAttribute("rx", "4");
-            fallback.setAttribute("fill", "#ffffff");
-            fallback.setAttribute("stroke", "#999");
-            fallback.setAttribute("stroke-width", "2");
-            svg.appendChild(fallback);
-            break;
-        }
-    }
-
-    return svg;
-}
-
-function createToolItem(action, node, engine, variant = "normal") {
-    const item = document.createElement("div");
-
-    const isDanger = variant === "danger";
-
-    item.style.width = "32px";
-    item.style.height = "32px";
-    item.style.display = "flex";
-    item.style.alignItems = "center";
-    item.style.justifyContent = "center";
-    item.style.border = isDanger ? "1px solid #f1b0b7" : "1px solid #d9d9d9";
-    item.style.borderRadius = "6px";
-    item.style.background = "#fff";
-    item.style.cursor = "pointer";
-    item.style.transition = "all 0.15s ease";
-    item.style.boxShadow = "0 1px 3px rgba(0,0,0,0.08)";
-    item.title = action.label || action.type;
-
-    const icon = createToolIcon(action, engine);
-    item.appendChild(icon);
-
-    item.addEventListener("mouseenter", () => {
-        item.style.background = isDanger ? "#fff5f5" : "#f3f6fa";
-        item.style.borderColor = isDanger ? "#d11a2a" : "#eb6c4c";
-        item.style.boxShadow = "0 2px 6px rgba(0,0,0,0.15)";
-        item.style.transform = "scale(1.05)";
-    });
-
-    item.addEventListener("mouseleave", () => {
-        item.style.background = "#fff";
-        item.style.borderColor = isDanger ? "#f1b0b7" : "#d9d9d9";
-        item.style.boxShadow = "0 1px 3px rgba(0,0,0,0.08)";
-        item.style.transform = "scale(1)";
-    });
-
-    item.addEventListener("click", (e) => {
-        e.stopPropagation();
-        engine.handleContextAction(action, node);
-    });
-
-    return item;
-}
-
 export function createFlowchartDefinition() {
     return {
 
@@ -483,16 +261,28 @@ export function createFlowchartDefinition() {
         },
 
         getContextActions(node) {
+            const types = ["process", "decision", "terminator", "inputOutput", "document", "subProcess", "database"];
+
             return [
-                { type: "addConnectedNode", nodeType: "process", label: "Processtap" },
-                { type: "addConnectedNode", nodeType: "decision", label: "Beslissing" },
-                { type: "addConnectedNode", nodeType: "terminator", label: "Start / Stop" },
-                { type: "addConnectedNode", nodeType: "inputOutput", label: "Input / Output" },
-                { type: "addConnectedNode", nodeType: "database", label: "Database" },
-                { type: "addConnectedNode", nodeType: "document", label: "Document" },
-                { type: "addConnectedNode", nodeType: "subProcess", label: "Subprocess" },
+                {
+                    type: "group", label: "Stap toevoegen", nodeType: "process",
+                    children: types.map(t => ({ type: "addConnectedNode", nodeType: t, label: this.nodeTypes[t].defaultLabel }))
+                },
                 { type: "deleteNode", label: "Verwijderen" }
             ];
+        },
+
+        getDefaultSize(nodeType) {
+            const sizes = {
+                process:     { width: 140, height: 70 },
+                decision:    { width: 120, height: 90 },
+                terminator:  { width: 140, height: 60 },
+                inputOutput: { width: 140, height: 70 },
+                document:    { width: 140, height: 80 },
+                subProcess:  { width: 140, height: 70 },
+                database:    { width: 120, height: 80 }
+            };
+            return sizes[nodeType] || { width: 140, height: 70 };
         },
 
         getNodeInteractionMode(node) {
@@ -532,37 +322,6 @@ export function createFlowchartDefinition() {
                 searchMargin: 200,
                 maxIterations: 3000,
                 storeRoutingMeta: true
-            };
-        },
-
-        getNodeToolRenderer(node, engine) {
-            return ({ node, actions, engine }) => {
-                const wrap = document.createElement("div");
-                wrap.style.display = "flex";
-                wrap.style.flexDirection = "column";
-                wrap.style.gap = "6px";
-
-                const primaryActions = actions.filter(a => a.type !== "deleteNode");
-                const dangerActions = actions.filter(a => a.type === "deleteNode");
-
-                primaryActions.forEach(action => {
-                    wrap.appendChild(createToolItem(action, node, engine, "normal"));
-                });
-
-                if (primaryActions.length > 0 && dangerActions.length > 0) {
-                    const divider = document.createElement("div");
-                    divider.style.width = "100%";
-                    divider.style.height = "1px";
-                    divider.style.background = "#eee";
-                    divider.style.margin = "4px 0";
-                    wrap.appendChild(divider);
-                }
-
-                dangerActions.forEach(action => {
-                    wrap.appendChild(createToolItem(action, node, engine, "danger"));
-                });
-
-                return wrap;
             };
         }
     };
