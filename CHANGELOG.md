@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.9.0 — 2026-10-02
+
+### Added
+- **OutSystems integration** — single-file build `dist/weavle.iife.js` (global `Weavle`), `dist/weavle.es.js`
+  and `dist/weavle.css` (`npm run build`). Adapter `Weavle.mount` / `getInstance` with JSON in and out, a
+  controller (setModel, getModel, undo, redo, setReadOnly, addNode, setNodeLabel, selectNode, destroy) and echo
+  protection for the event → screen variable → block input round trip. Guide and simulation in
+  `wrappers/outsystems/`.
+- **BPMN** — all common events and activities, "change type", boundary events, pools and lanes as containers
+  (stacking, proportional resizing, reordering), message flows, associations, complex sample.
+- **Styling** — `weavle.css` with custom properties and classes; no visual inline styles. Compact node tools
+  with submenus.
+
+### Changed
+- Console diagnostics are off unless `options.debug` is set.
+- `npm run build` builds the library; the playground build moved to `npm run build:demo`.
+
 ## 0.8.0 — 2026-10-01
 
 First public release.

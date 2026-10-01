@@ -39,6 +39,10 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the design and roadmap.
 | `src/weavle.js` | The engine — `export class WeavleJS` |
 | `src/weavle-flowchart.js` | Flowchart definition — `export function createFlowchartDefinition()` |
 | `src/weavle-bpmn.js` | BPMN definition — `export function createBpmnDefinition()` |
+| `dist/weavle.iife.js` | Single-file build for a `<script>` tag — global `Weavle` (engine, definitions, OutSystems adapter) |
+| `dist/weavle.es.js` | Same as an ES module |
+| `dist/weavle.css` | Stylesheet (copy of `src/weavle.css`) |
+| `src/weavle-outsystems.js` | Adapter: `mount`, `getInstance`, JSON in / out — see [wrappers/outsystems](wrappers/outsystems/README.md) |
 | `src/weavle.css` | Default stylesheet — node tools, menus, handles, label editor, canvas and grid |
 | `index.html`, `src/demo.js`, `src/style.css` | The playground |
 
@@ -73,11 +77,22 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the design and roadmap.
 </script>
 ```
 
+### Without a build step
+
+```html
+<link rel="stylesheet" href="dist/weavle.css" />
+<script src="dist/weavle.iife.js"></script>
+<script>
+  const editor = new Weavle.WeavleJS("#diagram", { snapToGrid: true }, Weavle.createBpmnDefinition());
+</script>
+```
+
 ### Playground
 
 ```bash
 npm install
-npm run dev
+npm run dev      # playground on http://localhost:5173
+npm run build    # library into dist/
 ```
 
 Then open http://localhost:5173.
@@ -129,6 +144,7 @@ Second constructor argument: `new WeavleJS(container, options, definition)`.
 | `readOnly` | `false` | Disable all editing |
 | `edgeCornerRadius` | `8` | Rounded corners on orthogonal edges |
 | `toolSurfaceDockHost` | `null` | Element (or selector) to dock the node tools into, instead of floating them |
+| `debug` | `false` | Console logging of routing / interaction diagnostics |
 | `debugRouting` | `false` | Master switch for the debug overlays below |
 | `debugRoutePoints` | `false` | Show numbered route points of the selected edge |
 | `debugAStarGrid` | `false` | Show the routing grid of the selected edge |
@@ -263,49 +279,29 @@ Node colours come from the diagram definition.
 
 ## OutSystems Integration
 
-Weavle is a set of ES modules today. Until the single-file (IIFE) build lands, load it with a dynamic `import()`
-from the module's scripts location — the three files must sit next to each other. Add `weavle.css` to your theme
-(or as a stylesheet resource) and restyle it there; nothing visual is set inline.
-
-**OnReady** (JavaScript node):
+Use the single-file build: add `dist/weavle.iife.js` as a script and `dist/weavle.css` as a style sheet, then
+wrap the editor in a block with the small adapter that ships in the bundle:
 
 ```js
-const host = document.getElementById($parameters.ContainerId);
-const { WeavleJS }             = await import($parameters.ScriptsUrl + "/weavle.js");
-const { createBpmnDefinition } = await import($parameters.ScriptsUrl + "/weavle-bpmn.js");
-
-const editor = new WeavleJS(host, JSON.parse($parameters.OptionsJson || "{}"), createBpmnDefinition());
-editor.load(JSON.parse($parameters.ModelJson || '{"nodes":[],"edges":[]}'));
-host._weavle = editor;
-
-host.addEventListener("weavle:modelchanged", e => {
-  $actions.OnModelChanged(JSON.stringify(e.detail.model));
+// OnReady
+Weavle.mount($parameters.ContainerId, {
+    diagramType: "bpmn",
+    model: $parameters.ModelJson,
+    onModelChanged:     json => $actions.RaiseModelChanged(json),
+    onSelectionChanged: (nodeId, edgeId) => $actions.RaiseSelectionChanged(nodeId, edgeId)
 });
 
-host.addEventListener("weavle:selectionchanged", e => {
-  $actions.OnSelectionChanged(e.detail.primarySelectedNodeId || "", e.detail.selectedEdgeId || "");
-});
+// OnParametersChanged
+Weavle.getInstance($parameters.ContainerId)?.setModel($parameters.ModelJson);
+
+// OnDestroy
+Weavle.getInstance($parameters.ContainerId)?.destroy();
 ```
 
-**OnParametersChanged**:
-
-```js
-const host = document.getElementById($parameters.ContainerId);
-host._weavle?.load(JSON.parse($parameters.ModelJson));
-```
-
-**OnDestroy** — important, otherwise old editors keep listening to the keyboard:
-
-```js
-const host = document.getElementById($parameters.ContainerId);
-host._weavle?.destroy();
-host._weavle = null;
-```
-
-**Client actions** use the stored instance, e.g. `host._weavle.undo()` or `host._weavle.setNodeSize(id, 200, 100)`.
-
-Data flow: the model is plain JSON, so `JSONSerialize` / `JSONDeserialize` map it to OutSystems structures
-(a Node and an Edge structure with the fields from the schema above).
+`setModel` ignores the model the editor itself just reported, so the usual *event → screen variable → block
+input* round trip keeps undo history and selection. The full step-by-step guide (block inputs, events,
+client actions, storing the model) is in [wrappers/outsystems/README.md](wrappers/outsystems/README.md), with a
+runnable simulation in `wrappers/outsystems/example.html`.
 
 ---
 

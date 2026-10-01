@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WeavleJS — OutSystems simulation</title>
+
+  <!-- Exactly what you add to OutSystems: one stylesheet and one script, from dist/ -->
+  <link rel="stylesheet" href="../../dist/weavle.css" />
+  <script src="../../dist/weavle.iife.js"></script>
+
+  <style>
+    body { margin: 0; font: 13px system-ui, sans-serif; display: grid; grid-template-rows: auto 1fr auto; height: 100vh; }
+    header { display: flex; gap: 8px; align-items: center; padding: 8px 12px; border-bottom: 1px solid #e2e8f0; }
+    header button { padding: 4px 10px; }
+    #WeavleHost { overflow: auto; }
+    footer { padding: 6px 12px; border-top: 1px solid #e2e8f0; color: #475569; font-family: ui-monospace, monospace; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <header>
+    <strong>OutSystems block simulation</strong>
+    <button id="btnUndo">Undo</button>
+    <button id="btnRedo">Redo</button>
+    <label><input type="checkbox" id="chkReadOnly" /> ReadOnly</label>
+    <button id="btnReload">Reload "from database"</button>
+  </header>
+
+  <!-- In OutSystems: a Container widget named WeavleHost inside the block -->
+  <div id="WeavleHost"></div>
+
+  <footer id="status">Ready</footer>
+
+  <script>
+    // ── Screen state, as an OutSystems screen would keep it ────────────────
+    let ModelJson = JSON.stringify({
+      nodes: [
+        { id: "s", type: "startEvent", x: 130, y: 130, width: 60,  height: 60, label: "Start" },
+        { id: "t", type: "userTask",   x: 290, y: 120, width: 140, height: 80, label: "Aanvraag beoordelen" },
+        { id: "e", type: "endEvent",   x: 530, y: 130, width: 60,  height: 60, label: "Klaar" }
+      ],
+      edges: [
+        { id: "1", sourceNodeId: "s", targetNodeId: "t", sourceHandle: "right", targetHandle: "left" },
+        { id: "2", sourceNodeId: "t", targetNodeId: "e", sourceHandle: "right", targetHandle: "left" }
+      ]
+    });
+    let ReadOnly = false;
+    let reloads  = 0;
+
+    const status = text => document.getElementById("status").textContent = text;
+
+    // ── Block: OnReady (JavaScript node) ───────────────────────────────────
+    Weavle.mount("WeavleHost", {
+      diagramType: "bpmn",
+      model: ModelJson,
+      options: { snapToGrid: true, readOnly: ReadOnly },
+      onModelChanged:     json => TriggerOnModelChanged(json),
+      onSelectionChanged: (nodeId, edgeId) => TriggerOnSelectionChanged(nodeId, edgeId)
+    });
+
+    // ── Block events → screen handlers ─────────────────────────────────────
+    function TriggerOnModelChanged(json) {
+      ModelJson = json;              // screen stores the model (and could save it to an entity)
+      Block_OnParametersChanged();   // ...which re-sets the block's ModelJson input
+    }
+
+    function TriggerOnSelectionChanged(nodeId, edgeId) {
+      status(`Selection: node "${nodeId}", edge "${edgeId}"`);
+    }
+
+    // ── Block: OnParametersChanged (JavaScript node) ───────────────────────
+    function Block_OnParametersChanged() {
+      const weavle = Weavle.getInstance("WeavleHost");
+      if (!weavle) return;
+
+      const reloaded = weavle.setModel(ModelJson);
+      weavle.setReadOnly(ReadOnly);
+      if (reloaded) reloads++;
+
+      status(`Model ${ModelJson.length} chars · reloads after mount: ${reloads} · undo steps: ${weavle.editor.historyIndex}`);
+    }
+
+    // ── Block client actions (JavaScript nodes) ────────────────────────────
+    document.getElementById("btnUndo").onclick = () => Weavle.getInstance("WeavleHost").undo();
+    document.getElementById("btnRedo").onclick = () => Weavle.getInstance("WeavleHost").redo();
+    document.getElementById("chkReadOnly").onchange = e => { ReadOnly = e.target.checked; Block_OnParametersChanged(); };
+
+    // Simulates reading the model back from an entity, re-serialised with another key order:
+    // still the same model, so the editor must not reload (undo history stays).
+    document.getElementById("btnReload").onclick = () => {
+      const model = JSON.parse(ModelJson);
+      const reorder = o => Array.isArray(o) ? o.map(reorder)
+        : o && typeof o === "object" ? Object.fromEntries(Object.keys(o).reverse().map(k => [k, reorder(o[k])])) : o;
+      ModelJson = JSON.stringify(reorder(model), null, 2);
+      Block_OnParametersChanged();
+    };
+  </script>
+</body>
+</html>

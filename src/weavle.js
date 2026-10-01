@@ -45,6 +45,7 @@ export class WeavleJS {
             edgeStubLength: 24,
             autoEdgeConnect: false,
             gridType: "dots",          // "dots" | "lines" | "none" — style via CSS vars, see renderGrid
+            debug: false,              // console logging of routing / interaction diagnostics
             debugRouting: false,       // master switch for the debug overlays below
             debugCanvasGrid: false,
             debugAStarGrid: false,
@@ -380,7 +381,7 @@ export class WeavleJS {
 
     /** Returns the engine version string. */
     getVersion() {
-        return "0.8.0";
+        return "0.9.0";
     }
 
     /** Replaces the current model with the supplied data and re-renders. */
@@ -5521,8 +5522,9 @@ export class WeavleJS {
     }
 
     /** Console.log wrapper — useful for toggling debug output centrally. */
+    /** Diagnostic logging; silent unless options.debug is true. */
     debug(...args) {
-        console.log(...args);
+        if (this.options.debug) console.log(...args);
     }
 
     getCallerMethodName() {
