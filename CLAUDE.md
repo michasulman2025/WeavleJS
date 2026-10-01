@@ -4,7 +4,7 @@ WeavleJS is a browser-only SVG diagram editor library in vanilla JavaScript (ES 
 A generic engine manages nodes and edges; swappable diagram definitions decide which shapes, ports,
 routing and interactions exist. It is embedded in OutSystems apps; the demo playground is for local debugging.
 
-This folder (`C:\dev\Weavle\WeavleJS`, engine v0.7.5) is the current codebase. The files one level up
+This folder (`C:\dev\Weavle\WeavleJS`, engine v0.8.0) is the current codebase. The files one level up
 (`../waevle.js`, `../weavleflowchart.js`, v0.6.5, global-script style) are an older version — don't edit them.
 
 The engine / add-in split and the roadmap (flowchart, BPMN, node editor, pedigree) are in `ARCHITECTURE.md`.

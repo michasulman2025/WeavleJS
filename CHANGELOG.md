@@ -1,0 +1,34 @@
+# Changelog
+
+## 0.8.0 — 2026-10-01
+
+First public release.
+
+### Added
+- **Edge types** — `edgeTypes`, `defaultEdgeType` and `getEdgeTypeForConnection` in diagram definitions;
+  orthogonal and straight routers; filled, open and no arrowheads; dash patterns.
+  BPMN: sequence flow, association (annotations) and data association (data objects / stores).
+- **Node resizing** — corner handles, Shift keeps the ratio, Alt resizes from the centre, Escape cancels.
+  Per-type rules via `getResizeRules`. New `setNodeSize()` API and `weavle:noderesized` event.
+- **Label wrapping** — labels wrap to the node size, overflow ends in "…" with a tooltip, explicit line breaks
+  are kept. Per-type layout via `getLabelLayout` (`inside`, `below`, `auto`). Multi-line inline editing.
+- **Grid** — CSS-stylable dot / line grid (`gridType`, `--weavle-grid-*` custom properties).
+- **Smart placement** — `addNode()` without x/y finds a free spot in the visible area; "add connected node"
+  fans out to free spots with a working route.
+- **`destroy()`** — removes all listeners and DOM, for frameworks that rebuild screens (e.g. OutSystems).
+- **Vite dev setup** with a playground (`npm run dev`).
+
+### Fixed
+- Loop-back edges routed through their own source / target node.
+- Edges froze as "manual" after a single failed route.
+- A* routes rejected after endpoint normalization near decisions (edges jumping while dragging).
+- Connection / reconnect previews showed a different route than the edge drawn on release.
+- Nodes of different sizes could never line up: snap-to-grid now snaps node centres.
+- Group drag ignored the grid; palette nodes weren't undoable; a plain click created an undo step.
+
+### Changed
+- Debug overlays (routing grid, route point markers) are off by default.
+
+## 0.7.5
+
+Starting point of this repository: engine, flowchart and BPMN definitions, demo playground.

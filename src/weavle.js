@@ -356,7 +356,7 @@ export class WeavleJS {
 
     /** Returns the engine version string. */
     getVersion() {
-        return "0.7.5";
+        return "0.8.0";
     }
 
     /** Replaces the current model with the supplied data and re-renders. */

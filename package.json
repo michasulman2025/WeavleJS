@@ -1,6 +1,6 @@
 {
   "name": "weavlejs",
-  "version": "0.7.5",
+  "version": "0.8.0",
   "description": "Browser-only SVG diagram editor library (flowchart, BPMN) in vanilla JavaScript",
   "private": true,
   "type": "module",
