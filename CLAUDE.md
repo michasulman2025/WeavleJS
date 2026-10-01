@@ -51,6 +51,10 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
   width/height factors, fontSize, maxLines). "auto" = inside if the whole label fits, else below; used for plain
   BPMN events and gateways. Marker shapes (X, +, timer, ...) and data elements always label below.
   Inline editing uses a textarea for nodes (Enter commits, Shift+Enter = new line).
+- Edge types: `edge.type` keys into the definition's `edgeTypes` (`router: "orthogonal" | "straight"`,
+  `marker: "arrow" | "openArrow" | "none"`, `dash`). `getEdgeTypeForConnection({source, target})` picks the type
+  when an edge is created or reconnected; `defaultEdgeType` otherwise. Untyped saved edges get a type on load.
+  BPMN: sequenceFlow, association (annotation), dataAssociation (data object/store).
 - Edge routing: orthogonal — straight or simple routes first, then A* on a grid (`findPathWithAStar`),
   tuned per definition via `getRoutingConfig`.
 - The diagram definition is the extension point for new diagram types: shapes, nodeTypes, getPorts,

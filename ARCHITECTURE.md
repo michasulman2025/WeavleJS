@@ -145,8 +145,8 @@ ports: [
 | Acties als events (`weavle:action`) | Stamboom, integratie met OutSystems | – |
 | Verbindingsregels met feedback | Flowchart, BPMN, node-editor | – |
 | Flexibele poorten (naam, positie, datatype, maximum) | Node-editor, stamboom | – |
-| Verbindingstypes met router, pijlpunt en stijl | Alle | – |
-| Routers: elleboog, bezier, recht (naast haaks) | Stamboom, node-editor | – |
+| Verbindingstypes met router, pijlpunt en stijl | Alle | ✅ `edgeTypes`, `defaultEdgeType`, `getEdgeTypeForConnection` |
+| Routers: elleboog, bezier, recht (naast haaks) | Stamboom, node-editor | Deels: recht ✅ |
 | HTML-nodes via `foreignObject` | Stamboom, node-editor | – |
 | Node-data (velden) en tekenen vanuit data | Stamboom, node-editor | – |
 | Overlays aan een node (bijvoorbeeld een uitklaplijst) | Stamboom | Deels (UI-laag bestaat) |
@@ -158,7 +158,6 @@ ports: [
 
 - `"decision"` staat hard in de engine (vorm-uitzondering en extra obstakelmarge in `getNodeObstacleBox`).
 - Overal wordt uitgegaan van vier poorten (boven, rechts, onder, links).
-- Verbindingen zijn altijd haaks, met een vaste pijlpunt.
 - Palet en standaardmaten staan in de demo (`palette`, `getDefaultNodeSize`), niet in de add-in.
 - `createConnectedNode` en `startNodeCreation` gebruiken vaste maten (140×60).
 - Nodes hebben alleen een `label`, geen gestructureerde data.

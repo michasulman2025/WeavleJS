@@ -246,6 +246,27 @@ export class WeavleJS {
         markerSelected.appendChild(pathSelected);
         defs.appendChild(markerSelected);
 
+        // Open (unfilled) arrowheads — e.g. BPMN data associations.
+        [["arrow-open", "#666"], ["arrow-open-selected", "#eb6c4c"]].forEach(([id, color]) => {
+            const marker = document.createElementNS(NS, "marker");
+            marker.setAttribute("id", id);
+            marker.setAttribute("viewBox", "0 0 10 10");
+            marker.setAttribute("refX", "9");
+            marker.setAttribute("refY", "5");
+            marker.setAttribute("markerWidth", "7");
+            marker.setAttribute("markerHeight", "7");
+            marker.setAttribute("orient", "auto-start-reverse");
+
+            const open = document.createElementNS(NS, "path");
+            open.setAttribute("d", "M 1 1 L 9 5 L 1 9");
+            open.setAttribute("fill", "none");
+            open.setAttribute("stroke", color);
+            open.setAttribute("stroke-width", "1.5");
+
+            marker.appendChild(open);
+            defs.appendChild(marker);
+        });
+
         this.svg.appendChild(defs);
 
         //Node glow in hot state..
@@ -347,6 +368,11 @@ export class WeavleJS {
             // Older versions froze edges as manual when auto-routing failed; give them a fresh attempt.
             if (edge.isAutoRoute === false && this.isFallbackRoute(edge)) {
                 edge.isAutoRoute = true;
+            }
+
+            // Edges saved before edge types existed: derive the type from their endpoints.
+            if (!edge.type) {
+                this.assignEdgeType(edge);
             }
 
             this.updateEdgeRoute(edge);
@@ -766,7 +792,7 @@ export class WeavleJS {
             this.layers.edges.appendChild(hitPath);
 
             // Visible edge path.
-            const visiblePath = this.createEdgePath(pathData, false, isSelected);
+            const visiblePath = this.createEdgePath(pathData, false, isSelected, this.getEdgeTypeDefinition(edge));
             visiblePath.setAttribute("data-edge-id", edge.id);
             this.layers.edges.appendChild(visiblePath);
 
@@ -1427,15 +1453,32 @@ export class WeavleJS {
      * @param {boolean} isPreview  If true, renders as a dashed semi-transparent line.
      * @param {boolean} isSelected If true, uses the accent colour and selected arrowhead.
      */
-    createEdgePath(pathData, isPreview = false, isSelected = false) {
+    /**
+     * Visible edge path. edgeDef (from getEdgeTypeDefinition) sets the marker and dash pattern;
+     * without it the edge is a plain solid arrow.
+     */
+    createEdgePath(pathData, isPreview = false, isSelected = false, edgeDef = null) {
         const NS   = "http://www.w3.org/2000/svg";
         const path = document.createElementNS(NS, "path");
+        const def  = edgeDef || this.getEdgeTypeDefinition(null);
 
         path.setAttribute("d",           pathData);
         path.setAttribute("stroke",      isSelected ? "#F57100" : "#666");
         path.setAttribute("stroke-width", isSelected ? "2.5" : "1.5");
         path.setAttribute("fill",        "none");
-        path.setAttribute("marker-end",  isSelected ? "url(#arrow-selected)" : "url(#arrow-default)");
+
+        const markerId = {
+            arrow:     isSelected ? "arrow-selected"      : "arrow-default",
+            openArrow: isSelected ? "arrow-open-selected" : "arrow-open"
+        }[def.marker];
+
+        if (markerId) {
+            path.setAttribute("marker-end", `url(#${markerId})`);
+        }
+
+        if (def.dash) {
+            path.setAttribute("stroke-dasharray", def.dash);
+        }
 
         if (isPreview) {
             path.setAttribute("stroke-dasharray", "5,5");
@@ -1443,6 +1486,47 @@ export class WeavleJS {
         }
 
         return path;
+    }
+
+    /**
+     * Visual / routing definition of an edge's type, from diagram.edgeTypes[edge.type].
+     * Edges without a type use diagram.defaultEdgeType; unknown types fall back to the defaults:
+     *   router  "orthogonal" (A* with obstacle avoidance) | "straight" (direct line between the ports)
+     *   marker  "arrow" | "openArrow" | "none"
+     *   dash    SVG stroke-dasharray, or null for a solid line
+     */
+    getEdgeTypeDefinition(edge) {
+        const defaults = { router: "orthogonal", marker: "arrow", dash: null };
+        const type     = edge?.type || this.diagram.defaultEdgeType;
+
+        return { ...defaults, ...(this.diagram.edgeTypes?.[type] || {}) };
+    }
+
+    /**
+     * Edge type for a connection between two nodes: diagram.getEdgeTypeForConnection decides
+     * (e.g. BPMN: annotation → association), otherwise diagram.defaultEdgeType.
+     */
+    resolveEdgeType(sourceNode, targetNode, sourceHandle, targetHandle) {
+        const fromDefinition = typeof this.diagram.getEdgeTypeForConnection === "function"
+            ? this.diagram.getEdgeTypeForConnection({ source: sourceNode, target: targetNode, sourceHandle, targetHandle }, this)
+            : null;
+
+        return fromDefinition || this.diagram.defaultEdgeType || null;
+    }
+
+    /** Re-derives edge.type from its current endpoints (after creating or reconnecting it). */
+    assignEdgeType(edge) {
+        const type = this.resolveEdgeType(
+            this.getNode(edge.sourceNodeId),
+            this.getNode(edge.targetNodeId),
+            edge.sourceHandle,
+            edge.targetHandle
+        );
+
+        if (type) edge.type = type;
+        else delete edge.type;
+
+        return edge;
     }
 
     snapToGrid(value, gridSize) {
@@ -1673,6 +1757,12 @@ export class WeavleJS {
         //    This prevents the auto-router from overwriting user-defined bend points later.
         if (edge && edge.isAutoRoute === false && Array.isArray(edge.routePoints) && edge.routePoints.length >= 2) {
             return edge.routePoints;
+        }
+
+        // Straight edge types (e.g. BPMN associations): a direct line between the two ports.
+        if (this.getEdgeTypeDefinition(edge).router === "straight") {
+            if (edge) edge.routingMeta = { algorithm: "straight", found: true };
+            return [sourcePoint, targetPoint];
         }
 
         // 2. First try the simplest possible route:
@@ -2642,14 +2732,14 @@ export class WeavleJS {
         );
 
         if (targetNodeId && targetHandle && targetNodeId !== sourceNode.id) {
-            return this.routeTemporaryEdge({
+            return this.routeTemporaryEdge(this.assignEdgeType({
                 id:           "__preview__",
                 sourceNodeId: sourceNode.id,
                 targetNodeId,
                 sourceHandle: this.state.connectingHandle,
                 targetHandle,
                 isAutoRoute:  true
-            });
+            }));
         }
 
         // Cursor floating over empty canvas: simple orthogonal line to the cursor.
@@ -2693,7 +2783,7 @@ export class WeavleJS {
         if (hoverNodeId && hoverHandle) {
             const isSource = this.state.reconnectingSide === "source";
 
-            return this.routeTemporaryEdge({
+            return this.routeTemporaryEdge(this.assignEdgeType({
                 ...edge,
                 routePoints:  [],
                 isAutoRoute:  true,
@@ -2701,7 +2791,7 @@ export class WeavleJS {
                 sourceHandle: isSource ? hoverHandle : edge.sourceHandle,
                 targetNodeId: isSource ? edge.targetNodeId : hoverNodeId,
                 targetHandle: isSource ? edge.targetHandle : hoverHandle
-            });
+            }));
         }
 
         let sourcePoint;
@@ -3826,6 +3916,7 @@ export class WeavleJS {
             newEdge.sourceHandle = c.dir.sourceHandle;
             newEdge.targetHandle = c.dir.targetHandle;
             newEdge.routingMeta  = null;
+            this.assignEdgeType(newEdge);
 
             this.updateEdgeRoute(newEdge);
 
@@ -3843,6 +3934,7 @@ export class WeavleJS {
                 : { x: fallback.x, y: fallback.y });
             newEdge.sourceHandle = fallback.dir.sourceHandle;
             newEdge.targetHandle = fallback.dir.targetHandle;
+            this.assignEdgeType(newEdge);
             this.updateEdgeRoute(newEdge);
         }
 
@@ -5506,8 +5598,10 @@ export class WeavleJS {
                     edge.targetHandle = targetHandle;
                 }
                 
-                // Reconnect means: give auto-routing a fresh chance
+                // Reconnect means: give auto-routing a fresh chance — and the endpoints may now
+                // call for another edge type (e.g. moved onto an annotation → association).
                 edge.isAutoRoute = true;
+                this.assignEdgeType(edge);
 
                 // Optional: clear old manual path data
                 edge.routePoints = [];
@@ -5574,6 +5668,7 @@ export class WeavleJS {
                     isAutoRoute: true
                 };
 
+                this.assignEdgeType(newEdge);
                 this.updateEdgeRoute(newEdge);
                 this.model.edges.push(newEdge);
                 this.pushHistory();

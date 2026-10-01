@@ -804,6 +804,27 @@ export function createBpmnDefinition() {
             };
         },
 
+        // ── Edge types ───────────────────────────────────────
+        //   sequenceFlow     solid, orthogonal, filled arrow — the flow between flow elements
+        //   association      dotted, straight, no arrow      — annotation ↔ element
+        //   dataAssociation  dotted, straight, open arrow    — data object / store ↔ activity
+        defaultEdgeType: "sequenceFlow",
+
+        edgeTypes: {
+            sequenceFlow:    { router: "orthogonal", marker: "arrow" },
+            association:     { router: "straight",   marker: "none",      dash: "2,4" },
+            dataAssociation: { router: "straight",   marker: "openArrow", dash: "2,4" }
+        },
+
+        getEdgeTypeForConnection({ source, target }) {
+            const isType = (node, ...types) => node && types.includes(node.type);
+
+            if (isType(source, "annotation") || isType(target, "annotation")) return "association";
+            if (isType(source, "dataObject", "dataStore") || isType(target, "dataObject", "dataStore")) return "dataAssociation";
+
+            return "sequenceFlow";
+        },
+
         // ── Edge routing ─────────────────────────────────────
         routeEdge({ sourcePoint, targetPoint, sourceHandle, targetHandle, edge, engine }) {
             return engine.buildRoutedEdgePoints(sourcePoint, targetPoint, sourceHandle, targetHandle, edge);
