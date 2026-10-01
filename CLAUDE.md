@@ -51,6 +51,12 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
   width/height factors, fontSize, maxLines). "auto" = inside if the whole label fits, else below; used for plain
   BPMN events and gateways. Marker shapes (X, +, timer, ...) and data elements always label below.
   Inline editing uses a textarea for nodes (Enter commits, Shift+Enter = new line).
+- Containers (`nodeTypes[type].isContainer`, BPMN pools/lanes): membership via `node.parentId`, derived from
+  geometry on drop/create/load (`applyContainment`). Drawn in their own layer below edges; hit testing picks the
+  topmost node; dragging moves descendants; deleting removes contents; not routing obstacles
+  (`getObstacleNodes`). Definition hooks: `canContain(container, child)`, `layoutContainer(container, engine,
+  { changedNode })` (BPMN: stacked lanes), `getDragTarget(node)` (lane drags its pool), `handleAction(action,
+  node, engine)` for custom context actions (BPMN `addLane`). BPMN message flow = edge between two pools.
 - Edge types: `edge.type` keys into the definition's `edgeTypes` (`router: "orthogonal" | "straight"`,
   `marker: "arrow" | "openArrow" | "none"`, `dash`). `getEdgeTypeForConnection({source, target})` picks the type
   when an edge is created or reconnected; `defaultEdgeType` otherwise. Untyped saved edges get a type on load.

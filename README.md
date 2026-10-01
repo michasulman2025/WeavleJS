@@ -22,6 +22,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the design and roadmap.
 - Inline label editing (multi-line)
 - Zoom (Ctrl + wheel) and pan (middle mouse button)
 - CSS-stylable dot or line grid
+- Containers: BPMN pools and lanes hold their contents, stack lanes and move as one
 - Read-only mode
 - DOM `CustomEvent`s for every model change — easy to sync with a server
 - `destroy()` for frameworks that rebuild screens
@@ -92,6 +93,7 @@ The model is plain JSON: `{ nodes: [...], edges: [...] }`. `getData()` returns i
 | `x`, `y` | number | Top-left position |
 | `width`, `height` | number | Size |
 | `label` | string | Text; `\n` for explicit line breaks |
+| `parentId` | string | Container the node sits in (BPMN pool / lane). Derived from the position when omitted |
 
 ### Edge
 
@@ -183,6 +185,11 @@ A definition is a plain object returned by a factory like `createBpmnDefinition(
 | `getResizeRules(node)` | `false` or `{ minWidth, minHeight, maxWidth, maxHeight, keepAspectRatio }` |
 | `getLabelLayout(node)` | `{ placement: "inside" \| "below" \| "auto", padding, fontSize, maxLines, ... }` |
 | `getContextActions(node)` | Actions in the node tools ("add connected node", "delete", ...) |
+| `handleAction(action, node, engine)` | Handle a custom action (e.g. BPMN "add lane"); return `true` to record an undo step |
+| `nodeTypes[type].isContainer` | Container type (BPMN pool / lane): holds other nodes via `parentId` |
+| `canContain(container, child)` | Which nodes a container accepts |
+| `layoutContainer(container, engine, { changedNode })` | Arrange a container's children (BPMN: stacked lanes) |
+| `getDragTarget(node)` | Drag another node instead (BPMN: grabbing a lane moves its pool) |
 | `getRoutingConfig(edge)` | Tuning for the orthogonal router |
 
 Want a new diagram type? Copy `weavle-flowchart.js`, change the shapes and types, and pass it to the constructor.

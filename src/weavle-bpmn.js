@@ -1,5 +1,8 @@
 const NS = "http://www.w3.org/2000/svg";
 
+// Width of the label strip on the left of pools and lanes (shapes, label layout and lane stacking).
+const POOL_HEADER = 30;
+
 // ============================================================
 // BPMN SHAPE RENDERERS
 // Each function receives (node, engine) and returns an SVG element or group.
@@ -495,7 +498,7 @@ const bpmnShapes = {
         const group = document.createElementNS(NS, "g");
         const colors = engine.getNodeColors(node.type);
         const orientation = (node.data && node.data.orientation) || "horizontal";
-        const headerSize = 30; // width of the label strip
+        const headerSize = POOL_HEADER;
 
         // Body background
         const body = document.createElementNS(NS, "rect");
@@ -560,7 +563,7 @@ const bpmnShapes = {
     pool(node, engine) {
         const group = document.createElementNS(NS, "g");
         const colors = engine.getNodeColors(node.type);
-        const headerSize = 30;
+        const headerSize = POOL_HEADER;
 
         const body = document.createElementNS(NS, "rect");
         body.setAttribute("x", node.x); body.setAttribute("y", node.y);
@@ -765,6 +768,7 @@ export function createBpmnDefinition() {
             { type: "endEvent" },
             { type: "dataObject" },
             { type: "annotation" },
+            { type: "pool" },
             { type: "swimlane" },
         ],
 
@@ -810,17 +814,31 @@ export function createBpmnDefinition() {
         //   dataAssociation  dotted, straight, open arrow    — data object / store ↔ activity
         defaultEdgeType: "sequenceFlow",
 
+        //   messageFlow      dashed, orthogonal, open circle → open arrow — between two pools
         edgeTypes: {
             sequenceFlow:    { router: "orthogonal", marker: "arrow" },
+            messageFlow:     { router: "orthogonal", marker: "openArrow", markerStart: "circle", dash: "6,4" },
             association:     { router: "straight",   marker: "none",      dash: "2,4" },
             dataAssociation: { router: "straight",   marker: "openArrow", dash: "2,4" }
         },
 
-        getEdgeTypeForConnection({ source, target }) {
+        getEdgeTypeForConnection({ source, target }, engine) {
             const isType = (node, ...types) => node && types.includes(node.type);
 
             if (isType(source, "annotation") || isType(target, "annotation")) return "association";
             if (isType(source, "dataObject", "dataStore") || isType(target, "dataObject", "dataStore")) return "dataAssociation";
+
+            // Communication between participants: both ends in a pool, but not in the same one.
+            const poolOf = node => {
+                let current = node;
+                while (current && current.type !== "pool") current = engine.getNode(current.parentId);
+                return current || null;
+            };
+
+            const sourcePool = poolOf(source);
+            const targetPool = poolOf(target);
+
+            if (sourcePool && targetPool && sourcePool !== targetPool) return "messageFlow";
 
             return "sequenceFlow";
         },
@@ -834,7 +852,14 @@ export function createBpmnDefinition() {
         getContextActions(node) {
             const def = this.nodeTypes[node.type];
 
-            // Containers only get a delete action
+            // Pools can get lanes; lanes and pools can be deleted (with their contents)
+            if (node.type === "pool") {
+                return [
+                    { type: "addLane",    nodeType: "swimlane", label: "Lane toevoegen" },
+                    { type: "deleteNode", label: "Verwijderen" }
+                ];
+            }
+
             if (def && def.isContainer) {
                 return [{ type: "deleteNode", label: "Verwijderen" }];
             }
@@ -856,6 +881,90 @@ export function createBpmnDefinition() {
             return "action-rail";
         },
 
+        // ── Containers: pools and lanes ──────────────────────
+        // A pool holds lanes and flow elements; a lane holds flow elements. No nested pools / lanes.
+        canContain(container, child) {
+            const childIsContainer = !!this.nodeTypes[child.type]?.isContainer;
+
+            if (container.type === "pool")     return child.type === "swimlane" || !childIsContainer;
+            if (container.type === "swimlane") return !childIsContainer;
+
+            return false;
+        },
+
+        // Lanes fill the pool's width (right of its header) and are stacked top to bottom in their
+        // current vertical order. Resizing a lane resizes the pool; resizing the pool lets the
+        // bottom lane absorb the difference. Lanes take their contents along when they shift.
+        layoutContainer(container, engine, { changedNode } = {}) {
+            if (container.type !== "pool") return;
+
+            const header = POOL_HEADER;
+            const lanes  = engine.getChildren(container)
+                .filter(n => n.type === "swimlane")
+                .sort((a, b) => a.y - b.y);
+
+            if (lanes.length === 0) return;
+
+            // A lane was resized, added or removed: the pool follows the lanes.
+            const laneChanged = changedNode && changedNode.type === "swimlane";
+            const total       = lanes.reduce((sum, lane) => sum + lane.height, 0);
+
+            if (!laneChanged && container.height > total) {
+                lanes[lanes.length - 1].height += container.height - total;
+            }
+
+            let y = container.y;
+
+            for (const lane of lanes) {
+                engine.translateNodes(
+                    [lane, ...engine.getDescendants(lane)],
+                    container.x + header - lane.x,
+                    y - lane.y
+                );
+
+                lane.width = container.width - header;
+                y += lane.height;
+            }
+
+            container.height = y - container.y;
+        },
+
+        // Lanes don't move on their own: grabbing a lane drags the whole pool (as in bpmn.io).
+        getDragTarget(node, engine) {
+            if (node.type !== "swimlane") return null;
+
+            const parent = engine.getNode(node.parentId);
+            return parent && parent.type === "pool" ? parent : null;
+        },
+
+        handleAction(action, node, engine) {
+            if (action.type !== "addLane" || node.type !== "pool") return false;
+
+            const lanes   = engine.getChildren(node).filter(n => n.type === "swimlane");
+            const isFirst = lanes.length === 0;
+
+            // The first lane fills the pool and adopts its flow elements; later lanes are added at
+            // the bottom and the pool grows.
+            const lane = {
+                id:       crypto.randomUUID(),
+                type:     "swimlane",
+                x:        node.x + POOL_HEADER,
+                y:        isFirst ? node.y : Math.max(...lanes.map(l => l.y + l.height)),
+                width:    node.width - POOL_HEADER,
+                height:   isFirst ? node.height : 120,
+                label:    this.nodeTypes.swimlane.defaultLabel,
+                parentId: node.id
+            };
+
+            if (isFirst) {
+                engine.getChildren(node).forEach(child => { child.parentId = lane.id; });
+            }
+
+            engine.model.nodes.push(lane);
+            engine.layoutContainers([node.id], lane);
+            return true;
+        },
+
         // ── Resize rules ─────────────────────────────────────
         // Events and gateways keep their proportions (circle / diamond); containers stay large.
         getResizeRules(node) {
@@ -867,7 +976,8 @@ export function createBpmnDefinition() {
             if (type === "dataObject")     return { keepAspectRatio: true, minWidth: 30, minHeight: 45 };
             if (type === "dataStore")      return { minWidth: 40, minHeight: 35 };
             if (type === "annotation")     return { minWidth: 60, minHeight: 30 };
-            if (type === "swimlane" || type === "pool") return { minWidth: 300, minHeight: 100 };
+            if (type === "swimlane")       return { minWidth: 300, minHeight: 60 };
+            if (type === "pool")           return { minWidth: 300, minHeight: 100 };
 
             return { minWidth: 80, minHeight: 50 };   // tasks, sub-processes, call activities
         },
@@ -878,6 +988,11 @@ export function createBpmnDefinition() {
         // so the text never covers the marker; data elements too.
         getLabelLayout(node) {
             const type = node.type || "";
+
+            // Pools / lanes: vertical name in the dark header strip on the left.
+            if (type === "pool" || type === "swimlane") {
+                return { placement: "header-left", headerSize: POOL_HEADER, fontSize: 13, color: "#ffffff", paddingX: 8 };
+            }
 
             if (type === "startEvent" || type === "endEvent" || type === "intermediateEvent") {
                 return { placement: "auto", fontSize: 12, belowWidth: 110,

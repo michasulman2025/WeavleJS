@@ -267,6 +267,28 @@ export class WeavleJS {
             defs.appendChild(marker);
         });
 
+        // Open circle start markers — e.g. BPMN message flows.
+        [["circle-open", "#666"], ["circle-open-selected", "#eb6c4c"]].forEach(([id, color]) => {
+            const marker = document.createElementNS(NS, "marker");
+            marker.setAttribute("id", id);
+            marker.setAttribute("viewBox", "0 0 10 10");
+            marker.setAttribute("refX", "2");
+            marker.setAttribute("refY", "5");
+            marker.setAttribute("markerWidth", "7");
+            marker.setAttribute("markerHeight", "7");
+
+            const circle = document.createElementNS(NS, "circle");
+            circle.setAttribute("cx", "5");
+            circle.setAttribute("cy", "5");
+            circle.setAttribute("r", "3.5");
+            circle.setAttribute("fill", "#ffffff");
+            circle.setAttribute("stroke", color);
+            circle.setAttribute("stroke-width", "1.5");
+
+            marker.appendChild(circle);
+            defs.appendChild(marker);
+        });
+
         this.svg.appendChild(defs);
 
         //Node glow in hot state..
@@ -309,6 +331,7 @@ export class WeavleJS {
 
         this.layers = {
             grid:    document.createElementNS(NS, "g"),
+            containers: document.createElementNS(NS, "g"),   // pools / lanes: behind the edges
             edges:   document.createElementNS(NS, "g"),
             nodes:   document.createElementNS(NS, "g"),
             overlay: document.createElementNS(NS, "g"),
@@ -316,12 +339,14 @@ export class WeavleJS {
         };
 
         this.layers.grid.setAttribute("data-layer", "grid");
+        this.layers.containers.setAttribute("data-layer", "containers");
         this.layers.edges.setAttribute("data-layer", "edges");
         this.layers.nodes.setAttribute("data-layer", "nodes");
         this.layers.overlay.setAttribute("data-layer", "overlay");
         this.layers.debug.setAttribute("data-layer", "debug");
 
         this.viewport.appendChild(this.layers.grid);
+        this.viewport.appendChild(this.layers.containers);
         this.viewport.appendChild(this.layers.edges);
         this.viewport.appendChild(this.layers.nodes);
         this.viewport.appendChild(this.layers.overlay);
@@ -363,6 +388,14 @@ export class WeavleJS {
     load(data) {
         this.model.nodes = data.nodes || [];
         this.model.edges = data.edges || [];
+
+        // Diagrams saved without parentId: derive containment from the geometry.
+        this.getRenderOrder().forEach(node => {
+            if (!node.parentId) {
+                const container = this.findContainerFor(node);
+                if (container) node.parentId = container.id;
+            }
+        });
 
         this.model.edges.forEach(edge => {
             // Older versions froze edges as manual when auto-routing failed; give them a fresh attempt.
@@ -423,6 +456,7 @@ export class WeavleJS {
         }
 
         this.model.nodes.push(node);
+        this.applyContainment([node]);
         this.pushHistory();
         this.emitModelChanged();
         this.render();
@@ -843,10 +877,13 @@ export class WeavleJS {
     /** Clears and redraws all node groups. */
     renderNodes() {
         this.layers.nodes.innerHTML = "";
+        this.layers.containers.innerHTML = "";
 
-        this.model.nodes.forEach(node => {
+        // Containers go below the edges layer, so edges inside a (filled) lane stay visible.
+        this.getRenderOrder().forEach(node => {
             const group = this.createNodeGroup(node);
-            this.layers.nodes.appendChild(group);
+            const layer = this.isContainer(node) ? this.layers.containers : this.layers.nodes;
+            layer.appendChild(group);
         });
     }
 
@@ -996,6 +1033,24 @@ export class WeavleJS {
         const text = this.createNodeText(node);
 
         group.appendChild(shape);
+
+        // Drop target while dragging something into this container.
+        if (node.id === this.state.dropTargetId) {
+            const outline = document.createElementNS(NS, "rect");
+            outline.setAttribute("x", node.x - 3);
+            outline.setAttribute("y", node.y - 3);
+            outline.setAttribute("width", node.width + 6);
+            outline.setAttribute("height", node.height + 6);
+            outline.setAttribute("rx", 8);
+            outline.setAttribute("fill", "rgba(46, 168, 223, 0.06)");
+            outline.setAttribute("stroke", "#2ea8df");
+            outline.setAttribute("stroke-width", "2");
+            outline.setAttribute("stroke-dasharray", "6,4");
+            outline.setAttribute("class", "weavle-drop-target");
+            outline.setAttribute("pointer-events", "none");
+            group.appendChild(outline);
+        }
+
         group.appendChild(text);
 
         // Label cut off → show the full label as a tooltip when hovering the node.
@@ -1086,6 +1141,13 @@ export class WeavleJS {
         text.setAttribute("text-anchor", "middle");
         text.setAttribute("class", "weavle-node-label");
         text.style.fontSize      = `${box.fontSize}px`;
+
+        const color = this.getLabelLayout(node).color;
+        if (color) text.style.fill = color;
+
+        if (box.rotate) {
+            text.setAttribute("transform", `rotate(${box.rotate} ${box.centerX} ${box.centerY})`);
+        }
         text.style.pointerEvents = "none";
         text.style.userSelect    = "none";
 
@@ -1113,7 +1175,9 @@ export class WeavleJS {
      * Label layout for a node, from the diagram definition: getLabelLayout(node, engine) if defined,
      * otherwise nodeTypes[type].label, merged over the defaults below.
      *   placement     "inside" (centred in the shape) | "below" (under the shape) |
-     *                 "auto" (inside if the whole label fits there, otherwise below)
+     *                 "auto" (inside if the whole label fits there, otherwise below) |
+     *                 "header-left" (vertical text in a left header strip of headerSize px)
+     *   color         text colour (default: inherited)
      *   paddingX/Y    inner padding of the label box (inside)
      *   widthFactor   share of the node width / height that is usable for text, e.g. ~0.6 for a diamond
      *   heightFactor
@@ -1129,6 +1193,8 @@ export class WeavleJS {
             heightFactor: 1,
             belowWidth:   120,
             belowGap:     6,
+            headerSize:   30,
+            color:        null,
             fontSize:     14,
             lineHeight:   1.25,
             maxLines:     null
@@ -1158,6 +1224,25 @@ export class WeavleJS {
         const fontSize   = layout.fontSize;
         const lineHeight = fontSize * layout.lineHeight;
         const centerX    = node.x + node.width / 2;
+
+        // Vertical text in a header strip on the left (BPMN pools / lanes), read bottom to top.
+        if (layout.placement === "header-left") {
+            const header   = layout.headerSize;
+            const width    = Math.max(10, node.height - layout.paddingX * 2);   // runs along the strip
+            const maxLines = layout.maxLines ?? Math.max(1, Math.floor((header - 4) / lineHeight));
+            const wrapped  = this.wrapLabel(node.label, width, maxLines, fontSize);
+
+            return {
+                ...wrapped,
+                centerX: node.x + header / 2,
+                centerY: node.y + node.height / 2,
+                width,
+                height: header,
+                fontSize,
+                lineHeight,
+                rotate: -90
+            };
+        }
 
         if (layout.placement === "below") {
             const width    = Math.max(node.width, layout.belowWidth);
@@ -1476,6 +1561,11 @@ export class WeavleJS {
             path.setAttribute("marker-end", `url(#${markerId})`);
         }
 
+        // Start marker, e.g. the open circle of a BPMN message flow.
+        if (def.markerStart === "circle") {
+            path.setAttribute("marker-start", `url(#${isSelected ? "circle-open-selected" : "circle-open"})`);
+        }
+
         if (def.dash) {
             path.setAttribute("stroke-dasharray", def.dash);
         }
@@ -1492,8 +1582,9 @@ export class WeavleJS {
      * Visual / routing definition of an edge's type, from diagram.edgeTypes[edge.type].
      * Edges without a type use diagram.defaultEdgeType; unknown types fall back to the defaults:
      *   router  "orthogonal" (A* with obstacle avoidance) | "straight" (direct line between the ports)
-     *   marker  "arrow" | "openArrow" | "none"
-     *   dash    SVG stroke-dasharray, or null for a solid line
+     *   marker       "arrow" | "openArrow" | "none"   (end of the edge)
+     *   markerStart  "circle" | undefined             (start of the edge)
+     *   dash         SVG stroke-dasharray, or null for a solid line
      */
     getEdgeTypeDefinition(edge) {
         const defaults = { router: "orthogonal", marker: "arrow", dash: null };
@@ -2458,7 +2549,7 @@ export class WeavleJS {
     isSegmentClear(a, b, sourceNodeId = null, targetNodeId = null, margin = 0) {
 
         // Loop through all nodes in the model
-        for (const node of this.model.nodes) {
+        for (const node of this.getObstacleNodes()) {
 
             // Skip the source and target nodes
             // We allow segments to "touch" or originate/terminate there
@@ -2915,7 +3006,7 @@ export class WeavleJS {
 
 
     findFirstHitObstacle(points, sourceNodeId, targetNodeId, margin = 16) {
-        const obstacles = this.model.nodes.filter(node =>
+        const obstacles = this.getObstacleNodes().filter(node =>
             node.id !== sourceNodeId &&
             node.id !== targetNodeId
         );
@@ -3008,7 +3099,7 @@ export class WeavleJS {
             const p1 = points[i];
             const p2 = points[i + 1];
 
-            for (const node of this.model.nodes) {
+            for (const node of this.getObstacleNodes()) {
                 const isSource = node.id === sourceNodeId;
                 const isTarget = node.id === targetNodeId;
 
@@ -3372,7 +3463,7 @@ export class WeavleJS {
 
         let minDistance = Infinity;
 
-        for (const node of this.model.nodes) {
+        for (const node of this.getObstacleNodes()) {
             if (node.id === sourceId || node.id === targetId) continue;
 
             const box = this.getNodeObstacleBox(node, cfg.obstacleMargin);
@@ -3413,7 +3504,7 @@ export class WeavleJS {
      * outside the source/target boxes by getGridEntry.
      */
     isBlocked(x, y, sourceId, targetId, obstacleMargin = 16) {
-        for (const node of this.model.nodes) {
+        for (const node of this.getObstacleNodes()) {
             const box = this.getNodeObstacleBox(node, obstacleMargin);
 
             if (x >= box.left && x <= box.right &&
@@ -3553,8 +3644,9 @@ export class WeavleJS {
     // ============================================================
 
     /** Returns the first node whose bounding box contains the given canvas point, or undefined. */
+    /** Topmost node under the point: regular nodes before containers, inner containers before outer. */
     findNodeAt(x, y) {
-        return this.model.nodes.find(n =>
+        return this.getRenderOrder().reverse().find(n =>
             x >= n.x &&
             x <= n.x + n.width &&
             y >= n.y &&
@@ -3939,13 +4031,14 @@ export class WeavleJS {
         }
 
         this.model.edges.push(newEdge);
+        this.applyContainment([newNode]);
 
         return newNode;
     }
 
     /** True if the rect (x, y, width, height), grown by gap on every side, overlaps no node. */
     isAreaFree(x, y, width, height, gap = 0) {
-        return !this.model.nodes.some(n =>
+        return !this.getObstacleNodes().some(n =>
             x - gap < n.x + n.width  &&
             x + width  + gap > n.x   &&
             y - gap < n.y + n.height &&
@@ -4273,13 +4366,7 @@ export class WeavleJS {
         }
 
         if (action.type === "deleteNode") {
-            const nodeId = node.id;
-
-            this.model.nodes = this.model.nodes.filter(n => n.id !== nodeId);
-            this.model.edges = this.model.edges.filter(e =>
-                e.sourceNodeId !== nodeId &&
-                e.targetNodeId !== nodeId
-            );
+            this.removeNodesWithContents([node.id]);
 
             this.clearSelection();
             this.clearNodeToolSurface();
@@ -4289,6 +4376,14 @@ export class WeavleJS {
             this.emit("weavle:modelchanged", { model: this.getData() });
             this.render();
             return;
+        }
+
+        // Diagram-specific actions (e.g. BPMN "add lane"): the definition changes the model and
+        // returns true; the engine records the undo step and notifies.
+        if (typeof this.diagram.handleAction === "function" && this.diagram.handleAction(action, node, this)) {
+            this.pushHistory();
+            this.emit("weavle:modelchanged", { model: this.getData() });
+            this.render();
         }
     }
 
@@ -4531,7 +4626,7 @@ export class WeavleJS {
         let bestDeltaX  = Infinity;
         let bestDeltaY  = Infinity;
 
-        this.model.nodes.forEach(node => {
+        this.getObstacleNodes().forEach(node => {
             if (node.id === activeNode.id) return;
 
             const otherCenter = this.getNodeCenter(node);
@@ -4619,6 +4714,188 @@ export class WeavleJS {
     // ============================================================
 
     //push to snapshot history
+    // ------------------------------------------------------------
+    // Containers (BPMN pools / lanes, groups, ...)
+    //
+    // A node belongs to a container through node.parentId. Containers are drawn behind regular
+    // nodes (deeper containers on top of shallower ones), move their descendants along, and are
+    // not obstacles for edge routing. The definition decides what may contain what (canContain)
+    // and how a container arranges its children (layoutContainer, e.g. stacked BPMN lanes).
+    // ------------------------------------------------------------
+
+    /** True if the node's type is a container (nodeTypes[type].isContainer). */
+    isContainer(node) {
+        return !!(node && this.diagram.nodeTypes?.[node.type]?.isContainer);
+    }
+
+    getChildren(container) {
+        return this.model.nodes.filter(n => n.parentId === container.id);
+    }
+
+    /** All nodes nested (directly or indirectly) inside the node. */
+    getDescendants(node) {
+        const result = [];
+        const visit  = parent => {
+            for (const child of this.model.nodes) {
+                if (child.parentId === parent.id && !result.includes(child)) {
+                    result.push(child);
+                    visit(child);
+                }
+            }
+        };
+
+        visit(node);
+        return result;
+    }
+
+    /** Number of containers around the node (0 = top level). */
+    getContainerDepth(node) {
+        let depth  = 0;
+        let parent = this.getNode(node.parentId);
+
+        while (parent && depth < 50) {
+            depth++;
+            parent = this.getNode(parent.parentId);
+        }
+
+        return depth;
+    }
+
+    /**
+     * Nodes in drawing order: containers first (outer before inner), then regular nodes,
+     * each group in model order. Hit testing walks this list backwards (topmost first).
+     */
+    getRenderOrder() {
+        const containers = this.model.nodes
+            .filter(n => this.isContainer(n))
+            .map((node, index) => ({ node, index, depth: this.getContainerDepth(node) }))
+            .sort((a, b) => a.depth - b.depth || a.index - b.index)
+            .map(entry => entry.node);
+
+        return [...containers, ...this.model.nodes.filter(n => !this.isContainer(n))];
+    }
+
+    /** Nodes that edges must route around: everything except containers. */
+    getObstacleNodes() {
+        return this.model.nodes.filter(n => !this.isContainer(n));
+    }
+
+    /**
+     * Whether child may be placed inside container. Asks diagram.canContain(container, child);
+     * without that hook a container accepts any non-container node.
+     */
+    canContain(container, child) {
+        if (!this.isContainer(container) || container.id === child.id) return false;
+        if (this.getDescendants(child).includes(container)) return false;
+
+        if (typeof this.diagram.canContain === "function") {
+            return !!this.diagram.canContain(container, child, this);
+        }
+
+        return !this.isContainer(child);
+    }
+
+    /** The innermost container under the node's centre that may contain it, or null. */
+    findContainerFor(node) {
+        const cx = node.x + node.width  / 2;
+        const cy = node.y + node.height / 2;
+
+        const candidates = this.getRenderOrder().filter(n => this.isContainer(n)).reverse();
+
+        return candidates.find(c =>
+            cx >= c.x && cx <= c.x + c.width &&
+            cy >= c.y && cy <= c.y + c.height &&
+            this.canContain(c, node)
+        ) || null;
+    }
+
+    /**
+     * Puts nodes into the container they were dropped on (or takes them out), lets the affected
+     * containers re-arrange their children, and reroutes the edges whose nodes may have moved.
+     * Call after a node or group was dropped, created or resized.
+     */
+    applyContainment(nodes, changedNode = null) {
+        const affected = new Set();
+
+        for (const node of nodes) {
+            const oldParentId = node.parentId || null;
+            const container   = this.findContainerFor(node);
+            const newParentId = container ? container.id : null;
+
+            if (newParentId) node.parentId = newParentId;
+            else delete node.parentId;
+
+            if (oldParentId) affected.add(oldParentId);
+            if (newParentId) affected.add(newParentId);
+            if (this.isContainer(node)) affected.add(node.id);
+        }
+
+        this.layoutContainers([...affected], changedNode || nodes[0] || null);
+    }
+
+    /**
+     * Lets each container (and its ancestors) re-arrange its children via
+     * diagram.layoutContainer(container, engine, { changedNode }), then re-derives edge types
+     * (containment can change them, e.g. a BPMN message flow between pools) and reroutes all edges.
+     */
+    layoutContainers(containerIds, changedNode = null) {
+        if (typeof this.diagram.layoutContainer === "function") {
+            const done = new Set();
+
+            for (const id of containerIds) {
+                let container = this.getNode(id);
+
+                // Inner first, then outward: a lane change may resize its pool.
+                while (container && !done.has(container.id)) {
+                    done.add(container.id);
+                    this.diagram.layoutContainer(container, this, { changedNode });
+                    container = this.getNode(container.parentId);
+                }
+            }
+        }
+
+        this.model.edges.forEach(edge => {
+            this.assignEdgeType(edge);
+            this.updateEdgeRoute(edge);
+        });
+    }
+
+    /**
+     * Removes the nodes, everything inside them (containers take their contents along) and all
+     * edges attached to any of those; then lets the surrounding containers re-arrange.
+     */
+    removeNodesWithContents(nodeIds) {
+        const roots     = nodeIds.map(id => this.getNode(id)).filter(Boolean);
+        const removed   = new Set(this.withDescendants(roots).map(n => n.id));
+        const parentIds = roots.map(n => n.parentId).filter(id => id && !removed.has(id));
+
+        this.model.nodes = this.model.nodes.filter(n => !removed.has(n.id));
+        this.model.edges = this.model.edges.filter(e =>
+            !removed.has(e.sourceNodeId) &&
+            !removed.has(e.targetNodeId)
+        );
+
+        // Pass the removed node, so e.g. a pool knows a lane disappeared and shrinks.
+        this.layoutContainers(parentIds, roots[0] || null);
+    }
+
+    /** Moves nodes by (dx, dy) without any snapping or containment logic. */
+    translateNodes(nodes, dx, dy) {
+        if (!dx && !dy) return;
+
+        for (const node of nodes) {
+            node.x += dx;
+            node.y += dy;
+        }
+    }
+
+    /** The given nodes plus all their descendants, without duplicates. */
+    withDescendants(nodes) {
+        const set = new Set(nodes);
+        nodes.forEach(node => this.getDescendants(node).forEach(d => set.add(d)));
+        return [...set];
+    }
+
     // ------------------------------------------------------------
     // Node resizing
     // ------------------------------------------------------------
@@ -4728,9 +5005,8 @@ export class WeavleJS {
 
     /** Reroutes the node's edges, records an undo step and emits resize / change events. */
     finishNodeResize(node) {
-        this.model.edges
-            .filter(e => e.sourceNodeId === node.id || e.targetNodeId === node.id)
-            .forEach(e => this.updateEdgeRoute(e));
+        // A resized lane / pool re-arranges its container; also reroutes the edges.
+        this.applyContainment([node], node);
 
         this.pushHistory();
 
@@ -5236,17 +5512,32 @@ export class WeavleJS {
 
         const selectedIds = this.getSelectedNodeIds();
 
-        // als meerdere geselecteerd → group drag
-        if (selectedIds.length > 1 && selectedIds.includes(node.id)) {
+        // The nodes the user grabbed (the selection, or just this node), plus everything inside
+        // grabbed containers: dragging a pool or lane moves its contents along.
+        // The definition may redirect a drag to another node (BPMN: dragging a lane moves its pool).
+        const dragTarget = (typeof this.diagram.getDragTarget === "function" && this.diagram.getDragTarget(node, this)) || node;
 
-            this.state.draggingNodeIds = [...selectedIds];
+        const rootIds   = selectedIds.length > 1 && selectedIds.includes(node.id) ? [...selectedIds] : [dragTarget.id];
+        const dragNodes = this.withDescendants(rootIds.map(id => this.getNode(id)).filter(Boolean));
+
+        this.state.dragRootIds = rootIds;
+
+        // Single grabbed node (possibly redirected): it drives snapping and the drop-target highlight.
+        this.state.dragPrimaryId = rootIds.length === 1 ? rootIds[0] : null;
+
+        // Several nodes (or a container with contents) → group drag
+        if (dragNodes.length > 1) {
+
+            const dragIds = dragNodes.map(n => n.id);
+
+            this.state.draggingNodeIds = dragIds;
             this.state.draggingNodeId = null;
 
             this.state.dragStartMouseX = pos.x;
             this.state.dragStartMouseY = pos.y;
 
             const startPositions = {};
-            selectedIds.forEach(id => {
+            dragIds.forEach(id => {
                 const n = this.getNode(id);
                 if (n) {
                     startPositions[id] = { x: n.x, y: n.y };
@@ -5403,7 +5694,7 @@ export class WeavleJS {
             let dx = pos.x - this.state.dragStartMouseX;
             let dy = pos.y - this.state.dragStartMouseY;
 
-            const primaryNode = this.getPrimarySelectedNode();
+            const primaryNode = this.getNode(this.state.dragPrimaryId) || this.getPrimarySelectedNode();
 
             // Snap only the primary node and move the whole group by the same delta,
             // so the group keeps its internal layout while the primary node lands on the grid.
@@ -5424,7 +5715,11 @@ export class WeavleJS {
                 node.y = start.y + dy;
             });
 
-            if (primaryNode) {
+            // Highlight the container the group would be dropped into.
+            this.state.dropTargetId = primaryNode ? (this.findContainerFor(primaryNode)?.id || null) : null;
+
+            // Containers don't snap to the centres of regular nodes.
+            if (primaryNode && !this.isContainer(primaryNode)) {
                 const guides = this.findAlignmentGuides(primaryNode, 8);
                 this.state.snapGuideX = guides.snapGuideX;
                 this.state.snapGuideY = guides.snapGuideY;
@@ -5490,6 +5785,9 @@ export class WeavleJS {
             if (guides.snapGuideY !== null) {
                 node.y = guides.snapGuideY - node.height / 2;
             }
+
+            // Highlight the container the node would be dropped into.
+            this.state.dropTargetId = this.findContainerFor(node)?.id || null;
 
             //this.rerouteEdgesForNodes([node.id]);
 
@@ -5632,6 +5930,7 @@ export class WeavleJS {
             };
 
             this.model.nodes.push(newNode);
+            this.applyContainment([newNode]);
             this.resetCreationState();
 
             this.selectSingleNode(newNode.id);
@@ -5704,12 +6003,16 @@ export class WeavleJS {
         // Finalise group drag.
         if (this.state.draggingNodeIds && this.state.draggingNodeIds.length > 0) {
             const movedNodeIds = [...this.state.draggingNodeIds];
+            const rootIds      = this.state.dragRootIds || movedNodeIds;
             const moved        = this.didNodesMove(this.state.dragStartPositions);
 
             this.state.draggingNodeIds = null;
             this.state.dragStartPositions = null;
             this.state.dragStartMouseX = 0;
             this.state.dragStartMouseY = 0;
+            this.state.dragRootIds = null;
+            this.state.dragPrimaryId = null;
+            this.state.dropTargetId = null;
 
             this.resetSnapGuides();
 
@@ -5719,11 +6022,9 @@ export class WeavleJS {
                 return;
             }
 
-            movedNodeIds.forEach(nodeId => {
-                this.model.edges
-                    .filter(e => e.sourceNodeId === nodeId || e.targetNodeId === nodeId)
-                    .forEach(e => this.updateEdgeRoute(e));
-            });
+            // The grabbed nodes may have landed in (or left) a container; their contents just follow.
+            // applyContainment also lets containers re-arrange and reroutes the edges.
+            this.applyContainment(rootIds.map(id => this.getNode(id)).filter(Boolean));
 
             this.pushHistory();
             this.emit("weavle:modelchanged", { model: this.getData() });
@@ -5742,6 +6043,9 @@ export class WeavleJS {
 
         this.state.draggingNodeId = null;
         this.state.dragStartPositions = null;
+        this.state.dragRootIds = null;
+        this.state.dragPrimaryId = null;
+        this.state.dropTargetId = null;
 
         this.resetSnapGuides();
 
@@ -5752,9 +6056,8 @@ export class WeavleJS {
         }
 
         if (node) {
-            this.model.edges
-                .filter(e => e.sourceNodeId === node.id || e.targetNodeId === node.id)
-                .forEach(e => this.updateEdgeRoute(e));
+            // Dropped into / out of a container; also reroutes the edges.
+            this.applyContainment([node]);
 
             this.emit("weavle:nodemoved", {
                 node: JSON.parse(JSON.stringify(node)),
@@ -5865,13 +6168,7 @@ export class WeavleJS {
             const selectedNodeIds = this.getSelectedNodeIds();
 
             if (selectedNodeIds.length > 0) {
-                const selectedSet = new Set(selectedNodeIds);
-
-                this.model.nodes = this.model.nodes.filter(n => !selectedSet.has(n.id));
-                this.model.edges = this.model.edges.filter(e =>
-                    !selectedSet.has(e.sourceNodeId) &&
-                    !selectedSet.has(e.targetNodeId)
-                );
+                this.removeNodesWithContents(selectedNodeIds);
 
                 this.clearSelection();
                 this.clearNodeToolSurface();

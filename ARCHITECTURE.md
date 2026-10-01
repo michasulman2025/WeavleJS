@@ -149,6 +149,8 @@ ports: [
 | Routers: elleboog, bezier, recht (naast haaks) | Stamboom, node-editor | Deels: recht ✅ |
 | HTML-nodes via `foreignObject` | Stamboom, node-editor | – |
 | Node-data (velden) en tekenen vanuit data | Stamboom, node-editor | – |
+| Containers (pools, lanes, groepen): lidmaatschap, meeverplaatsen, `canContain`, `layoutContainer` | BPMN, later groepen | ✅ |
+| Eigen acties van een add-in (`handleAction`) en omgeleid slepen (`getDragTarget`) | BPMN, stamboom | ✅ |
 | Overlays aan een node (bijvoorbeeld een uitklaplijst) | Stamboom | Deels (UI-laag bestaat) |
 | Afgeleide modus: `toGraph(data)` | Stamboom | – |
 | Layout-hook met opties en animatie | Stamboom | – |
