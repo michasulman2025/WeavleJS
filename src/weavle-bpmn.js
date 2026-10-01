@@ -14,144 +14,165 @@ const CONTENT_PADDING = 10;
 // Each function receives (node, engine) and returns an SVG element or group.
 // ============================================================
 
+// ============================================================
+// EVENTS
+//
+// One generic event shape, driven by this table:
+//   kind     start (thin circle) | intermediate (double circle) | end (thick circle)
+//   trigger  none | message | timer | conditional | signal | escalation | error |
+//            compensation | link | terminate
+//   throw    intermediate throw events (end events always throw): filled marker;
+//            catching events get an outlined marker
+// ============================================================
+
+const EVENT_TYPES = {
+    // Start
+    startEvent:             { kind: "start",        trigger: "none",         label: "Start" },
+    messageStartEvent:      { kind: "start",        trigger: "message",      label: "Message start" },
+    timerStartEvent:        { kind: "start",        trigger: "timer",        label: "Timer start" },
+    conditionalStartEvent:  { kind: "start",        trigger: "conditional",  label: "Conditional start" },
+    signalStartEvent:       { kind: "start",        trigger: "signal",       label: "Signal start" },
+
+    // Intermediate — catching
+    messageCatchEvent:      { kind: "intermediate", trigger: "message",      label: "Message catch" },
+    timerCatchEvent:        { kind: "intermediate", trigger: "timer",        label: "Timer" },
+    conditionalCatchEvent:  { kind: "intermediate", trigger: "conditional",  label: "Condition" },
+    signalCatchEvent:       { kind: "intermediate", trigger: "signal",       label: "Signal catch" },
+    linkCatchEvent:         { kind: "intermediate", trigger: "link",         label: "Link catch" },
+
+    // Intermediate — throwing ("intermediateEvent" is the plain none event)
+    intermediateEvent:      { kind: "intermediate", trigger: "none",         label: "Intermediate event", throw: true },
+    messageThrowEvent:      { kind: "intermediate", trigger: "message",      label: "Message throw",      throw: true },
+    signalThrowEvent:       { kind: "intermediate", trigger: "signal",       label: "Signal throw",       throw: true },
+    escalationThrowEvent:   { kind: "intermediate", trigger: "escalation",   label: "Escalation",         throw: true },
+    compensationThrowEvent: { kind: "intermediate", trigger: "compensation", label: "Compensation",       throw: true },
+    linkThrowEvent:         { kind: "intermediate", trigger: "link",         label: "Link throw",         throw: true },
+
+    // End
+    endEvent:               { kind: "end",          trigger: "none",         label: "End" },
+    messageEndEvent:        { kind: "end",          trigger: "message",      label: "Message end" },
+    errorEndEvent:          { kind: "end",          trigger: "error",        label: "Error end" },
+    escalationEndEvent:     { kind: "end",          trigger: "escalation",   label: "Escalation end" },
+    signalEndEvent:         { kind: "end",          trigger: "signal",       label: "Signal end" },
+    compensationEndEvent:   { kind: "end",          trigger: "compensation", label: "Compensation end" },
+    terminateEndEvent:      { kind: "end",          trigger: "terminate",    label: "Terminate" }
+};
+
+const EVENT_COLORS = {
+    start:        { fill: "#ffffff", stroke: "#1B5278" },
+    intermediate: { fill: "#ffffff", stroke: "#4A8DB5" },
+    end:          { fill: "#ffffff", stroke: "#0d2d44" }
+};
+
+const ACTIVITY_TYPES = [
+    "task", "userTask", "serviceTask", "sendTask", "receiveTask", "scriptTask",
+    "manualTask", "businessRuleTask", "callActivity", "subProcess"
+];
+
+const GATEWAY_TYPES = ["exclusiveGateway", "parallelGateway", "inclusiveGateway", "gateway"];
+
+/** Small helper: create an SVG element with attributes and append it to the parent. */
+function _el(parent, tag, attrs) {
+    const el = document.createElementNS(NS, tag);
+    for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+    parent.appendChild(el);
+    return el;
+}
+
+/**
+ * Draws the trigger marker of an event inside the circle (cx, cy, r).
+ * filled: throwing marker (solid), otherwise catching (outlined).
+ */
+function drawEventMarker(group, trigger, cx, cy, r, color, filled) {
+    const s    = r * 0.52;   // half-size of the marker area
+    const fill = filled ? color : "#ffffff";
+    const base = { stroke: color, "stroke-width": 1.4, "stroke-linejoin": "round", fill };
+    const pts  = list => list.map(([dx, dy]) => `${cx + dx * s},${cy + dy * s}`).join(" ");
+
+    switch (trigger) {
+        case "message": {
+            const w = s * 1.5, h = s * 1.05, x = cx - w / 2, y = cy - h / 2;
+            _el(group, "rect", { ...base, x, y, width: w, height: h });
+            _el(group, "polyline", {
+                points: `${x},${y} ${cx},${cy + h * 0.1} ${x + w},${y}`,
+                fill: "none", stroke: filled ? "#ffffff" : color, "stroke-width": 1.2
+            });
+            break;
+        }
+        case "timer": {
+            _el(group, "circle", { ...base, fill: "#ffffff", cx, cy, r: s * 0.95 });
+            for (let i = 0; i < 12; i++) {
+                const a = (i / 12) * Math.PI * 2;
+                _el(group, "line", {
+                    x1: cx + Math.cos(a) * s * 0.72, y1: cy + Math.sin(a) * s * 0.72,
+                    x2: cx + Math.cos(a) * s * 0.9,  y2: cy + Math.sin(a) * s * 0.9,
+                    stroke: color, "stroke-width": 0.8
+                });
+            }
+            _el(group, "polyline", {
+                points: `${cx},${cy - s * 0.6} ${cx},${cy} ${cx + s * 0.45},${cy}`,
+                fill: "none", stroke: color, "stroke-width": 1.2, "stroke-linecap": "round"
+            });
+            break;
+        }
+        case "conditional": {
+            const w = s * 1.15, h = s * 1.45, x = cx - w / 2, y = cy - h / 2;
+            _el(group, "rect", { ...base, fill: "#ffffff", x, y, width: w, height: h });
+            [0.22, 0.42, 0.62, 0.82].forEach(f => _el(group, "line", {
+                x1: x + w * 0.2, y1: y + h * f, x2: x + w * 0.8, y2: y + h * f,
+                stroke: color, "stroke-width": 1
+            }));
+            break;
+        }
+        case "signal":
+            _el(group, "polygon", { ...base, points: pts([[0, -1], [0.95, 0.65], [-0.95, 0.65]]) });
+            break;
+        case "escalation":
+            _el(group, "polygon", { ...base, points: pts([[0, -1], [0.7, 0.85], [0, 0.25], [-0.7, 0.85]]) });
+            break;
+        case "error":
+            _el(group, "polygon", { ...base, points: pts([[-0.75, 0.8], [-0.3, -0.75], [0.15, 0.15], [0.75, -0.8], [0.3, 0.75], [-0.15, -0.15]]) });
+            break;
+        case "compensation":
+            _el(group, "polygon", { ...base, points: pts([[-1, 0], [-0.05, -0.62], [-0.05, 0.62]]) });
+            _el(group, "polygon", { ...base, points: pts([[-0.05, 0], [0.9, -0.62], [0.9, 0.62]]) });
+            break;
+        case "link":
+            _el(group, "polygon", { ...base, points: pts([[-0.8, -0.3], [0.1, -0.3], [0.1, -0.7], [0.9, 0], [0.1, 0.7], [0.1, 0.3], [-0.8, 0.3]]) });
+            break;
+        case "terminate":
+            _el(group, "circle", { cx, cy, r: s * 0.9, fill: color, stroke: "none" });
+            break;
+    }
+}
+
 const bpmnShapes = {
 
     // ── Events ──────────────────────────────────────────────
+    // One shape for every event type; see EVENT_TYPES.
+    event(node, engine) {
+        const def   = EVENT_TYPES[node.type] || EVENT_TYPES.startEvent;
+        const group = document.createElementNS(NS, "g");
+        const r     = Math.min(node.width, node.height) / 2;
+        const cx    = node.x + node.width  / 2;
+        const cy    = node.y + node.height / 2;
+        const color = engine.getNodeColors(node.type).stroke;
 
-    startEvent(node, engine) {
-        const r  = Math.min(node.width, node.height) / 2;
-        const cx = node.x + node.width  / 2;
-        const cy = node.y + node.height / 2;
-        const circle = document.createElementNS(NS, "circle");
-        circle.setAttribute("cx", cx);
-        circle.setAttribute("cy", cy);
-        circle.setAttribute("r",  r);
-        engine.applyNodeStyle(circle, node);
-        return circle;
-    },
-
-    endEvent(node, engine) {
-        const r  = Math.min(node.width, node.height) / 2;
-        const cx = node.x + node.width  / 2;
-        const cy = node.y + node.height / 2;
-        const circle = document.createElementNS(NS, "circle");
-        circle.setAttribute("cx", cx);
-        circle.setAttribute("cy", cy);
-        circle.setAttribute("r",  r);
-        engine.applyNodeStyle(circle, node);
-        circle.setAttribute("stroke-width", node.id === engine.state.selectedNodeId ? "3.5" : "3");
-        return circle;
-    },
-
-    intermediateEvent(node, engine) {
-        const group  = document.createElementNS(NS, "g");
-        const rOuter = Math.min(node.width, node.height) / 2;
-        const rInner = Math.max(rOuter - 5, 4);
-        const cx = node.x + node.width  / 2;
-        const cy = node.y + node.height / 2;
-
-        const outer = document.createElementNS(NS, "circle");
-        outer.setAttribute("cx", cx); outer.setAttribute("cy", cy); outer.setAttribute("r", rOuter);
+        const outer = _el(group, "circle", { cx, cy, r });
         engine.applyNodeStyle(outer, node);
 
-        const inner = document.createElementNS(NS, "circle");
-        inner.setAttribute("cx", cx); inner.setAttribute("cy", cy); inner.setAttribute("r", rInner);
-        inner.setAttribute("fill", "none");
-        inner.setAttribute("stroke", engine.getNodeColors(node.type).stroke);
-        inner.setAttribute("stroke-width", node.id === engine.state.selectedNodeId ? "2.5" : "1.5");
+        if (def.kind === "end") {
+            outer.setAttribute("stroke-width", engine.isNodeSelected(node.id) ? "3.5" : "3");
+        }
 
-        group.appendChild(outer);
-        group.appendChild(inner);
-        return group;
-    },
+        if (def.kind === "intermediate") {
+            _el(group, "circle", { cx, cy, r: Math.max(2, r - Math.max(3, r * 0.15)), fill: "none", stroke: color, "stroke-width": 1.2 });
+        }
 
-    // Message start event — circle + envelope icon
-    messageStartEvent(node, engine) {
-        const group = document.createElementNS(NS, "g");
-        const r  = Math.min(node.width, node.height) / 2;
-        const cx = node.x + node.width  / 2;
-        const cy = node.y + node.height / 2;
+        if (def.trigger !== "none") {
+            drawEventMarker(group, def.trigger, cx, cy, r, color, def.kind === "end" || !!def.throw);
+        }
 
-        const circle = document.createElementNS(NS, "circle");
-        circle.setAttribute("cx", cx); circle.setAttribute("cy", cy); circle.setAttribute("r", r);
-        engine.applyNodeStyle(circle, node);
-
-        const colors = engine.getNodeColors(node.type);
-        const ew = r * 1.0, eh = r * 0.65;
-        const ex = cx - ew / 2, ey = cy - eh / 2;
-
-        const env = document.createElementNS(NS, "rect");
-        env.setAttribute("x", ex); env.setAttribute("y", ey);
-        env.setAttribute("width", ew); env.setAttribute("height", eh);
-        env.setAttribute("fill", "none");
-        env.setAttribute("stroke", colors.stroke); env.setAttribute("stroke-width", "1.5");
-
-        const line = document.createElementNS(NS, "polyline");
-        line.setAttribute("points", `${ex},${ey} ${cx},${cy} ${ex + ew},${ey}`);
-        line.setAttribute("fill", "none");
-        line.setAttribute("stroke", colors.stroke); line.setAttribute("stroke-width", "1.5");
-
-        group.appendChild(circle); group.appendChild(env); group.appendChild(line);
-        return group;
-    },
-
-    // Timer start event — circle + clock icon
-    timerStartEvent(node, engine) {
-        const group = document.createElementNS(NS, "g");
-        const r  = Math.min(node.width, node.height) / 2;
-        const cx = node.x + node.width  / 2;
-        const cy = node.y + node.height / 2;
-
-        const circle = document.createElementNS(NS, "circle");
-        circle.setAttribute("cx", cx); circle.setAttribute("cy", cy); circle.setAttribute("r", r);
-        engine.applyNodeStyle(circle, node);
-
-        const colors = engine.getNodeColors(node.type);
-        const cr = r * 0.6;
-
-        const clock = document.createElementNS(NS, "circle");
-        clock.setAttribute("cx", cx); clock.setAttribute("cy", cy); clock.setAttribute("r", cr);
-        clock.setAttribute("fill", "none");
-        clock.setAttribute("stroke", colors.stroke); clock.setAttribute("stroke-width", "1.5");
-
-        const hand1 = document.createElementNS(NS, "line");
-        hand1.setAttribute("x1", cx); hand1.setAttribute("y1", cy);
-        hand1.setAttribute("x2", cx); hand1.setAttribute("y2", cy - cr * 0.7);
-        hand1.setAttribute("stroke", colors.stroke); hand1.setAttribute("stroke-width", "1.5");
-        hand1.setAttribute("stroke-linecap", "round");
-
-        const hand2 = document.createElementNS(NS, "line");
-        hand2.setAttribute("x1", cx); hand2.setAttribute("y1", cy);
-        hand2.setAttribute("x2", cx + cr * 0.5); hand2.setAttribute("y2", cy);
-        hand2.setAttribute("stroke", colors.stroke); hand2.setAttribute("stroke-width", "1.5");
-        hand2.setAttribute("stroke-linecap", "round");
-
-        group.appendChild(circle); group.appendChild(clock);
-        group.appendChild(hand1); group.appendChild(hand2);
-        return group;
-    },
-
-    // Error end event — circle + lightning bolt
-    errorEndEvent(node, engine) {
-        const group = document.createElementNS(NS, "g");
-        const r  = Math.min(node.width, node.height) / 2;
-        const cx = node.x + node.width  / 2;
-        const cy = node.y + node.height / 2;
-
-        const circle = document.createElementNS(NS, "circle");
-        circle.setAttribute("cx", cx); circle.setAttribute("cy", cy); circle.setAttribute("r", r);
-        engine.applyNodeStyle(circle, node);
-        circle.setAttribute("stroke-width", "3");
-
-        const colors = engine.getNodeColors(node.type);
-        const s = r * 0.55;
-        const bolt = document.createElementNS(NS, "polyline");
-        bolt.setAttribute("points", `${cx + s * 0.2},${cy - s} ${cx - s * 0.2},${cy} ${cx + s * 0.3},${cy} ${cx - s * 0.2},${cy + s}`);
-        bolt.setAttribute("fill", "none");
-        bolt.setAttribute("stroke", colors.stroke); bolt.setAttribute("stroke-width", "1.5");
-        bolt.setAttribute("stroke-linejoin", "round");
-
-        group.appendChild(circle); group.appendChild(bolt);
         return group;
     },
 
@@ -315,6 +336,38 @@ const bpmnShapes = {
         engine.applyNodeStyle(rect, node);
         rect.setAttribute("stroke-width", node.id === engine.state.selectedNodeId ? "4" : "3");
         return rect;
+    },
+
+    // Manual task — rounded rect + hand icon in top-left corner
+    manualTask(node, engine) {
+        const group = document.createElementNS(NS, "g");
+        const rect  = _el(group, "rect", { x: node.x, y: node.y, width: node.width, height: node.height, rx: 10 });
+        engine.applyNodeStyle(rect, node);
+
+        const c = engine.getNodeColors(node.type).stroke;
+        const x = node.x + 8, y = node.y + 7;
+        _el(group, "path", {
+            d: `M ${x} ${y + 6} L ${x} ${y + 12} Q ${x} ${y + 14} ${x + 2} ${y + 14} L ${x + 11} ${y + 14} ` +
+               `M ${x + 4} ${y + 8.5} L ${x + 13} ${y + 8.5} M ${x + 4} ${y + 11} L ${x + 12} ${y + 11} ` +
+               `M ${x} ${y + 6} L ${x + 3} ${y + 6} L ${x + 5} ${y + 2} L ${x + 12} ${y + 2} M ${x + 4} ${y + 6} L ${x + 14} ${y + 6}`,
+            fill: "none", stroke: c, "stroke-width": 1.2, "stroke-linecap": "round", "stroke-linejoin": "round"
+        });
+        return group;
+    },
+
+    // Business rule task — rounded rect + table icon in top-left corner
+    businessRuleTask(node, engine) {
+        const group = document.createElementNS(NS, "g");
+        const rect  = _el(group, "rect", { x: node.x, y: node.y, width: node.width, height: node.height, rx: 10 });
+        engine.applyNodeStyle(rect, node);
+
+        const c = engine.getNodeColors(node.type).stroke;
+        const x = node.x + 8, y = node.y + 7, w = 16, h = 12;
+        _el(group, "rect", { x, y, width: w, height: h, fill: "#ffffff", stroke: c, "stroke-width": 1.2 });
+        _el(group, "rect", { x, y, width: w, height: 3.5, fill: c, stroke: c, "stroke-width": 1.2 });
+        _el(group, "line", { x1: x, y1: y + 7.8, x2: x + w, y2: y + 7.8, stroke: c, "stroke-width": 1 });
+        _el(group, "line", { x1: x + 5, y1: y + 3.5, x2: x + 5, y2: y + h, stroke: c, "stroke-width": 1 });
+        return group;
     },
 
     // Collapsed sub-process — rounded rect with + marker at bottom
@@ -623,36 +676,86 @@ function createToolIcon(action, engine) {
         return svg;
     }
 
-    const colors = engine.getNodeColors(action.nodeType);
+    if (action.type === "changeType") {
+        // Wrench
+        _el(svg, "path", {
+            d: "M 26 8 A 7 7 0 0 0 19 17 L 9 27 A 3 3 0 0 0 13 31 L 23 21 A 7 7 0 0 0 32 14 L 27 17 L 23 13 Z",
+            fill: "none", stroke: "#555", "stroke-width": "2.2", "stroke-linejoin": "round"
+        });
+        return svg;
+    }
 
-    const iconMap = {
-        task:              () => _iconRoundedRect(svg, colors, 6, 10, 28, 20, 4),
-        userTask:          () => _iconRoundedRect(svg, colors, 6, 10, 28, 20, 4),
-        serviceTask:       () => _iconRoundedRect(svg, colors, 6, 10, 28, 20, 4),
-        sendTask:          () => _iconRoundedRect(svg, colors, 6, 10, 28, 20, 4),
-        receiveTask:       () => _iconRoundedRect(svg, colors, 6, 10, 28, 20, 4),
-        scriptTask:        () => _iconRoundedRect(svg, colors, 6, 10, 28, 20, 4),
-        callActivity:      () => _iconRoundedRect(svg, colors, 6, 10, 28, 20, 4, 3),
-        subProcess:        () => _iconRoundedRect(svg, colors, 6, 10, 28, 20, 4),
-        startEvent:        () => _iconCircle(svg, colors, 20, 20, 12),
-        endEvent:          () => _iconCircle(svg, colors, 20, 20, 12, 3),
-        messageStartEvent: () => _iconCircle(svg, colors, 20, 20, 12),
-        timerStartEvent:   () => _iconCircle(svg, colors, 20, 20, 12),
-        errorEndEvent:     () => _iconCircle(svg, colors, 20, 20, 12, 3),
-        intermediateEvent: () => _iconCircle(svg, colors, 20, 20, 12),
-        gateway:           () => _iconDiamond(svg, colors),
-        exclusiveGateway:  () => _iconDiamond(svg, colors),
-        parallelGateway:   () => _iconDiamond(svg, colors),
-        inclusiveGateway:  () => _iconDiamond(svg, colors),
-        dataObject:        () => _iconRoundedRect(svg, colors, 12, 8, 18, 24, 2),
-        dataStore:         () => _iconRoundedRect(svg, colors, 8, 10, 24, 20, 2),
-        annotation:        () => _iconRoundedRect(svg, colors, 8, 8, 24, 24, 2),
-        swimlane:          () => _iconRoundedRect(svg, colors, 4, 6, 32, 28, 4),
-        pool:              () => _iconRoundedRect(svg, colors, 4, 6, 32, 28, 4),
-    };
-
-    (iconMap[action.nodeType] || (() => _iconRoundedRect(svg, colors, 8, 8, 24, 24, 4)))();
+    appendTypePreview(svg, action.nodeType, engine);
     return svg;
+}
+
+/**
+ * Draws a small preview of a node type into an SVG with viewBox 0 0 40 40, using the real shape.
+ * Containers get a simple framed rectangle (their header strip doesn't scale down well).
+ */
+function appendTypePreview(svg, type, engine) {
+    const typeDef = engine.diagram.nodeTypes[type];
+    const colors  = engine.getNodeColors(type);
+
+    if (!typeDef || typeDef.isContainer) {
+        _iconRoundedRect(svg, colors, 4, 8, 32, 24, 3);
+        return;
+    }
+
+    const box = EVENT_TYPES[type]            ? { x: 6,  y: 6,  width: 28, height: 28 }
+              : GATEWAY_TYPES.includes(type) ? { x: 5,  y: 5,  width: 30, height: 30 }
+              : type === "dataObject"        ? { x: 11, y: 5,  width: 18, height: 30 }
+              : type === "dataStore"         ? { x: 6,  y: 8,  width: 28, height: 24 }
+              :                                { x: 2,  y: 9,  width: 36, height: 22 };
+
+    const fakeNode = { id: "__preview__", type, label: "", ...box };
+    const factory  = engine.diagram.shapes[typeDef.shape];
+
+    if (factory) svg.appendChild(factory(fakeNode, engine));
+}
+
+/** Toggles the "change type" list in the tool surface: one row per type of the node's family. */
+function toggleTypeMenu(surfaceEl, node, engine, definition) {
+    const existing = surfaceEl.querySelector("[data-weavle-type-menu]");
+    if (existing) { existing.remove(); return; }
+
+    const menu = document.createElement("div");
+    menu.setAttribute("data-weavle-type-menu", "true");
+    Object.assign(menu.style, {
+        display: "flex", flexDirection: "column", gap: "2px", padding: "4px",
+        marginTop: "4px", maxHeight: "260px", overflowY: "auto", minWidth: "170px",
+        background: "#fff", border: "1px solid #d9d9d9", borderRadius: "6px",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.12)", pointerEvents: "auto"
+    });
+
+    for (const type of definition.getTypeFamily(node.type) || []) {
+        const row = document.createElement("button");
+        row.type = "button";
+        Object.assign(row.style, {
+            display: "flex", alignItems: "center", gap: "8px", padding: "3px 6px",
+            border: "none", borderRadius: "4px", cursor: "pointer", textAlign: "left", font: "inherit", fontSize: "12px",
+            background: type === node.type ? "#fdeee8" : "transparent"
+        });
+
+        const icon = document.createElementNS(NS, "svg");
+        icon.setAttribute("width", "22"); icon.setAttribute("height", "22"); icon.setAttribute("viewBox", "0 0 40 40");
+        appendTypePreview(icon, type, engine);
+
+        const label = document.createElement("span");
+        label.textContent = definition.nodeTypes[type].defaultLabel;
+
+        row.append(icon, label);
+        row.addEventListener("mouseenter", () => { if (type !== node.type) row.style.background = "#f3f6fa"; });
+        row.addEventListener("mouseleave", () => { if (type !== node.type) row.style.background = "transparent"; });
+        row.addEventListener("click", e => {
+            e.stopPropagation();
+            engine.handleContextAction({ type: "changeType", nodeType: type }, node);
+        });
+
+        menu.appendChild(row);
+    }
+
+    surfaceEl.appendChild(menu);
 }
 
 function _iconRoundedRect(svg, colors, x, y, w, h, rx, sw = 2) {
@@ -681,7 +784,7 @@ function _iconDiamond(svg, colors) {
 // TOOL ITEM FACTORY  (clickable button in the floating rail)
 // ============================================================
 
-function createToolItem(action, node, engine, variant = "normal") {
+function createToolItem(action, node, engine, variant = "normal", onClick = null) {
     const item = document.createElement("div");
     const isDanger = variant === "danger";
 
@@ -709,7 +812,8 @@ function createToolItem(action, node, engine, variant = "normal") {
     });
     item.addEventListener("click", e => {
         e.stopPropagation();
-        engine.handleContextAction(action, node);
+        if (onClick) onClick();
+        else engine.handleContextAction(action, node);
     });
 
     return item;
@@ -729,13 +833,10 @@ export function createBpmnDefinition() {
         // ── Node type catalogue ──────────────────────────────
         nodeTypes: {
 
-            // Events
-            startEvent:        { defaultLabel: "Start",               colors: { fill: "#ffffff", stroke: "#1B5278" }, shape: "startEvent"        },
-            messageStartEvent: { defaultLabel: "Message start",       colors: { fill: "#EAF4FB", stroke: "#1B5278" }, shape: "messageStartEvent"  },
-            timerStartEvent:   { defaultLabel: "Timer start",         colors: { fill: "#FFF9EC", stroke: "#B07A00" }, shape: "timerStartEvent"    },
-            intermediateEvent: { defaultLabel: "Intermediate event",  colors: { fill: "#ffffff", stroke: "#4A8DB5" }, shape: "intermediateEvent"  },
-            endEvent:          { defaultLabel: "End",                 colors: { fill: "#ffffff", stroke: "#0d2d44" }, shape: "endEvent"           },
-            errorEndEvent:     { defaultLabel: "Error end",           colors: { fill: "#FFF0F0", stroke: "#C0392B" }, shape: "errorEndEvent"      },
+            // Events — generated from EVENT_TYPES, all drawn by the generic "event" shape
+            ...Object.fromEntries(Object.entries(EVENT_TYPES).map(([type, def]) => [
+                type, { defaultLabel: def.label, colors: EVENT_COLORS[def.kind], shape: "event" }
+            ])),
 
             // Tasks
             task:              { defaultLabel: "Task",                colors: { fill: "#FDF7E7", stroke: "#0d2d44" }, shape: "task"               },
@@ -744,6 +845,8 @@ export function createBpmnDefinition() {
             sendTask:          { defaultLabel: "Send task",           colors: { fill: "#EBF5EC", stroke: "#1E8449" }, shape: "sendTask"           },
             receiveTask:       { defaultLabel: "Receive task",        colors: { fill: "#EBF5EC", stroke: "#1E8449" }, shape: "receiveTask"        },
             scriptTask:        { defaultLabel: "Script task",         colors: { fill: "#FDF7E7", stroke: "#7D6608" }, shape: "scriptTask"         },
+            manualTask:        { defaultLabel: "Manual task",         colors: { fill: "#FDF7E7", stroke: "#0d2d44" }, shape: "manualTask"         },
+            businessRuleTask:  { defaultLabel: "Business rule task",  colors: { fill: "#FDF7E7", stroke: "#7D6608" }, shape: "businessRuleTask"   },
             callActivity:      { defaultLabel: "Call activity",       colors: { fill: "#FDF7E7", stroke: "#0d2d44" }, shape: "callActivity"       },
             subProcess:        { defaultLabel: "Sub-process",         colors: { fill: "#F8F9FA", stroke: "#566573" }, shape: "subProcess"         },
 
@@ -765,21 +868,24 @@ export function createBpmnDefinition() {
 
         // Palette shown in the side panel (curated subset)
         palette: [
-            { type: "startEvent" },
-            { type: "task" },
-            { type: "userTask" },
-            { type: "serviceTask" },
-            { type: "exclusiveGateway" },
-            { type: "parallelGateway" },
-            { type: "endEvent" },
-            { type: "dataObject" },
-            { type: "annotation" },
-            { type: "pool" },
-            { type: "swimlane" },
+            { group: "Start events", types: ["startEvent", "messageStartEvent", "timerStartEvent", "conditionalStartEvent", "signalStartEvent"] },
+            { group: "Intermediate events", types: [
+                "intermediateEvent", "messageCatchEvent", "messageThrowEvent", "timerCatchEvent", "conditionalCatchEvent",
+                "signalCatchEvent", "signalThrowEvent", "escalationThrowEvent", "compensationThrowEvent", "linkCatchEvent", "linkThrowEvent"
+            ] },
+            { group: "End events", types: [
+                "endEvent", "messageEndEvent", "errorEndEvent", "escalationEndEvent", "signalEndEvent", "compensationEndEvent", "terminateEndEvent"
+            ] },
+            { group: "Activities", types: ACTIVITY_TYPES },
+            { group: "Gateways", types: GATEWAY_TYPES },
+            { group: "Data & artifacts", types: ["dataObject", "dataStore", "annotation"] },
+            { group: "Containers", types: ["pool", "swimlane"] }
         ],
 
         // Default sizes per node type
         getDefaultSize(nodeType) {
+            if (EVENT_TYPES[nodeType]) return { width: 40, height: 40 };
+
             const sizes = {
                 startEvent:        { width: 40,  height: 40  },
                 messageStartEvent: { width: 40,  height: 40  },
@@ -870,7 +976,12 @@ export function createBpmnDefinition() {
                 return [{ type: "deleteNode", label: "Verwijderen" }];
             }
 
+            const changeType = this.getTypeFamily(node.type)
+                ? [{ type: "changeType", label: "Type wijzigen" }]
+                : [];
+
             return [
+                ...changeType,
                 { type: "addConnectedNode", nodeType: "task",             label: "Task"              },
                 { type: "addConnectedNode", nodeType: "userTask",         label: "User task"         },
                 { type: "addConnectedNode", nodeType: "serviceTask",      label: "Service task"      },
@@ -883,8 +994,9 @@ export function createBpmnDefinition() {
             ];
         },
 
+        // Node tools float next to the selected node (like the bpmn.io context pad).
         getNodeInteractionMode(node) {
-            return "action-rail";
+            return "action-surface";
         },
 
         // ── Containers: pools and lanes ──────────────────────
@@ -1143,7 +1255,31 @@ export function createBpmnDefinition() {
             });
         },
 
+        // Types a node can be switched to via "Type wijzigen": the same kind of element.
+        getTypeFamily(type) {
+            const event = EVENT_TYPES[type];
+            if (event) {
+                return Object.keys(EVENT_TYPES).filter(t => EVENT_TYPES[t].kind === event.kind);
+            }
+            if (ACTIVITY_TYPES.includes(type)) return ACTIVITY_TYPES;
+            if (GATEWAY_TYPES.includes(type))  return GATEWAY_TYPES;
+            return null;
+        },
+
         handleAction(action, node, engine) {
+            if (action.type === "changeType") {
+                if (!action.nodeType || action.nodeType === node.type) return false;
+
+                // Keep a custom label; replace the default label of the old type.
+                const oldDefault = this.nodeTypes[node.type]?.defaultLabel;
+                node.type = action.nodeType;
+
+                if (!node.label || node.label === oldDefault) {
+                    node.label = this.nodeTypes[node.type].defaultLabel;
+                }
+                return true;
+            }
+
             if (action.type !== "addLane" || node.type !== "pool") return false;
 
             const lanes   = engine.getChildren(node).filter(n => n.type === "swimlane");
@@ -1239,7 +1375,10 @@ export function createBpmnDefinition() {
                 const primaryActions = actions.filter(a => a.type !== "deleteNode");
                 const dangerActions  = actions.filter(a => a.type === "deleteNode");
 
-                primaryActions.forEach(a => surfaceEl.appendChild(createToolItem(a, node, engine, "normal")));
+                primaryActions.forEach(a => {
+                    const onClick = a.type === "changeType" ? () => toggleTypeMenu(surfaceEl, node, engine, this) : null;
+                    surfaceEl.appendChild(createToolItem(a, node, engine, "normal", onClick));
+                });
 
                 if (primaryActions.length && dangerActions.length) {
                     const div = document.createElement("div");

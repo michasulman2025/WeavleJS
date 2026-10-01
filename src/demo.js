@@ -235,16 +235,35 @@ function renderShapeButtons() {
   const palette = currentDiagramDefinition.palette
     || Object.keys(currentDiagramDefinition.nodeTypes).map(t => ({ type: t }));
 
-  palette.forEach(item => {
-    const type = item.type;
+  const makeButton = type => {
     const def = currentDiagramDefinition.nodeTypes[type];
-
     const btn = document.createElement("button");
     btn.textContent = def?.defaultLabel || type;
-
     btn.addEventListener("click", () => addNode(type));
+    return btn;
+  };
 
-    shapeButtonsEl.appendChild(btn);
+  // Palette entries are either { type } or a group { group, types: [...] } (collapsible).
+  palette.forEach((item, index) => {
+    if (!item.group) {
+      shapeButtonsEl.appendChild(makeButton(item.type));
+      return;
+    }
+
+    const details = document.createElement("details");
+    details.className = "palette-group";
+    details.open = index < 2;
+
+    const summary = document.createElement("summary");
+    summary.textContent = item.group;
+    details.appendChild(summary);
+
+    const buttons = document.createElement("div");
+    buttons.className = "palette-buttons";
+    item.types.forEach(type => buttons.appendChild(makeButton(type)));
+    details.appendChild(buttons);
+
+    shapeButtonsEl.appendChild(details);
   });
 }
 

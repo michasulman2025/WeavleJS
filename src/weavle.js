@@ -4167,7 +4167,10 @@ export class WeavleJS {
         this.clearNodeToolSurface();
         if (!node) return;
 
-        const mode = this.getNodeInteractionMode(node) || "action-surface";
+        // "action-rail" is an older name for the floating surface next to the node.
+        let mode = this.getNodeInteractionMode(node) || "action-surface";
+        if (mode === "action-rail") mode = "action-surface";
+
         if (mode !== "action-surface" && mode !== "docked-panel") {
             return;
         }
@@ -4226,7 +4229,8 @@ export class WeavleJS {
             const content = renderer({
                 node,
                 actions,
-                engine: this
+                engine: this,
+                surfaceEl          // renderers may fill this directly instead of returning content
             });
 
             // Preferred new contract:
@@ -4407,6 +4411,11 @@ export class WeavleJS {
             this.pushHistory();
             this.emit("weavle:modelchanged", { model: this.getData() });
             this.render();
+
+            // The node may have changed (e.g. its type): rebuild its tools.
+            if (this.getNode(node.id) && this.isNodeSelected(node.id)) {
+                this.renderNodeToolSurface(node);
+            }
         }
     }
 

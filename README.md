@@ -13,6 +13,8 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the design and roadmap.
 
 - Zero runtime dependencies, plain ES modules
 - Pluggable diagram definitions — flowchart and BPMN included
+- BPMN: 23 event types (start / intermediate catch & throw / end), 10 activity types, gateways, data,
+  annotations, pools & lanes — with "change type" in the node tools
 - Drag, multi-select (Ctrl+click, marquee), group drag, delete, undo / redo
 - Orthogonal edge routing with obstacle avoidance (A*), live while dragging
 - Edge types per diagram: orthogonal or straight, filled / open / no arrowheads, dash patterns
@@ -178,7 +180,7 @@ A definition is a plain object returned by a factory like `createBpmnDefinition(
 |---|---|
 | `nodeTypes` | Per type: `defaultLabel`, `colors`, `shape` |
 | `shapes` | SVG shape functions `(node, engine) => SVGElement` |
-| `palette` | Types shown in a palette |
+| `palette` | Types shown in a palette: `{ type }` entries or groups `{ group, types: [...] }` |
 | `getPorts(node)` | Port positions |
 | `edgeTypes`, `defaultEdgeType` | Edge types: `router` (`orthogonal` / `straight`), `marker` (`arrow` / `openArrow` / `none`), `dash` |
 | `getEdgeTypeForConnection({ source, target })` | Which edge type a new connection gets |

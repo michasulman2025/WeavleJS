@@ -158,3 +158,22 @@ select {
   border-radius: 8px;
   width: 100%;
 }
+/* Grouped palette (diagram definitions with { group, types }) */
+.palette-group {
+  margin-bottom: 6px;
+}
+
+.palette-group summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: #4a5563;
+  padding: 2px 0;
+}
+
+.palette-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}

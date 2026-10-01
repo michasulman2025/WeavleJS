@@ -62,6 +62,12 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
   gets two lanes). BPMN pool resize spreads the height change proportionally over the lanes; growing never
   shrinks a lane. Container layouts run live while resizing (geometry snapshot +
   restore); resize rules may ask for edge handles (`handles: ["n", "s"]`). BPMN message flow = edge between two pools.
+- BPMN events come from the `EVENT_TYPES` table in weavle-bpmn.js (kind start/intermediate/end, trigger,
+  throw) and share one `event` shape + `drawEventMarker`; activities / gateways are listed in `ACTIVITY_TYPES` /
+  `GATEWAY_TYPES`. "Type wijzigen" (`changeType` action, `getTypeFamily`) switches a node within its family.
+  Tool-rail icons and the type menu are scaled-down real shapes (`appendTypePreview`). Palette entries may be
+  groups `{ group, types }`. Node tool renderers receive `surfaceEl`; interaction mode "action-rail" is an
+  alias of "action-surface".
 - Edge types: `edge.type` keys into the definition's `edgeTypes` (`router: "orthogonal" | "straight"`,
   `marker: "arrow" | "openArrow" | "none"`, `dash`). `getEdgeTypeForConnection({source, target})` picks the type
   when an edge is created or reconnected; `defaultEdgeType` otherwise. Untyped saved edges get a type on load.
