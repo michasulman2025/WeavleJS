@@ -1631,7 +1631,8 @@ var g = class {
 			debugCanvasGrid: !1,
 			debugAStarGrid: !1,
 			debugRoutePoints: !1,
-			toolSurfaceDockHost: null
+			toolSurfaceDockHost: null,
+			toolbar: !0
 		}, t), this.diagram = r || n(), this.model = {
 			nodes: [],
 			edges: []
@@ -1702,7 +1703,7 @@ var g = class {
 		}, this.history = [], this.historyIndex = -1, this.isRestoringHistory = !1, this.init();
 	}
 	init() {
-		this.createSvg(), getComputedStyle(this.container).position === "static" && (this.container.style.position = "relative", this.didSetContainerPosition = !0), this.nodeToolEl = null, this.uiLayer = document.createElement("div"), this.uiLayer.className = "weavle-ui-layer", this.uiLayer.style.position = "absolute", this.uiLayer.style.inset = "0", this.uiLayer.style.pointerEvents = "none", this.container.appendChild(this.uiLayer), this.bindEvents(), this.render();
+		this.createSvg(), getComputedStyle(this.container).position === "static" && (this.container.style.position = "relative", this.didSetContainerPosition = !0), this.nodeToolEl = null, this.uiLayer = document.createElement("div"), this.uiLayer.className = "weavle-ui-layer", this.uiLayer.style.position = "absolute", this.uiLayer.style.inset = "0", this.uiLayer.style.pointerEvents = "none", this.container.appendChild(this.uiLayer), this.createCanvasToolbar(), this.bindEvents(), this.render();
 	}
 	createSvg() {
 		let e = "http://www.w3.org/2000/svg";
@@ -1795,10 +1796,10 @@ var g = class {
 		this.model.nodes = [], this.model.edges = [], this.clearTransientStateAfterHistoryRestore(), this.pushHistory(), this.emitModelChanged(), this.render();
 	}
 	destroy() {
-		this.isDestroyed || (this.isDestroyed = !0, this.state.editingLabel && this.cancelInlineLabelEdit(), this.svg?.removeEventListener("mousedown", this.onMouseDownBound), this.svg?.removeEventListener("wheel", this.onWheelBound), window.removeEventListener("mousemove", this.onMouseMoveBound), window.removeEventListener("mouseup", this.onMouseUpBound), window.removeEventListener("keydown", this.onKeyDownBound), this.clearNodeToolSurface(), this.setTextSelectionEnabled(!0), this.svg?.remove(), this.uiLayer?.remove(), this.didSetContainerPosition && (this.container.style.position = ""));
+		this.isDestroyed || (this.isDestroyed = !0, this.state.editingLabel && this.cancelInlineLabelEdit(), this.svg?.removeEventListener("mousedown", this.onMouseDownBound), this.svg?.removeEventListener("wheel", this.onWheelBound), window.removeEventListener("mousemove", this.onMouseMoveBound), window.removeEventListener("mouseup", this.onMouseUpBound), window.removeEventListener("keydown", this.onKeyDownBound), this.clearNodeToolSurface(), this.setTextSelectionEnabled(!0), this.svg?.remove(), this.uiLayer?.remove(), this.toolbarAnchor?.remove(), this.didSetContainerPosition && (this.container.style.position = ""));
 	}
 	render() {
-		this.updateViewportTransform(), this.renderGrid(), this.renderEdges(), this.renderNodes(), this.renderOverlay(), this.renderDebug();
+		this.updateViewportTransform(), this.renderGrid(), this.renderEdges(), this.renderNodes(), this.renderOverlay(), this.renderDebug(), this.updateCanvasToolbar();
 	}
 	renderGrid() {
 		this.layers.grid.innerHTML = "";
@@ -3274,7 +3275,7 @@ var g = class {
 		return e.x >= 0 && e.y >= 0 && e.x <= this.options.width && e.y <= this.options.height;
 	}
 	startNodeCreation(e, t, n) {
-		this.state.creatingNodeType = e;
+		this.clearSelection?.(), this.clearNodeToolSurface(), this.emitSelectionChanged(), this.state.creationArmed = !1, this.svg.classList.add("is-creating"), this.state.creatingNodeType = e;
 		let r = this.getDefaultNodeSize(e);
 		this.state.creatingNodeWidth = t || r.width, this.state.creatingNodeHeight = n || r.height, this.state.lastMouseX > 0 || this.state.lastMouseY > 0 ? (this.state.creationPreviewX = this.state.lastMouseX, this.state.creationPreviewY = this.state.lastMouseY) : (this.state.creationPreviewX = this.options.width / 2, this.state.creationPreviewY = this.options.height / 2), this.render();
 	}
@@ -3437,6 +3438,46 @@ var g = class {
 		let r = this.createToolSurfaceShell(e, t);
 		this.renderToolSurfaceContent(r, e, n), this.mountToolSurface(r, e, t), this.nodeToolEl = r, this.state.nodeToolNodeId = e.id;
 	}
+	getCanvasActions() {
+		if (typeof this.diagram.getCanvasActions == "function") return this.diagram.getCanvasActions(this) || [];
+		let e = (e) => this.getDefaultLabelForType(e), t = (t) => ({
+			type: "createNode",
+			nodeType: t,
+			label: e(t)
+		});
+		return (this.diagram.palette || []).map((e) => e.group ? {
+			type: "group",
+			label: e.group,
+			nodeType: e.types[0],
+			children: e.types.map(t)
+		} : t(e.type));
+	}
+	createCanvasToolbar() {
+		if (this.options.toolbar === !1) return;
+		let e = this.getCanvasActions();
+		if (!e.length) return;
+		let t = document.createElement("div");
+		t.className = "weavle-toolbar-anchor", t.style.position = "sticky", t.style.top = "0", t.style.height = "0";
+		let n = document.createElement("div");
+		n.className = "weavle-toolbar", n.setAttribute("role", "toolbar"), n.addEventListener("mousedown", (e) => e.stopPropagation());
+		let r = (e) => this.runCanvasAction(e);
+		e.forEach((e) => n.appendChild(this.createToolButton(e, null, n, r))), t.appendChild(n), this.container.insertBefore(t, this.svg), this.toolbarAnchor = t, this.toolbarEl = n, this.updateCanvasToolbar();
+	}
+	runCanvasAction(e) {
+		if (this.closeToolbarSubmenus(), e.type === "createNode") {
+			this.startNodeCreation(e.nodeType);
+			return;
+		}
+		typeof this.diagram.handleCanvasAction == "function" && this.diagram.handleCanvasAction(e, this);
+	}
+	closeToolbarSubmenus() {
+		this.toolbarEl && (this.toolbarEl.querySelectorAll(".weavle-tool-submenu").forEach((e) => e.remove()), this.toolbarEl.querySelectorAll(".weavle-tool-button.is-open").forEach((e) => e.classList.remove("is-open")));
+	}
+	updateCanvasToolbar() {
+		if (!this.toolbarEl) return;
+		let e = this.options.readOnly || this.state.selectedNodeIds.length > 0 || !!this.state.selectedEdgeId;
+		e && this.closeToolbarSubmenus(), this.toolbarEl.hidden = e;
+	}
 	createToolSurfaceShell(e, t) {
 		let n = document.createElement("div");
 		return n.className = `weavle-tool-surface weavle-tool-surface--${t}`, n.dataset.mode = t, t !== "docked-panel" && (n.style.position = "absolute"), n.style.pointerEvents = "auto", n.addEventListener("mousedown", (e) => {
@@ -3465,30 +3506,30 @@ var g = class {
 		}
 		o.forEach((n) => e.appendChild(this.createToolButton(n, t, e)));
 	}
-	createToolButton(e, t, n) {
-		let r = document.createElement("div");
-		r.className = "weavle-tool-item";
-		let i = document.createElement("button");
-		return i.type = "button", i.className = "weavle-tool-button", i.title = e.label || e.type, i.setAttribute("aria-label", i.title), e.children && i.classList.add("weavle-tool-button--group"), (e.type === "deleteNode" || e.danger) && i.classList.add("weavle-tool-button--danger"), i.appendChild(this.createActionIcon(e)), i.addEventListener("click", (a) => {
-			a.stopPropagation(), e.children ? this.toggleToolSubmenu(n, r, i, e, t) : this.handleContextAction(e, t);
-		}), r.appendChild(i), r;
+	createToolButton(e, t, n, r = (e) => this.handleContextAction(e, t)) {
+		let i = document.createElement("div");
+		i.className = "weavle-tool-item";
+		let a = document.createElement("button");
+		return a.type = "button", a.className = "weavle-tool-button", a.title = e.label || e.type, a.setAttribute("aria-label", a.title), e.children && a.classList.add("weavle-tool-button--group"), (e.type === "deleteNode" || e.danger) && a.classList.add("weavle-tool-button--danger"), a.appendChild(this.createActionIcon(e)), a.addEventListener("click", (o) => {
+			o.stopPropagation(), e.children ? this.toggleToolSubmenu(n, i, a, e, t, r) : r(e);
+		}), i.appendChild(a), i;
 	}
-	toggleToolSubmenu(e, t, n, r, i) {
-		let a = n.classList.contains("is-open");
-		if (e.querySelectorAll(".weavle-tool-submenu").forEach((e) => e.remove()), e.querySelectorAll(".weavle-tool-button.is-open").forEach((e) => e.classList.remove("is-open")), a) return;
-		let o = document.createElement("div");
-		o.className = "weavle-tool-submenu", o.setAttribute("role", "menu");
+	toggleToolSubmenu(e, t, n, r, i, a = (e) => this.handleContextAction(e, i)) {
+		let o = n.classList.contains("is-open");
+		if (e.querySelectorAll(".weavle-tool-submenu").forEach((e) => e.remove()), e.querySelectorAll(".weavle-tool-button.is-open").forEach((e) => e.classList.remove("is-open")), o) return;
 		let s = document.createElement("div");
-		s.className = "weavle-tool-submenu-title", s.textContent = r.label || "", o.appendChild(s);
+		s.className = "weavle-tool-submenu", s.setAttribute("role", "menu");
+		let c = document.createElement("div");
+		c.className = "weavle-tool-submenu-title", c.textContent = r.label || "", s.appendChild(c);
 		for (let e of r.children) {
 			let t = document.createElement("button");
 			t.type = "button", t.className = "weavle-tool-menu-item", t.setAttribute("role", "menuitem"), e.active && t.classList.add("is-active");
 			let n = document.createElement("span");
 			n.className = "weavle-tool-menu-label", n.textContent = e.label || e.nodeType || e.type, t.append(this.createActionIcon(e), n), t.addEventListener("click", (t) => {
-				t.stopPropagation(), this.handleContextAction(e, i);
-			}), o.appendChild(t);
+				t.stopPropagation(), a(e);
+			}), s.appendChild(t);
 		}
-		n.classList.add("is-open"), t.appendChild(o);
+		n.classList.add("is-open"), t.appendChild(s);
 	}
 	createActionIcon(e) {
 		let t = "http://www.w3.org/2000/svg", n = document.createElementNS(t, "svg");
@@ -3694,7 +3735,7 @@ var g = class {
 		this.state.reconnectingEdgeId = null, this.state.reconnectingSide = null, this.state.reconnectionPreviewX = 0, this.state.reconnectionPreviewY = 0, this.resetHoverState();
 	}
 	resetCreationState() {
-		this.state.creatingNodeType = null, this.state.creatingNodeWidth = 0, this.state.creatingNodeHeight = 0, this.state.creationPreviewX = 0, this.state.creationPreviewY = 0;
+		this.state.creationArmed = !1, this.svg?.classList.remove("is-creating"), this.state.creatingNodeType = null, this.state.creatingNodeWidth = 0, this.state.creatingNodeHeight = 0, this.state.creationPreviewX = 0, this.state.creationPreviewY = 0;
 	}
 	resetMarqeeState() {
 		this.state.isMarqueeSelecting = !1, this.state.marqueeStartX = 0, this.state.marqueeStartY = 0, this.state.marqueeCurrentX = 0, this.state.marqueeCurrentY = 0, this.state.marqueeAdditive = !1;
@@ -4037,6 +4078,10 @@ var g = class {
 			return;
 		}
 		if (this.options.readOnly) return;
+		if (this.state.creatingNodeType) {
+			this.state.creationArmed = !0;
+			return;
+		}
 		let t = this.findResizeHandleAtEventTarget(e.target);
 		if (t) {
 			let n = this.getNode(t.nodeId), r = this.getMousePosition(e);
@@ -4108,6 +4153,10 @@ var g = class {
 			this.svg.classList.add("is-panning");
 			let t = e.clientX - this.state.panStartX, n = e.clientY - this.state.panStartY;
 			this.state.panX = this.state.panOriginX + t, this.state.panY = this.state.panOriginY + n, this.render();
+			return;
+		}
+		if (this.state.creatingNodeType) {
+			this.state.creationPreviewX = t.x, this.state.creationPreviewY = t.y, this.render();
 			return;
 		}
 		if (this.state.resizingNodeId) {
@@ -4212,6 +4261,8 @@ var g = class {
 			return;
 		}
 		if (this.state.creatingNodeType) {
+			if (!this.state.creationArmed) return;
+			this.state.creationArmed = !1;
 			let e = this.buildPreviewNode(), t = {
 				id: this.generateId(),
 				type: e.type,
@@ -4221,7 +4272,7 @@ var g = class {
 				height: e.height,
 				label: e.label
 			};
-			this.model.nodes.push(t), this.notifyNodeCreated(t), this.applyContainment([t]), this.resetCreationState(), this.selectSingleNode(t.id), this.emitSelectionChanged(), this.pushHistory(), this.emit("weavle:modelchanged", { model: this.getData() }), this.render();
+			this.model.nodes.push(t), this.notifyNodeCreated(t), this.applyContainment([t]), this.resetCreationState(), this.selectSingleNode(t.id), this.renderNodeToolSurface(t), this.emitSelectionChanged(), this.pushHistory(), this.emit("weavle:modelchanged", { model: this.getData() }), this.render();
 			return;
 		}
 		if (this.state.connectingNodeId) {

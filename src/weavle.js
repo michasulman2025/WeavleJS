@@ -51,6 +51,7 @@ export class WeavleJS {
             debugAStarGrid: false,
             debugRoutePoints: false,
             toolSurfaceDockHost: null,
+            toolbar: true,             // canvas toolbar (insert shapes) while nothing is selected
         }, options);
 
         // The diagram definition drives node types, port layout, routing and context actions.
@@ -184,6 +185,8 @@ export class WeavleJS {
         this.uiLayer.style.pointerEvents = "none";
 
         this.container.appendChild(this.uiLayer);
+
+        this.createCanvasToolbar();
 
         this.bindEvents();
         this.render();
@@ -528,6 +531,7 @@ export class WeavleJS {
 
         this.svg?.remove();
         this.uiLayer?.remove();
+        this.toolbarAnchor?.remove();
 
         if (this.didSetContainerPosition) {
             this.container.style.position = "";
@@ -547,6 +551,7 @@ export class WeavleJS {
         this.renderNodes();
         this.renderOverlay();
         this.renderDebug();
+        this.updateCanvasToolbar();
     }
 
     /**
@@ -3911,6 +3916,14 @@ export class WeavleJS {
      * @param {number} height    Defaults to 60 if not provided.
      */
     startNodeCreation(nodeType, width, height) {
+        // Placing is its own mode: nothing selected, no node tools.
+        this.clearSelection?.();
+        this.clearNodeToolSurface();
+        this.emitSelectionChanged();
+
+        this.state.creationArmed      = false;
+        this.svg.classList.add("is-creating");
+
         this.state.creatingNodeType   = nodeType;
         const size = this.getDefaultNodeSize(nodeType);
         this.state.creatingNodeWidth  = width  || size.width;
@@ -4232,6 +4245,94 @@ export class WeavleJS {
 
 
 
+    // ------------------------------------------------------------
+    // Canvas toolbar — docked at the top, shown while nothing is selected
+    // ------------------------------------------------------------
+
+    /**
+     * Actions of the canvas toolbar: diagram.getCanvasActions(engine) if defined, otherwise derived
+     * from the palette (a palette group becomes a button with a submenu). A "createNode" action
+     * starts placing a node of action.nodeType; other actions go to diagram.handleCanvasAction.
+     */
+    getCanvasActions() {
+        if (typeof this.diagram.getCanvasActions === "function") {
+            return this.diagram.getCanvasActions(this) || [];
+        }
+
+        const label = type => this.getDefaultLabelForType(type);
+        const make  = type => ({ type: "createNode", nodeType: type, label: label(type) });
+
+        return (this.diagram.palette || []).map(entry => entry.group
+            ? { type: "group", label: entry.group, nodeType: entry.types[0], children: entry.types.map(make) }
+            : make(entry.type));
+    }
+
+    /**
+     * Builds the toolbar once (options.toolbar !== false). It lives in a zero-height sticky strip
+     * before the SVG, so it stays at the top of a scrolling container without shifting the canvas.
+     */
+    createCanvasToolbar() {
+        if (this.options.toolbar === false) return;
+
+        const actions = this.getCanvasActions();
+        if (!actions.length) return;
+
+        const anchor = document.createElement("div");
+        anchor.className = "weavle-toolbar-anchor";
+
+        // Structural: sticky, zero height (the look is in weavle.css).
+        anchor.style.position = "sticky";
+        anchor.style.top      = "0";
+        anchor.style.height   = "0";
+
+        const bar = document.createElement("div");
+        bar.className = "weavle-toolbar";
+        bar.setAttribute("role", "toolbar");
+        bar.addEventListener("mousedown", e => e.stopPropagation());
+
+        const run = action => this.runCanvasAction(action);
+        actions.forEach(action => bar.appendChild(this.createToolButton(action, null, bar, run)));
+
+        anchor.appendChild(bar);
+        this.container.insertBefore(anchor, this.svg);
+
+        this.toolbarAnchor = anchor;
+        this.toolbarEl     = bar;
+        this.updateCanvasToolbar();
+    }
+
+    runCanvasAction(action) {
+        this.closeToolbarSubmenus();
+
+        if (action.type === "createNode") {
+            this.startNodeCreation(action.nodeType);
+            return;
+        }
+
+        if (typeof this.diagram.handleCanvasAction === "function") {
+            this.diagram.handleCanvasAction(action, this);
+        }
+    }
+
+    closeToolbarSubmenus() {
+        if (!this.toolbarEl) return;
+        this.toolbarEl.querySelectorAll(".weavle-tool-submenu").forEach(menu => menu.remove());
+        this.toolbarEl.querySelectorAll(".weavle-tool-button.is-open").forEach(b => b.classList.remove("is-open"));
+    }
+
+    /** Shows the toolbar only while nothing is selected (and the editor isn't read-only). */
+    updateCanvasToolbar() {
+        if (!this.toolbarEl) return;
+
+        const hidden =
+            this.options.readOnly ||
+            this.state.selectedNodeIds.length > 0 ||
+            !!this.state.selectedEdgeId;
+
+        if (hidden) this.closeToolbarSubmenus();
+        this.toolbarEl.hidden = hidden;
+    }
+
     /**
      * The node tool surface (context pad). Only structural styles are set inline (positioning);
      * the look comes from weavle.css: .weavle-tool-surface, .weavle-tool-button, .weavle-tool-submenu, ...
@@ -4303,7 +4404,7 @@ export class WeavleJS {
     }
 
     /** One icon button in the tool surface; a group button toggles its submenu. */
-    createToolButton(action, node, surfaceEl) {
+    createToolButton(action, node, surfaceEl, runAction = a => this.handleContextAction(a, node)) {
         const item = document.createElement("div");
         item.className = "weavle-tool-item";
 
@@ -4322,9 +4423,9 @@ export class WeavleJS {
             e.stopPropagation();
 
             if (action.children) {
-                this.toggleToolSubmenu(surfaceEl, item, btn, action, node);
+                this.toggleToolSubmenu(surfaceEl, item, btn, action, node, runAction);
             } else {
-                this.handleContextAction(action, node);
+                runAction(action);
             }
         });
 
@@ -4333,7 +4434,7 @@ export class WeavleJS {
     }
 
     /** Opens (or closes) the submenu of a group action; only one submenu is open at a time. */
-    toggleToolSubmenu(surfaceEl, item, btn, action, node) {
+    toggleToolSubmenu(surfaceEl, item, btn, action, node, runAction = a => this.handleContextAction(a, node)) {
         const wasOpen = btn.classList.contains("is-open");
 
         surfaceEl.querySelectorAll(".weavle-tool-submenu").forEach(menu => menu.remove());
@@ -4365,7 +4466,7 @@ export class WeavleJS {
 
             row.addEventListener("click", (e) => {
                 e.stopPropagation();
-                this.handleContextAction(child, node);
+                runAction(child);
             });
 
             menu.appendChild(row);
@@ -4887,6 +4988,8 @@ export class WeavleJS {
 
     /** Clears the state used while placing a new node on the canvas. */
     resetCreationState() {
+        this.state.creationArmed      = false;
+        this.svg?.classList.remove("is-creating");
         this.state.creatingNodeType   = null;
         this.state.creatingNodeWidth  = 0;
         this.state.creatingNodeHeight = 0;
@@ -5687,6 +5790,12 @@ export class WeavleJS {
 
         if (this.options.readOnly) return;
 
+        // Placing a new node (from the toolbar): the press arms the placement, the release places it.
+        if (this.state.creatingNodeType) {
+            this.state.creationArmed = true;
+            return;
+        }
+
         // 0. Click on a resize handle → start resizing (before double-click detection,
         //    since the handle sits on the node).
         const resizeInfo = this.findResizeHandleAtEventTarget(evt.target);
@@ -5933,6 +6042,14 @@ export class WeavleJS {
             const dy = evt.clientY - this.state.panStartY;
             this.state.panX = this.state.panOriginX + dx;
             this.state.panY = this.state.panOriginY + dy;
+            this.render();
+            return;
+        }
+
+        // Placing a new node: the ghost follows the mouse.
+        if (this.state.creatingNodeType) {
+            this.state.creationPreviewX = pos.x;
+            this.state.creationPreviewY = pos.y;
             this.render();
             return;
         }
@@ -6285,8 +6402,12 @@ export class WeavleJS {
             return;
         }
 
-        // Finalise placing a new node.
+        // Finalise placing a new node — only when the press happened on the canvas
+        // (a release on the toolbar, e.g. picking the shape, must not place it).
         if (this.state.creatingNodeType) {
+            if (!this.state.creationArmed) return;
+            this.state.creationArmed = false;
+
             const previewNode = this.buildPreviewNode();
 
             const newNode = {
@@ -6305,8 +6426,9 @@ export class WeavleJS {
             this.resetCreationState();
 
             this.selectSingleNode(newNode.id);
+            this.renderNodeToolSurface(newNode);
             this.emitSelectionChanged();
-            
+
             this.pushHistory();
 
 

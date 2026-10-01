@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- **Canvas toolbar** docked at the top while nothing is selected: insert any shape, pool or lane from
+  grouped submenus, then click where it goes (Escape cancels). Built from the palette, or from a
+  definition's `getCanvasActions()`; option `toolbar: false` turns it off.
+
+### Fixed
+- Placing a node (`startNodeCreation`): the ghost now follows the mouse, a click on the canvas no longer
+  starts a marquee, and the placed node gets its node tools.
+
 ## 0.9.0 — 2026-10-02
 
 ### Added

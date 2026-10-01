@@ -231,6 +231,43 @@
     background: var(--weavle-ui-active-bg);
 }
 
+/* ── Canvas toolbar (insert shapes; shown while nothing is selected) ── */
+
+.weavle-toolbar-anchor {
+    z-index: 25;
+}
+
+.weavle-toolbar {
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: row;
+    gap: 2px;
+    padding: 4px;
+    font: var(--weavle-ui-font);
+    color: var(--weavle-ui-text);
+    background: var(--weavle-ui-bg);
+    border: 1px solid var(--weavle-ui-border);
+    border-radius: var(--weavle-ui-radius);
+    box-shadow: var(--weavle-ui-shadow);
+}
+
+.weavle-toolbar[hidden] {
+    display: none;
+}
+
+/* Toolbar submenus drop down instead of opening to the side. */
+.weavle-toolbar .weavle-tool-submenu {
+    top: calc(100% + 8px);
+    left: -5px;
+}
+
+.weavle-canvas.is-creating {
+    cursor: copy;
+}
+
 /* ── Inline label editor ──────────────────────────────────── */
 
 .weavle-label-editor {

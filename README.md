@@ -22,6 +22,8 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the design and roadmap.
 - Resizable nodes with per-type rules (min / max size, keep aspect ratio)
 - Attached nodes (BPMN boundary events): stick to their host's border, move, resize and delete with it
 - Word-wrapping labels with ellipsis and tooltip; labels inside, below or "auto"
+- Canvas toolbar docked at the top (while nothing is selected): insert any shape, pool or lane — pick it,
+  then click where it goes (Escape cancels)
 - Inline label editing (multi-line)
 - Zoom (Ctrl + wheel) and pan (middle mouse button)
 - CSS-stylable dot or line grid
@@ -143,6 +145,7 @@ Second constructor argument: `new WeavleJS(container, options, definition)`.
 | `snapToGrid` | `false` | Snap node centres (and sizes, in steps of 2 × grid) to the grid |
 | `readOnly` | `false` | Disable all editing |
 | `edgeCornerRadius` | `8` | Rounded corners on orthogonal edges |
+| `toolbar` | `true` | Canvas toolbar at the top for inserting shapes (shown while nothing is selected) |
 | `toolSurfaceDockHost` | `null` | Element (or selector) to dock the node tools into, instead of floating them |
 | `debug` | `false` | Console logging of routing / interaction diagnostics |
 | `debugRouting` | `false` | Master switch for the debug overlays below |
@@ -215,6 +218,8 @@ A definition is a plain object returned by a factory like `createBpmnDefinition(
 | `constrainNodePosition(node, { x, y })` | Restrict where a dragged node can go (BPMN: lanes move vertically only) |
 | `onNodeCreated(node, engine)` | Complete a new node (BPMN: a new pool gets two lanes) |
 | `getDefaultSize(type)` | Default size for new nodes of a type |
+| `getCanvasActions(engine)` | Buttons of the canvas toolbar (default: built from `palette`); `{ type: "createNode", nodeType }` places a node |
+| `handleCanvasAction(action, engine)` | Handles other canvas toolbar actions |
 | `getRoutingConfig(edge)` | Tuning for the orthogonal router |
 
 Want a new diagram type? Copy `weavle-flowchart.js`, change the shapes and types, and pass it to the constructor.
@@ -270,6 +275,8 @@ Classes you can target directly:
 | `.weavle-tool-surface`, `.weavle-tool-surface--action-surface`, `.weavle-tool-surface--docked-panel` | Node tools |
 | `.weavle-tool-button`, `--group`, `--danger`, `.is-open`; `.weavle-tool-separator`; `.weavle-tool-icon` | Tool buttons |
 | `.weavle-tool-submenu`, `.weavle-tool-submenu-title`, `.weavle-tool-menu-item`, `.is-active` | Submenus |
+| `.weavle-toolbar-anchor`, `.weavle-toolbar` | Canvas toolbar (its submenus reuse the tool classes) |
+| `.weavle-canvas.is-creating` | Canvas while a new node is being placed |
 | `.weavle-label-editor` | Inline label editor |
 | `.weavle-drop-target` | Container highlight while dragging into it |
 
