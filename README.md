@@ -189,7 +189,10 @@ A definition is a plain object returned by a factory like `createBpmnDefinition(
 | `nodeTypes[type].isContainer` | Container type (BPMN pool / lane): holds other nodes via `parentId` |
 | `canContain(container, child)` | Which nodes a container accepts |
 | `layoutContainer(container, engine, { changedNode })` | Arrange a container's children (BPMN: stacked lanes) |
-| `getDragTarget(node)` | Drag another node instead (BPMN: grabbing a lane moves its pool) |
+| `getDragTarget(node, engine, pos)` | Drag another node instead (BPMN: grabbing a lane moves its pool, its header reorders it) |
+| `constrainNodePosition(node, { x, y })` | Restrict where a dragged node can go (BPMN: lanes move vertically only) |
+| `onNodeCreated(node, engine)` | Complete a new node (BPMN: a new pool gets two lanes) |
+| `getDefaultSize(type)` | Default size for new nodes of a type |
 | `getRoutingConfig(edge)` | Tuning for the orthogonal router |
 
 Want a new diagram type? Copy `weavle-flowchart.js`, change the shapes and types, and pass it to the constructor.

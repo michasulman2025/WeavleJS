@@ -794,8 +794,8 @@ export function createBpmnDefinition() {
                 dataObject:        { width: 40,  height: 60  },
                 dataStore:         { width: 60,  height: 50  },
                 annotation:        { width: 120, height: 60  },
-                swimlane:          { width: 600, height: 160 },
-                pool:              { width: 700, height: 400 },
+                swimlane:          { width: 970, height: 250 },
+                pool:              { width: 1000, height: 500 },   // gets two lanes on creation
             };
             return sizes[nodeType] || { width: 120, height: 60 };
         },
@@ -1005,24 +1005,77 @@ export function createBpmnDefinition() {
                     lane.height = boundary - lane.y;
                 }
             } else if (poolEdit) {
-                const firstBottom = first.y + first.height;
-                const top    = Math.min(container.y, contentTop(first) - pad,
-                                        first === last ? Infinity : firstBottom - min);
-                const bottom = Math.max(container.y + container.height, contentBottom(last) + pad,
-                                        first === last ? -Infinity : last.y + min);
+                // The pool's height change is spread over all lanes in proportion to their height.
+                // Boundaries then respect each lane's minimum height and contents (which stay put).
+                const n           = lanes.length;
+                const topMoved    = container.y !== previousRect.y;
+                const bottomMoved = container.y + container.height !== previousRect.y + previousRect.height;
 
-                if (first === last) {
-                    // Single lane: it is the inner area of the pool.
-                    first.y      = top;
-                    first.height = Math.max(min, bottom - top);
-                } else {
-                    first.y      = top;
-                    first.height = firstBottom - top;
-                    last.height  = bottom - last.y;
+                // How far the pool can shrink: every lane keeps `min` height and its contents, which
+                // don't move. Walk the lanes from the fixed edge towards the dragged one.
+                let top    = container.y;
+                let bottom = container.y + container.height;
+
+                if (topMoved) {
+                    let limit = bottomMoved ? Infinity : bottom;   // highest allowed top edge of lane i
+                    for (let i = n - 1; i >= 0; i--) {
+                        limit = Math.min(limit - min, contentTop(lanes[i]) - pad);
+                    }
+                    top = Math.min(top, limit);
                 }
 
-                container.y      = first.y;
-                container.height = last.y + last.height - first.y;
+                if (bottomMoved) {
+                    let limit = top;                               // lowest allowed bottom edge of lane i
+                    for (let i = 0; i < n; i++) {
+                        limit = Math.max(limit + min, contentBottom(lanes[i]) + pad);
+                    }
+                    bottom = Math.max(bottom, limit);
+                }
+
+                const oldTop    = first.y;
+                const oldHeight = last.y + last.height - first.y;
+                const scale     = (bottom - top) / oldHeight;
+
+                // Growing the pool never shrinks a lane: if contents block a proportional share,
+                // the extra space goes to the lanes that can take it.
+                const oldHeights = lanes.map(lane => lane.height);
+                const minH       = i => scale >= 1 ? Math.max(min, oldHeights[i]) : min;
+
+                const grid = engine.options.snapToGrid ? (engine.options.gridSize || 20) : 1;
+                const snap = v => Math.round(v / grid) * grid;
+
+                // boundaries[i] = top edge of lane i; boundaries[n] = pool bottom.
+                const boundaries = lanes.map(lane => snap(top + (lane.y - oldTop) * scale));
+                boundaries[0] = top;
+                boundaries.push(bottom);
+
+                // Allowed range per inner boundary, taking every lane above / below into account:
+                //   lo[i]: below the contents of lane i-1, and lane i-1's minimum below lo[i-1]
+                //   hi[i]: above the contents of lane i, and lane i's minimum above hi[i+1]
+                const lo = [top];
+                const hi = [];
+                hi[n] = bottom;
+
+                for (let i = 1; i < n; i++) {
+                    lo[i] = Math.max(lo[i - 1] + minH(i - 1), contentBottom(lanes[i - 1]) + pad);
+                }
+                for (let i = n - 1; i >= 1; i--) {
+                    hi[i] = Math.min(hi[i + 1] - minH(i), contentTop(lanes[i]) - pad);
+                }
+
+                // Clamp the proportional boundaries into their range, keeping each lane's minimum.
+                for (let i = 1; i < n; i++) {
+                    boundaries[i] = Math.max(lo[i], Math.min(boundaries[i], hi[i]));
+                    boundaries[i] = Math.max(boundaries[i], boundaries[i - 1] + minH(i - 1));
+                }
+
+                lanes.forEach((lane, i) => {
+                    lane.y      = boundaries[i];
+                    lane.height = boundaries[i + 1] - boundaries[i];
+                });
+
+                container.y      = top;
+                container.height = bottom - top;
             } else {
                 let y = container.y;
 
@@ -1068,6 +1121,26 @@ export function createBpmnDefinition() {
             const maxY = pool.y + pool.height - node.height / 2;
 
             return { x: pool.x + POOL_HEADER, y: Math.min(maxY, Math.max(minY, y)) };
+        },
+
+        // A new pool starts with two lanes that split its height.
+        onNodeCreated(node, engine) {
+            if (node.type !== "pool" || engine.getChildren(node).some(n => n.type === "swimlane")) return;
+
+            const half = Math.round(node.height / 2);
+
+            [0, 1].forEach(i => {
+                engine.model.nodes.push({
+                    id:       crypto.randomUUID(),
+                    type:     "swimlane",
+                    x:        node.x + POOL_HEADER,
+                    y:        node.y + i * half,
+                    width:    node.width - POOL_HEADER,
+                    height:   i === 0 ? half : node.height - half,
+                    label:    `${this.nodeTypes.swimlane.defaultLabel} ${i + 1}`,
+                    parentId: node.id
+                });
+            });
         },
 
         handleAction(action, node, engine) {

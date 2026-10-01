@@ -249,6 +249,10 @@ function renderShapeButtons() {
 }
 
 function getDefaultNodeSize(type) {
+  // The diagram definition knows its own sizes; this table is only a fallback.
+  const fromDefinition = currentDiagramDefinition?.getDefaultSize?.(type);
+  if (fromDefinition) return fromDefinition;
+
   switch (type) {
     case "startEvent":
           return { width: 80, height: 80 };

@@ -451,11 +451,13 @@ export class WeavleJS {
         if (node.x == null || node.y == null) {
             const visible  = this.getVisibleModelRect();
             const center   = { x: visible.x + visible.width / 2, y: visible.y + visible.height / 2 };
-            const position = this.findFreePosition(node.width, node.height, center, 40, visible);
+            // A new container (e.g. a pool) must not land on top of existing nodes or containers.
+            const position = this.findFreePosition(node.width, node.height, center, 40, visible, this.isContainer(node));
             node = { ...node, ...position };
         }
 
         this.model.nodes.push(node);
+        this.notifyNodeCreated(node);
         this.applyContainment([node]);
         this.pushHistory();
         this.emitModelChanged();
@@ -4048,9 +4050,14 @@ export class WeavleJS {
         return newNode;
     }
 
-    /** True if the rect (x, y, width, height), grown by gap on every side, overlaps no node. */
-    isAreaFree(x, y, width, height, gap = 0) {
-        return !this.getObstacleNodes().some(n =>
+    /**
+     * True if the rect (x, y, width, height), grown by gap on every side, overlaps no node.
+     * Containers only count when includeContainers is set (when placing a new container).
+     */
+    isAreaFree(x, y, width, height, gap = 0, includeContainers = false) {
+        const nodes = includeContainers ? this.model.nodes : this.getObstacleNodes();
+
+        return !nodes.some(n =>
             x - gap < n.x + n.width  &&
             x + width  + gap > n.x   &&
             y - gap < n.y + n.height &&
@@ -4065,7 +4072,7 @@ export class WeavleJS {
      * With bounds ({ x, y, width, height }), spots fully inside them are preferred; if none is free
      * within the search range, the nearest free spot outside is used.
      */
-    findFreePosition(width, height, preferredCenter, gap = 40, bounds = null) {
+    findFreePosition(width, height, preferredCenter, gap = 40, bounds = null, includeContainers = false) {
         const step = this.options.gridSize || 20;
 
         const toTopLeft = (cx, cy) => {
@@ -4079,7 +4086,10 @@ export class WeavleJS {
             p.y + height <= bounds.y + bounds.height
         );
 
-        let nearestOutside = null;
+        // Fallbacks when nothing fits inside the bounds: prefer spots right of / below the canvas
+        // origin (negative coordinates are off the canvas), then anything.
+        let nearestOutside  = null;
+        let nearestNegative = null;
 
         for (let ring = 0; ring <= 40; ring++) {
             let best = null;
@@ -4091,10 +4101,11 @@ export class WeavleJS {
                     if (Math.max(Math.abs(i), Math.abs(j)) !== ring) continue;
 
                     const p = toTopLeft(preferredCenter.x + i * step, preferredCenter.y + j * step);
-                    if (!this.isAreaFree(p.x, p.y, width, height, gap)) continue;
+                    if (!this.isAreaFree(p.x, p.y, width, height, gap, includeContainers)) continue;
 
                     if (!insideBounds(p)) {
-                        nearestOutside ??= p;
+                        if (p.x >= 0 && p.y >= 0) nearestOutside ??= p;
+                        else nearestNegative ??= p;
                         continue;
                     }
 
@@ -4109,7 +4120,7 @@ export class WeavleJS {
             if (best) return best;
         }
 
-        return nearestOutside || toTopLeft(preferredCenter.x, preferredCenter.y);
+        return nearestOutside || nearestNegative || toTopLeft(preferredCenter.x, preferredCenter.y);
     }
 
     /**
@@ -4916,6 +4927,16 @@ export class WeavleJS {
         }
 
         return { x, y };
+    }
+
+    /**
+     * Lets the definition complete a freshly created node via diagram.onNodeCreated(node, engine)
+     * (e.g. BPMN: a new pool gets two lanes). Runs before containment / layout and the undo step.
+     */
+    notifyNodeCreated(node) {
+        if (typeof this.diagram.onNodeCreated === "function") {
+            this.diagram.onNodeCreated(node, this);
+        }
     }
 
     /** Moves nodes by (dx, dy) without any snapping or containment logic. */
@@ -6022,6 +6043,7 @@ export class WeavleJS {
             };
 
             this.model.nodes.push(newNode);
+            this.notifyNodeCreated(newNode);
             this.applyContainment([newNode]);
             this.resetCreationState();
 

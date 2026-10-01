@@ -58,7 +58,9 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
   { changedNode, previousRect, reason })` (reason: resize | move | add | remove; BPMN: lanes tile the pool, edges
   stop at the contents), `getDragTarget(node, engine, pos)` (lane body drags its pool, lane header reorders),
   `constrainNodePosition(node, {x, y})` (lane moves vertically only), `handleAction(action, node, engine)` for
-  custom context actions (BPMN `addLane`). Container layouts run live while resizing (geometry snapshot +
+  custom context actions (BPMN `addLane`), `onNodeCreated(node, engine)` to complete new nodes (BPMN: a new pool
+  gets two lanes). BPMN pool resize spreads the height change proportionally over the lanes; growing never
+  shrinks a lane. Container layouts run live while resizing (geometry snapshot +
   restore); resize rules may ask for edge handles (`handles: ["n", "s"]`). BPMN message flow = edge between two pools.
 - Edge types: `edge.type` keys into the definition's `edgeTypes` (`router: "orthogonal" | "straight"`,
   `marker: "arrow" | "openArrow" | "none"`, `dash`). `getEdgeTypeForConnection({source, target})` picks the type
