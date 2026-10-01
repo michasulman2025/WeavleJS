@@ -1180,7 +1180,8 @@ export class WeavleJS {
      * otherwise nodeTypes[type].label, merged over the defaults below.
      *   placement     "inside" (centred in the shape) | "below" (under the shape) |
      *                 "auto" (inside if the whole label fits there, otherwise below) |
-     *                 "header-left" (vertical text in a left header strip of headerSize px)
+     *                 "header-left" (vertical text in a left header strip of headerSize px) |
+     *                 "below-right" (under the shape, right of its centre line — clear of a bottom edge)
      *   color         text colour (default: inherited)
      *   paddingX/Y    inner padding of the label box (inside)
      *   widthFactor   share of the node width / height that is usable for text, e.g. ~0.6 for a diamond
@@ -1245,6 +1246,23 @@ export class WeavleJS {
                 fontSize,
                 lineHeight,
                 rotate: -90
+            };
+        }
+
+        // Below and to the right of the shape, clear of an edge leaving its bottom port
+        // (BPMN boundary events).
+        if (layout.placement === "below-right") {
+            const width    = layout.belowWidth;
+            const maxLines = layout.maxLines ?? 2;
+            const wrapped  = this.wrapLabel(node.label, width, maxLines, fontSize);
+            const height   = Math.max(1, wrapped.lines.length) * lineHeight;
+            const top      = node.y + node.height + layout.belowGap;
+
+            return {
+                ...wrapped,
+                centerX: node.x + node.width / 2 + 4 + width / 2,
+                centerY: top + height / 2,
+                width, height, fontSize, lineHeight
             };
         }
 
@@ -4806,8 +4824,11 @@ export class WeavleJS {
         let bestDeltaX  = Infinity;
         let bestDeltaY  = Infinity;
 
+        // Nodes moving along with the drag (group members, attached boundary events) are no reference.
+        const moving = new Set(this.state.draggingNodeIds || []);
+
         this.getObstacleNodes().forEach(node => {
-            if (node.id === activeNode.id) return;
+            if (node.id === activeNode.id || moving.has(node.id) || node.attachedToId === activeNode.id) return;
 
             const otherCenter = this.getNodeCenter(node);
             const deltaX      = Math.abs(activeCenter.x - otherCenter.x);
@@ -4952,7 +4973,11 @@ export class WeavleJS {
             .sort((a, b) => a.depth - b.depth || a.index - b.index)
             .map(entry => entry.node);
 
-        return [...containers, ...this.model.nodes.filter(n => !this.isContainer(n))];
+        // Attached nodes last, so they are drawn (and hit) above their host.
+        const regular  = this.model.nodes.filter(n => !this.isContainer(n) && !n.attachedToId);
+        const attached = this.model.nodes.filter(n => !this.isContainer(n) && n.attachedToId);
+
+        return [...containers, ...regular, ...attached];
     }
 
     /** Nodes that edges must route around: everything except containers. */
@@ -5001,11 +5026,20 @@ export class WeavleJS {
 
         for (const node of nodes) {
             const oldParentId = node.parentId || null;
-            const container   = this.findContainerFor(node);
+
+            // An attached node lives where its host lives.
+            const host        = node.attachedToId ? this.getNode(node.attachedToId) : null;
+            const container   = host ? this.getNode(host.parentId) : this.findContainerFor(node);
             const newParentId = container ? container.id : null;
 
             if (newParentId) node.parentId = newParentId;
             else delete node.parentId;
+
+            // ...and so do the nodes attached to this one.
+            for (const attached of this.getAttachedNodes(node)) {
+                if (newParentId) attached.parentId = newParentId;
+                else delete attached.parentId;
+            }
 
             if (oldParentId) affected.add(oldParentId);
             if (newParentId) affected.add(newParentId);
@@ -5080,7 +5114,12 @@ export class WeavleJS {
     constrainNodePosition(node, x, y) {
         if (node && typeof this.diagram.constrainNodePosition === "function") {
             const result = this.diagram.constrainNodePosition(node, { x, y }, this);
-            if (result) return { x: result.x, y: result.y };
+            if (result) ({ x, y } = result);
+        }
+
+        // An attached node only slides along its host's border.
+        if (node?.attachedToId) {
+            ({ x, y } = this.projectOntoHostBorder(node, x, y));
         }
 
         return { x, y };
@@ -5110,7 +5149,62 @@ export class WeavleJS {
     withDescendants(nodes) {
         const set = new Set(nodes);
         nodes.forEach(node => this.getDescendants(node).forEach(d => set.add(d)));
+
+        // Attached nodes (e.g. BPMN boundary events) belong to their host as well — repeat until stable.
+        let grew = true;
+        while (grew) {
+            grew = false;
+            for (const n of this.model.nodes) {
+                if (n.attachedToId && !set.has(n) && [...set].some(h => h.id === n.attachedToId)) {
+                    set.add(n);
+                    grew = true;
+                }
+            }
+        }
+
         return [...set];
+    }
+
+    // ------------------------------------------------------------
+    // Attached nodes (BPMN boundary events, ...)
+    //
+    // node.attachedToId = id of the host node. An attached node sits on the host's border: it moves
+    // with the host, is put back on the border after the host is resized, is drawn above it, is
+    // deleted with it and lives in the same container as the host. Dragging it slides it along
+    // the border.
+    // ------------------------------------------------------------
+
+    getAttachedNodes(host) {
+        return this.model.nodes.filter(n => n.attachedToId === host.id);
+    }
+
+    /** Top-left position that puts the node's centre on the nearest point of its host's border. */
+    projectOntoHostBorder(node, x, y) {
+        const host = this.getNode(node.attachedToId);
+        if (!host) return { x, y };
+
+        const x1 = host.x, y1 = host.y, x2 = host.x + host.width, y2 = host.y + host.height;
+        let cx = Math.min(x2, Math.max(x1, x + node.width  / 2));
+        let cy = Math.min(y2, Math.max(y1, y + node.height / 2));
+
+        const distances = [
+            ["left", cx - x1], ["right", x2 - cx], ["top", cy - y1], ["bottom", y2 - cy]
+        ];
+        const [side] = distances.reduce((best, d) => (d[1] < best[1] ? d : best));
+
+        if (side === "left")   cx = x1;
+        if (side === "right")  cx = x2;
+        if (side === "top")    cy = y1;
+        if (side === "bottom") cy = y2;
+
+        return { x: cx - node.width / 2, y: cy - node.height / 2 };
+    }
+
+    /** Puts the nodes attached to host back on its border (after the host was resized). */
+    reattachNodes(host) {
+        for (const node of this.getAttachedNodes(host)) {
+            Object.assign(node, this.projectOntoHostBorder(node, node.x, node.y));
+        }
     }
 
     // ------------------------------------------------------------
@@ -5224,6 +5318,9 @@ export class WeavleJS {
 
     /** Reroutes the node's edges, records an undo step and emits resize / change events. */
     finishNodeResize(node, previousRect = null) {
+        // Attached nodes (boundary events) go back onto the new border.
+        this.reattachNodes(node);
+
         // A resized lane / pool re-arranges its container; also reroutes the edges.
         this.applyContainment([node], { changedNode: node, previousRect, reason: "resize" });
 
@@ -5858,6 +5955,7 @@ export class WeavleJS {
                 this.restoreGeometry(start.snapshot, node.id);
                 Object.assign(node, rect);
                 this.previewContainerLayout(node, start);
+                this.reattachNodes(node);
 
                 this.render();
             }

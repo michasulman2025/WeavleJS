@@ -55,13 +55,25 @@ const EVENT_TYPES = {
     escalationEndEvent:     { kind: "end",          trigger: "escalation",   label: "Escalation end" },
     signalEndEvent:         { kind: "end",          trigger: "signal",       label: "Signal end" },
     compensationEndEvent:   { kind: "end",          trigger: "compensation", label: "Compensation end" },
-    terminateEndEvent:      { kind: "end",          trigger: "terminate",    label: "Terminate" }
+    terminateEndEvent:      { kind: "end",          trigger: "terminate",    label: "Terminate" },
+
+    // Boundary — attached to the border of an activity (node.attachedToId), always catching.
+    // node.interrupting === false draws the non-interrupting (dashed) variant; error and
+    // compensation boundary events are always interrupting.
+    messageBoundaryEvent:      { kind: "boundary", trigger: "message",      label: "Message" },
+    timerBoundaryEvent:        { kind: "boundary", trigger: "timer",        label: "Timer" },
+    conditionalBoundaryEvent:  { kind: "boundary", trigger: "conditional",  label: "Condition" },
+    signalBoundaryEvent:       { kind: "boundary", trigger: "signal",       label: "Signal" },
+    escalationBoundaryEvent:   { kind: "boundary", trigger: "escalation",   label: "Escalation" },
+    errorBoundaryEvent:        { kind: "boundary", trigger: "error",        label: "Error",        alwaysInterrupting: true },
+    compensationBoundaryEvent: { kind: "boundary", trigger: "compensation", label: "Compensation", alwaysInterrupting: true }
 };
 
 const EVENT_COLORS = {
     start:        { fill: "#ffffff", stroke: "#1B5278" },
     intermediate: { fill: "#ffffff", stroke: "#4A8DB5" },
-    end:          { fill: "#ffffff", stroke: "#0d2d44" }
+    end:          { fill: "#ffffff", stroke: "#0d2d44" },
+    boundary:     { fill: "#ffffff", stroke: "#4A8DB5" }
 };
 
 const ACTIVITY_TYPES = [
@@ -146,6 +158,42 @@ function drawEventMarker(group, trigger, cx, cy, r, color, filled) {
     }
 }
 
+/**
+ * Adds a boundary event of `type` to the bottom border of the activity `host`, in the first free
+ * slot from the left (then the top border, if the bottom is full).
+ */
+function addBoundaryEvent(host, type, engine, definition) {
+    const size     = 36;
+    const step     = 60;   // room for the small label next to each event
+    const attached = engine.getAttachedNodes(host);
+    const taken    = (cx, cy) => attached.some(n => Math.abs(n.x + n.width / 2 - cx) < step / 2 && Math.abs(n.y + n.height / 2 - cy) < step / 2);
+
+    let center = null;
+
+    for (const cy of [host.y + host.height, host.y]) {
+        for (let cx = host.x + 26; cx <= host.x + host.width - 18; cx += step) {
+            if (!taken(cx, cy)) { center = { cx, cy }; break; }
+        }
+        if (center) break;
+    }
+
+    center ??= { cx: host.x + host.width / 2, cy: host.y + host.height };
+
+    engine.model.nodes.push({
+        id:           crypto.randomUUID(),
+        type,
+        x:            center.cx - size / 2,
+        y:            center.cy - size / 2,
+        width:        size,
+        height:       size,
+        label:        "",
+        attachedToId: host.id,
+        ...(host.parentId ? { parentId: host.parentId } : {})
+    });
+
+    return true;
+}
+
 const bpmnShapes = {
 
     // ── Events ──────────────────────────────────────────────
@@ -165,8 +213,14 @@ const bpmnShapes = {
             outer.setAttribute("stroke-width", engine.isNodeSelected(node.id) ? "3.5" : "3");
         }
 
-        if (def.kind === "intermediate") {
-            _el(group, "circle", { cx, cy, r: Math.max(2, r - Math.max(3, r * 0.15)), fill: "none", stroke: color, "stroke-width": 1.2 });
+        if (def.kind === "intermediate" || def.kind === "boundary") {
+            const inner = _el(group, "circle", { cx, cy, r: Math.max(2, r - Math.max(3, r * 0.15)), fill: "none", stroke: color, "stroke-width": 1.2 });
+
+            // Non-interrupting boundary event: both circles dashed.
+            if (def.kind === "boundary" && node.interrupting === false && !def.alwaysInterrupting) {
+                outer.setAttribute("stroke-dasharray", "4 2.5");
+                inner.setAttribute("stroke-dasharray", "4 2.5");
+            }
         }
 
         if (def.trigger !== "none") {
@@ -846,13 +900,37 @@ export function createBpmnDefinition() {
                 });
             }
 
+            const event = EVENT_TYPES[node.type];
+
+            // Boundary event: interrupting or not (error / compensation always interrupt).
+            if (event?.kind === "boundary" && !event.alwaysInterrupting) {
+                const interrupting = node.interrupting !== false;
+                actions.push({
+                    type: "group", label: "Gedrag", nodeType: node.type,
+                    children: [
+                        { type: "setInterrupting", value: true,  label: "Onderbrekend",      nodeType: node.type, active: interrupting },
+                        { type: "setInterrupting", value: false, label: "Niet-onderbrekend", nodeType: node.type, active: !interrupting }
+                    ]
+                });
+            }
+
+            // Activities can get boundary events on their border.
+            if (ACTIVITY_TYPES.includes(node.type)) {
+                actions.push({
+                    type: "group", label: "Boundary event", nodeType: "timerBoundaryEvent",
+                    children: Object.keys(EVENT_TYPES)
+                        .filter(t => EVENT_TYPES[t].kind === "boundary")
+                        .map(t => ({ type: "addBoundaryEvent", nodeType: t, label: label(t) }))
+                });
+            }
+
             // Nothing follows an end event.
-            if (EVENT_TYPES[node.type]?.kind !== "end") {
+            if (event?.kind !== "end") {
                 actions.push(
                     { type: "group", label: "Activiteit toevoegen", nodeType: "task",              children: ACTIVITY_TYPES.map(add) },
                     { type: "group", label: "Gateway toevoegen",    nodeType: "exclusiveGateway",  children: GATEWAY_TYPES.map(add) },
                     { type: "group", label: "Event toevoegen",      nodeType: "intermediateEvent",
-                      children: Object.keys(EVENT_TYPES).filter(t => EVENT_TYPES[t].kind !== "start").map(add) },
+                      children: Object.keys(EVENT_TYPES).filter(t => ["intermediate", "end"].includes(EVENT_TYPES[t].kind)).map(add) },
                     { type: "group", label: "Data & annotatie",     nodeType: "dataObject",
                       children: ["dataObject", "dataStore", "annotation"].map(add) }
                 );
@@ -1145,7 +1223,20 @@ export function createBpmnDefinition() {
                 if (!node.label || node.label === oldDefault) {
                     node.label = this.nodeTypes[node.type].defaultLabel;
                 }
+
+                // Error / compensation boundary events can only interrupt.
+                if (EVENT_TYPES[node.type]?.alwaysInterrupting) delete node.interrupting;
                 return true;
+            }
+
+            if (action.type === "setInterrupting") {
+                if (action.value) delete node.interrupting;
+                else node.interrupting = false;
+                return true;
+            }
+
+            if (action.type === "addBoundaryEvent") {
+                return addBoundaryEvent(node, action.nodeType, engine, this);
             }
 
             if (action.type !== "addLane" || node.type !== "pool") return false;
@@ -1204,6 +1295,11 @@ export function createBpmnDefinition() {
             // Pools / lanes: vertical name in the dark header strip on the left.
             if (type === "pool" || type === "swimlane") {
                 return { placement: "header-left", headerSize: POOL_HEADER, fontSize: 13, color: "#ffffff", paddingX: 8 };
+            }
+
+            // Boundary events: small label below-right, clear of the exception flow leaving downwards.
+            if (EVENT_TYPES[type]?.kind === "boundary") {
+                return { placement: "below-right", fontSize: 11, belowWidth: 56, maxLines: 2, belowGap: -2 };
             }
 
             if (type === "startEvent" || type === "endEvent" || type === "intermediateEvent") {

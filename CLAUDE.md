@@ -41,6 +41,11 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
   ratio, Alt resizes from the centre, Escape cancels. With snap on, sizes change in steps of 2 × gridSize and
   the centre stays on the grid. Rules per type via the definition: `getResizeRules(node)` or
   `nodeTypes[type].resize` (`false` = fixed size; `{ minWidth, minHeight, maxWidth, maxHeight, keepAspectRatio }`).
+- Attached nodes: `node.attachedToId` = host id (BPMN boundary events). The engine keeps them on the host
+  border (`projectOntoHostBorder` via `constrainNodePosition`, `reattachNodes` after a resize), drags /
+  deletes them with the host (`withDescendants`), draws them last (`getRenderOrder`) and gives them the
+  host's `parentId`. BPMN: `kind: "boundary"` in `EVENT_TYPES`, `node.interrupting === false` = dashed,
+  actions `addBoundaryEvent` (activities) and `setInterrupting`; label placement "below-right".
 - Rendering: `render()` redraws the SVG layers (grid, edges, nodes, overlay) inside a `<g data-viewport>`
   group; floating HTML (action rail, inline label editing) lives in `this.uiLayer` over the SVG.
 - Grid: `options.gridType` ("dots" default, "lines", "none") rendered as an SVG pattern in the grid layer.

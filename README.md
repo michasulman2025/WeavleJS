@@ -20,6 +20,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the design and roadmap.
 - Edge types per diagram: orthogonal or straight, filled / open / no arrowheads, dash patterns
 - Snap-to-grid on node centres, so shapes of different sizes line up; alignment guides
 - Resizable nodes with per-type rules (min / max size, keep aspect ratio)
+- Attached nodes (BPMN boundary events): stick to their host's border, move, resize and delete with it
 - Word-wrapping labels with ellipsis and tooltip; labels inside, below or "auto"
 - Inline label editing (multi-line)
 - Zoom (Ctrl + wheel) and pan (middle mouse button)
@@ -97,6 +98,8 @@ The model is plain JSON: `{ nodes: [...], edges: [...] }`. `getData()` returns i
 | `width`, `height` | number | Size |
 | `label` | string | Text; `\n` for explicit line breaks |
 | `parentId` | string | Container the node sits in (BPMN pool / lane). Derived from the position when omitted |
+| `attachedToId` | string | Host node this node is attached to (BPMN boundary events): it sits on the host's border, moves and is deleted with it |
+| `interrupting` | boolean | BPMN boundary events: `false` = non-interrupting (dashed). Omitted = interrupting |
 
 ### Edge
 
