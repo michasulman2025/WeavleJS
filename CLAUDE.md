@@ -20,6 +20,8 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
 - `src/weavle.js` — the engine, `export class WeavleJS` (~4900 lines).
 - `src/weavle-flowchart.js` — `export function createFlowchartDefinition()`.
 - `src/weavle-bpmn.js` — `export function createBpmnDefinition()`.
+- `src/samples/bpmn-order-process.js` — complex BPMN sample (3 pools, lanes, message flows), button
+  "Load complex sample" in the playground.
 - `index.html`, `src/demo.js`, `src/style.css` — the playground (diagram type switch, shape buttons,
   event log, selection info, model JSON).
 
@@ -88,5 +90,4 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
 
 - `weavle.js` imports both definitions (flowchart and BPMN) even though only the flowchart is the default.
 - The engine logs heavily to the console on every render (`this.debug`, `console.log`).
-- `index.html` contains the Export/Load sample/Clear log button group twice (duplicate element ids).
 - No library build (IIFE/ESM for OutSystems), tests or linting yet.

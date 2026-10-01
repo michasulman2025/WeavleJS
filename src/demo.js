@@ -1,6 +1,7 @@
 import { WeavleJS } from  "./weavle.js";
 import { createFlowchartDefinition } from "./weavle-flowchart.js";
 import { createBpmnDefinition } from "./weavle-bpmn.js";
+import { createOrderProcessSample } from "./samples/bpmn-order-process.js";
 
 /*
   Demo / debug playground for WeavleJS
@@ -534,6 +535,22 @@ document.getElementById("btnExport").addEventListener("click", () => {
 });
 
 document.getElementById("btnLoadSample").addEventListener("click", loadSample);
+
+// The complex sample is BPMN: switch the diagram type first if needed.
+document.getElementById("btnLoadComplex").addEventListener("click", () => {
+  if (currentDiagramKey !== "bpmn") {
+    selDiagram.value = "bpmn";
+    selDiagram.dispatchEvent(new Event("change"));
+  }
+
+  const sample = createOrderProcessSample();
+  editor.load(sample);
+
+  logEvent("demo:loadComplexSample", { nodes: sample.nodes.length, edges: sample.edges.length });
+  refreshSelectionInfo();
+  refreshJsonOutput();
+  setStatus("Complex sample loaded (bpmn)");
+});
 document.getElementById("btnClearLog").addEventListener("click", clearLog);
 
 chkReadonly.addEventListener("change", rebuildEditorPreserveModel);
