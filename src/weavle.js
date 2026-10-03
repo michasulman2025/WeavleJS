@@ -4761,8 +4761,17 @@ export class WeavleJS {
 
         this.state.editingLabel = { type, id, element: input };
 
+        // The edit usually starts inside a mousedown (double-click). The browser's own handling of
+        // that mousedown moves the focus to the canvas right after this, so focus again once the
+        // event has finished — otherwise typing doesn't reach the editor.
         input.focus();
         input.select();
+        setTimeout(() => {
+            if (this.state.editingLabel?.element === input) {
+                input.focus();
+                input.select();
+            }
+        }, 0);
 
         input.addEventListener("keydown", (e) => {
             if (e.key === "Enter" && !e.shiftKey) {
@@ -4796,20 +4805,22 @@ export class WeavleJS {
         const edit = this.state.editingLabel;
         if (!edit) return;
 
-        const value = edit.element.value.trim();
+        const value  = edit.element.value.trim();
+        const target = edit.type === "node"
+            ? this.model.nodes.find(n => n.id === edit.id)
+            : this.model.edges.find(e => e.id === edit.id);
 
-        if (edit.type === "node") {
-            const node = this.model.nodes.find(n => n.id === edit.id);
-            if (node) node.label = value;
-        }
-
-        if (edit.type === "edge") {
-            const edge = this.model.edges.find(e => e.id === edit.id);
-            if (edge) edge.label = value;
-        }
-
-        edit.element.remove();
+        // Clear the state first: removing the element can fire its blur handler, which calls us again.
         this.state.editingLabel = null;
+        edit.element.remove();
+
+        // Unchanged text: just close the editor (no undo step, no change event).
+        if (!target || (target.label || "") === value) {
+            this.render();
+            return;
+        }
+
+        target.label = value;
 
         this.pushHistory();
         this.emit("weavle:modelchanged", {
@@ -5771,8 +5782,12 @@ export class WeavleJS {
      */
     onMouseDown(evt) {
 
-        // Do not interfere while an inline label edit is active.
-        if (this.state.editingLabel) return;
+        // A click anywhere on the canvas while editing a label ends the edit and keeps the text.
+        // (Clicks inside the editor itself don't get here: it stops their propagation.)
+        if (this.state.editingLabel) {
+            this.commitInlineLabelEdit();
+            return;
+        }
 
         // Ctrl + left-click → start panning.
         if (evt.button === 1) {

@@ -8,6 +8,8 @@
   definition's `getCanvasActions()`; option `toolbar: false` turns it off.
 
 ### Fixed
+- Label editing: a click anywhere on the canvas ends the edit and keeps the text; unchanged text adds no
+  undo step. Typing reaches the editor right after a double-click (the focus was taken back by the canvas).
 - Placing a node (`startNodeCreation`): the ghost now follows the mouse, a click on the canvas no longer
   starts a marquee, and the placed node gets its node tools.
 

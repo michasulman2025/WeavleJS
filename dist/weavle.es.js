@@ -3662,7 +3662,9 @@ var g = class {
 			type: e,
 			id: t,
 			element: l
-		}, l.focus(), l.select(), l.addEventListener("keydown", (e) => {
+		}, l.focus(), l.select(), setTimeout(() => {
+			this.state.editingLabel?.element === l && (l.focus(), l.select());
+		}, 0), l.addEventListener("keydown", (e) => {
 			e.key === "Enter" && !e.shiftKey && (e.preventDefault(), this.commitInlineLabelEdit()), e.key === "Escape" && this.cancelInlineLabelEdit();
 		}), this.state.ignoreBlur = !0, l.addEventListener("blur", () => {
 			this.state.ignoreBlur || this.commitInlineLabelEdit();
@@ -3675,16 +3677,12 @@ var g = class {
 	commitInlineLabelEdit() {
 		let e = this.state.editingLabel;
 		if (!e) return;
-		let t = e.element.value.trim();
-		if (e.type === "node") {
-			let n = this.model.nodes.find((t) => t.id === e.id);
-			n && (n.label = t);
+		let t = e.element.value.trim(), n = e.type === "node" ? this.model.nodes.find((t) => t.id === e.id) : this.model.edges.find((t) => t.id === e.id);
+		if (this.state.editingLabel = null, e.element.remove(), !n || (n.label || "") === t) {
+			this.render();
+			return;
 		}
-		if (e.type === "edge") {
-			let n = this.model.edges.find((t) => t.id === e.id);
-			n && (n.label = t);
-		}
-		e.element.remove(), this.state.editingLabel = null, this.pushHistory(), this.emit("weavle:modelchanged", { model: this.getData() }), this.render();
+		n.label = t, this.pushHistory(), this.emit("weavle:modelchanged", { model: this.getData() }), this.render();
 	}
 	cancelInlineLabelEdit() {
 		let e = this.state.editingLabel;
@@ -4072,7 +4070,10 @@ var g = class {
 		this.state.primarySelectedNodeId = this.state.selectedNodeIds.length > 0 ? this.state.selectedNodeIds[this.state.selectedNodeIds.length - 1] : null, this.state.selectedEdgeId = null;
 	}
 	onMouseDown(e) {
-		if (this.state.editingLabel) return;
+		if (this.state.editingLabel) {
+			this.commitInlineLabelEdit();
+			return;
+		}
 		if (e.button === 1) {
 			e.preventDefault(), this.clearNodeToolSurface?.(), this.state.isPanning = !0, this.state.panStartX = e.clientX, this.state.panStartY = e.clientY, this.state.panOriginX = this.state.panX, this.state.panOriginY = this.state.panY, this.svg.classList.add("is-panning");
 			return;
