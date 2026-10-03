@@ -295,7 +295,8 @@ Weavle.mount($parameters.ContainerId, {
     diagramType: "bpmn",
     model: $parameters.ModelJson,
     onModelChanged:     json => $actions.RaiseModelChanged(json),
-    onSelectionChanged: (nodeId, edgeId) => $actions.RaiseSelectionChanged(nodeId, edgeId)
+    onSelectionChanged: (nodeId, edgeId, selectedNodeIdsJson) =>
+        $actions.RaiseSelectionChanged(nodeId, edgeId, selectedNodeIdsJson)
 });
 
 // OnParametersChanged

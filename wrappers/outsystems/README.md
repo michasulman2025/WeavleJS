@@ -43,12 +43,22 @@ In the block, add the script under **Required Scripts** (O11) / **Scripts** (ODC
 | Name | Parameters |
 |---|---|
 | `OnModelChanged` | `ModelJson` (Text) |
-| `OnSelectionChanged` | `NodeId` (Text), `EdgeId` (Text) |
+| `OnSelectionChanged` | `NodeId` (Text), `EdgeId` (Text), `SelectedNodeIdsJson` (Text) |
 
 JavaScript can't trigger a block event directly, so add two small client actions that do:
 
 - `RaiseModelChanged` (input `ModelJson` Text) → *Trigger Event* `OnModelChanged`
-- `RaiseSelectionChanged` (inputs `NodeId`, `EdgeId` Text) → *Trigger Event* `OnSelectionChanged`
+- `RaiseSelectionChanged` (inputs `NodeId`, `EdgeId`, `SelectedNodeIdsJson` Text) → *Trigger Event* `OnSelectionChanged`
+
+`OnSelectionChanged` parameters:
+
+| Parameter | Value |
+|---|---|
+| `NodeId` | The primary selected node (the one clicked last), or `""` |
+| `EdgeId` | The selected edge, or `""` (a node and an edge are never selected together) |
+| `SelectedNodeIdsJson` | All selected nodes as a JSON array, e.g. `["b1","b2"]` — more than one after Ctrl+click or a marquee; `[]` when nothing is selected |
+
+To use the list in OutSystems, `JSONDeserialize` it into a *Text List*.
 
 ---
 
@@ -69,8 +79,8 @@ Weavle.mount($parameters.ContainerId, {
     onModelChanged: function (json) {
         $actions.RaiseModelChanged(json);
     },
-    onSelectionChanged: function (nodeId, edgeId) {
-        $actions.RaiseSelectionChanged(nodeId, edgeId);
+    onSelectionChanged: function (nodeId, edgeId, selectedNodeIdsJson) {
+        $actions.RaiseSelectionChanged(nodeId, edgeId, selectedNodeIdsJson);
     }
 });
 ```

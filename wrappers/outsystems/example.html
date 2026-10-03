@@ -55,7 +55,7 @@
       model: ModelJson,
       options: { snapToGrid: true, readOnly: ReadOnly },
       onModelChanged:     json => TriggerOnModelChanged(json),
-      onSelectionChanged: (nodeId, edgeId) => TriggerOnSelectionChanged(nodeId, edgeId)
+      onSelectionChanged: (nodeId, edgeId, selectedNodeIdsJson) => TriggerOnSelectionChanged(nodeId, edgeId, selectedNodeIdsJson)
     });
 
     // ── Block events → screen handlers ─────────────────────────────────────
@@ -64,8 +64,8 @@
       Block_OnParametersChanged();   // ...which re-sets the block's ModelJson input
     }
 
-    function TriggerOnSelectionChanged(nodeId, edgeId) {
-      status(`Selection: node "${nodeId}", edge "${edgeId}"`);
+    function TriggerOnSelectionChanged(nodeId, edgeId, selectedNodeIdsJson) {
+      status(`Selection: node "${nodeId}", edge "${edgeId}", all selected nodes ${selectedNodeIdsJson}`);
     }
 
     // ── Block: OnParametersChanged (JavaScript node) ───────────────────────
