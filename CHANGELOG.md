@@ -15,6 +15,11 @@
   Bewerkingen (manual operation, merge, extract, sort, collate, summing junction, or) and Verbinders &
   opmerkingen (on-page connector, off-page connector, comment). Small symbols label below the shape;
   a comment is linked with a dashed line without an arrow (edge type `comment`, flow lines are `flow`).
+- **Drop a node onto an edge** to insert it into the flow: while dragging a free node (no edges, or one
+  edge to another node) over an edge, the edge fades and the two new halves are previewed; on release
+  A → B becomes A → node → B. Only where both halves keep the edge's type (an annotation or data object
+  never splits a flow); definitions can narrow it with `canSplitEdge(edge, node, engine)`. Styling:
+  `.weavle-edge.is-split-target`, `.weavle-edge--split-preview`, `--weavle-split-color`.
 - Submenus can hold section headings (`{ type: "heading", label }` children), used to group "Type wijzigen".
 - `nodeTypes[type].title`: the name in menus and the toolbar when the default label is not a good name
   (connector "A" → "On-page verbinder"); `getTypeTitle(type)`.

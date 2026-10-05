@@ -75,6 +75,7 @@ export class WeavleJS {
             hoverHandleName: null,
 
             draggingNodeId: null,
+            splitEdgeId: null,       // edge the dragged node would be inserted into on release
             draggingEdgeHandleId: null,
     
             draggingNodeIds: null, // array van ids
@@ -839,6 +840,8 @@ export class WeavleJS {
             // Visible edge path.
             const visiblePath = this.createEdgePath(pathData, false, isSelected, this.getEdgeTypeDefinition(edge));
             visiblePath.setAttribute("data-edge-id", edge.id);
+            // The edge a dragged node would be inserted into: dimmed under the split preview.
+            if (edge.id === this.state.splitEdgeId) visiblePath.classList.add("is-split-target");
             this.layers.edges.appendChild(visiblePath);
 
             //If edge has a label, we place it on the right spot..
@@ -951,6 +954,8 @@ export class WeavleJS {
         // 4. Blue dashed alignment guide lines while dragging a node.
         if (this.state.draggingNodeId || this.state.draggingNodeIds) {
             const NS = "http://www.w3.org/2000/svg";
+
+            if (this.state.splitEdgeId) this.renderSplitPreview();
 
             if (this.state.snapGuideX !== null) {
                 const lineX = document.createElementNS(NS, "line");
@@ -5040,6 +5045,174 @@ export class WeavleJS {
         this.state.dragStartMouseY = 0;
     }
 
+    // ------------------------------------------------------------
+    // Edge splitting: drop a node onto an edge to insert it into the flow.
+    // While a single node is dragged over an edge it may join, the edge is dimmed and the two
+    // halves are previewed; on release A → B becomes A → node → B.
+    // ------------------------------------------------------------
+
+    /**
+     * True if the node may be inserted into the edge. The node must be free (no edges, or one edge to a
+     * node that isn't an end of this edge), not a container or attached node, and both halves must get
+     * the edge's own type (so e.g. an annotation or a data object never splits a flow). Definitions can
+     * narrow this with canSplitEdge(edge, node, engine).
+     */
+    canSplitEdgeWith(edge, node) {
+        if (!edge || !node || this.isContainer(node) || node.attachedToId) return false;
+        if (edge.sourceNodeId === node.id || edge.targetNodeId === node.id) return false;
+
+        const source = this.getNode(edge.sourceNodeId);
+        const target = this.getNode(edge.targetNodeId);
+        if (!source || !target) return false;
+
+        const own = this.model.edges.filter(e => e.sourceNodeId === node.id || e.targetNodeId === node.id);
+        if (own.length > 1) return false;
+
+        // Connected to one of the edge's ends already: splitting would duplicate that connection.
+        if (own.length === 1) {
+            const other = own[0].sourceNodeId === node.id ? own[0].targetNodeId : own[0].sourceNodeId;
+            if (other === source.id || other === target.id) return false;
+        }
+
+        const type = edge.type || null;
+        if (this.resolveEdgeType(source, node) !== type || this.resolveEdgeType(node, target) !== type) return false;
+
+        if (typeof this.diagram.canSplitEdge === "function") {
+            return this.diagram.canSplitEdge(edge, node, this) !== false;
+        }
+        return true;
+    }
+
+    /** The edge under a dragged node that it could be inserted into (closest to its centre), or null. */
+    findSplitEdgeFor(node) {
+        if (!node) return null;
+
+        const rect = { x: node.x, y: node.y, width: node.width, height: node.height };
+        const cx = node.x + node.width / 2;
+        const cy = node.y + node.height / 2;
+
+        let best = null;
+        let bestDist = Infinity;
+
+        for (const edge of this.model.edges) {
+            const points = edge.routePoints;
+            if (!Array.isArray(points) || points.length < 2) continue;
+
+            for (let i = 0; i < points.length - 1; i++) {
+                const a = points[i];
+                const b = points[i + 1];
+                if (!this.segmentIntersectsRect(a, b, rect)) continue;
+
+                const dist = this.distancePointToSegment({ x: cx, y: cy }, a, b);
+                if (dist < bestDist && this.canSplitEdgeWith(edge, node)) {
+                    best = edge;
+                    bestDist = dist;
+                }
+            }
+        }
+
+        return best;
+    }
+
+    /** Shortest distance from point p to segment a–b. */
+    distancePointToSegment(p, a, b) {
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const len2 = dx * dx + dy * dy;
+        const t = len2 ? Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2)) : 0;
+        return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+    }
+
+    /**
+     * The node's handle that faces a point (dominant axis), avoiding `avoid` (the handle the other
+     * half already uses) so the two halves don't share one port.
+     */
+    getHandleFacing(node, point, avoid = null) {
+        const ports = this.getPorts(node);
+        const dx = point.x - (node.x + node.width / 2);
+        const dy = point.y - (node.y + node.height / 2);
+
+        const horizontal = dx < 0 ? "left" : "right";
+        const vertical   = dy < 0 ? "top" : "bottom";
+        const order = Math.abs(dx) >= Math.abs(dy)
+            ? [horizontal, vertical, dy < 0 ? "bottom" : "top", dx < 0 ? "right" : "left"]
+            : [vertical, horizontal, dx < 0 ? "right" : "left", dy < 0 ? "bottom" : "top"];
+
+        return order.find(h => ports[h] && h !== avoid) || Object.keys(ports)[0];
+    }
+
+    /** The two halves (unsaved edge objects) that inserting the node into the edge would create. */
+    buildSplitEdges(edge, node) {
+        const source = this.getNode(edge.sourceNodeId);
+        const target = this.getNode(edge.targetNodeId);
+
+        const sourcePoint = this.getHandlePoint(source, edge.sourceHandle);
+        const targetPoint = this.getHandlePoint(target, edge.targetHandle);
+
+        const inHandle  = this.getHandleFacing(node, sourcePoint);
+        const outHandle = this.getHandleFacing(node, targetPoint, inHandle);
+
+        const first = {
+            ...edge,
+            targetNodeId: node.id,
+            targetHandle: inHandle,
+            routePoints:  [],
+            routingMeta:  null,
+            isAutoRoute:  true
+        };
+
+        const second = {
+            id:           crypto.randomUUID(),
+            type:         edge.type,
+            sourceNodeId: node.id,
+            targetNodeId: edge.targetNodeId,
+            sourceHandle: outHandle,
+            targetHandle: edge.targetHandle,
+            label:        "",
+            isAutoRoute:  true
+        };
+
+        return [first, second];
+    }
+
+    /** Inserts the node into the edge: A → B becomes A → node → B (the label stays on the first half). */
+    splitEdgeWithNode(edge, node) {
+        const [first, second] = this.buildSplitEdges(edge, node);
+
+        Object.assign(edge, first);
+        delete edge.bendPoints;
+
+        this.model.edges.push(second);
+
+        [edge, second].forEach(e => {
+            this.assignEdgeType(e);
+            this.updateEdgeRoute(e);
+        });
+
+        return second;
+    }
+
+    /** Dashed previews of both halves while a node hovers over a splittable edge. */
+    renderSplitPreview() {
+        const edge = this.model.edges.find(e => e.id === this.state.splitEdgeId);
+        const node = this.getNode(this.state.draggingNodeId);
+        if (!edge || !node) return;
+
+        this.buildSplitEdges(edge, node).forEach(half => {
+            const points = this.routeTemporaryEdge({ ...half, id: "__split__" });
+            if (!points || points.length < 2) return;
+
+            const path = this.createEdgePath(
+                this.buildRoundedOrthogonalPath(points, this.options.edgeCornerRadius),
+                true,
+                false,
+                this.getEdgeTypeDefinition(half)
+            );
+            path.classList.add("weavle-edge--split-preview");
+            this.layers.overlay.appendChild(path);
+        });
+    }
+
 
     // ============================================================
     // 16. UNDO/REDO
@@ -6313,6 +6486,9 @@ export class WeavleJS {
             // Highlight the container the node would be dropped into.
             this.state.dropTargetId = this.findContainerFor(node)?.id || null;
 
+            // Over an edge it may join: preview inserting the node into it.
+            this.state.splitEdgeId = this.findSplitEdgeFor(node)?.id || null;
+
             //this.rerouteEdgesForNodes([node.id]);
 
             this.render();
@@ -6576,8 +6752,12 @@ export class WeavleJS {
         const node  = this.model.nodes.find(n => n.id === this.state.draggingNodeId);
         const startPositions = this.state.dragStartPositions || {};
         const moved = this.didNodesMove(this.state.dragStartPositions);
+        const splitEdge = moved && this.state.splitEdgeId
+            ? this.model.edges.find(e => e.id === this.state.splitEdgeId)
+            : null;
 
         this.state.draggingNodeId = null;
+        this.state.splitEdgeId = null;
         this.state.dragStartPositions = null;
         this.state.dragRootIds = null;
         this.state.dragPrimaryId = null;
@@ -6592,6 +6772,11 @@ export class WeavleJS {
         }
 
         if (node) {
+            // Dropped onto an edge it may join: A → B becomes A → node → B.
+            if (splitEdge && this.canSplitEdgeWith(splitEdge, node)) {
+                this.splitEdgeWithNode(splitEdge, node);
+            }
+
             // Dropped into / out of a container; also reroutes the edges.
             this.applyContainment([node], this.moveContext([node], startPositions));
 
@@ -6661,6 +6846,7 @@ export class WeavleJS {
 
             if (this.state.draggingNodeId) {
                 this.state.draggingNodeId = null;
+                this.state.splitEdgeId = null;
                 didCancel = true;
             }
 

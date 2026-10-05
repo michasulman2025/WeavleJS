@@ -89,6 +89,9 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
 - Flowchart shapes: `FLOWCHART_GROUPS` in weavle-flowchart.js (26 ISO 5807 shapes in 5 groups) drives the palette,
   "Type wijzigen" (with `{ type: "heading" }` children) and one add-submenu per group. `nodeTypes[type].title` is
   the menu name when the default label is not one (connectors).
+- Edge splitting: dragging a single free node over an edge sets `state.splitEdgeId` (`findSplitEdgeFor`,
+  rules in `canSplitEdgeWith`: at most one own edge, not to either end, both halves keep the edge type, optional
+  `diagram.canSplitEdge`); `renderSplitPreview` draws the halves; mouseup calls `splitEdgeWithNode`.
 - Edge routing: orthogonal — straight or simple routes first, then A* on a grid (`findPathWithAStar`),
   tuned per definition via `getRoutingConfig`.
 - The diagram definition is the extension point for new diagram types: shapes, nodeTypes, getPorts,

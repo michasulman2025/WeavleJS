@@ -2257,6 +2257,7 @@ var x = class {
 			hoverHandleNodeId: null,
 			hoverHandleName: null,
 			draggingNodeId: null,
+			splitEdgeId: null,
 			draggingEdgeHandleId: null,
 			draggingNodeIds: null,
 			dragStartMouseX: 0,
@@ -2488,7 +2489,7 @@ var x = class {
 			let s = this.buildRoundedOrthogonalPath(a, this.options.edgeCornerRadius), c = e.id === this.state.selectedEdgeId, l = this.createEdgeHitPath(s, e.id);
 			this.layers.edges.appendChild(l);
 			let u = this.createEdgePath(s, !1, c, this.getEdgeTypeDefinition(e));
-			if (u.setAttribute("data-edge-id", e.id), this.layers.edges.appendChild(u), e.label) {
+			if (u.setAttribute("data-edge-id", e.id), e.id === this.state.splitEdgeId && u.classList.add("is-split-target"), this.layers.edges.appendChild(u), e.label) {
 				let t = this.createEdgeLabelFromPoints(a, e.label);
 				this.layers.edges.appendChild(t);
 			}
@@ -2534,7 +2535,7 @@ var x = class {
 		}
 		if (this.state.draggingNodeId || this.state.draggingNodeIds) {
 			let e = "http://www.w3.org/2000/svg";
-			if (this.state.snapGuideX !== null) {
+			if (this.state.splitEdgeId && this.renderSplitPreview(), this.state.snapGuideX !== null) {
 				let t = document.createElementNS(e, "line");
 				t.setAttribute("x1", this.state.snapGuideX), t.setAttribute("y1", 0), t.setAttribute("x2", this.state.snapGuideX), t.setAttribute("y2", this.options.height), t.setAttribute("stroke", "#4da3ff"), t.setAttribute("stroke-width", "1"), t.setAttribute("stroke-dasharray", "4,4"), t.setAttribute("pointer-events", "none"), this.layers.overlay.appendChild(t);
 			}
@@ -4361,6 +4362,97 @@ var x = class {
 	resetDraggingState() {
 		this.state.draggingNodeIds = null, this.state.dragStartPositions = null, this.state.dragStartMouseX = 0, this.state.dragStartMouseY = 0;
 	}
+	canSplitEdgeWith(e, t) {
+		if (!e || !t || this.isContainer(t) || t.attachedToId || e.sourceNodeId === t.id || e.targetNodeId === t.id) return !1;
+		let n = this.getNode(e.sourceNodeId), r = this.getNode(e.targetNodeId);
+		if (!n || !r) return !1;
+		let i = this.model.edges.filter((e) => e.sourceNodeId === t.id || e.targetNodeId === t.id);
+		if (i.length > 1) return !1;
+		if (i.length === 1) {
+			let e = i[0].sourceNodeId === t.id ? i[0].targetNodeId : i[0].sourceNodeId;
+			if (e === n.id || e === r.id) return !1;
+		}
+		let a = e.type || null;
+		return this.resolveEdgeType(n, t) !== a || this.resolveEdgeType(t, r) !== a ? !1 : typeof this.diagram.canSplitEdge != "function" || this.diagram.canSplitEdge(e, t, this) !== !1;
+	}
+	findSplitEdgeFor(e) {
+		if (!e) return null;
+		let t = {
+			x: e.x,
+			y: e.y,
+			width: e.width,
+			height: e.height
+		}, n = e.x + e.width / 2, r = e.y + e.height / 2, i = null, a = Infinity;
+		for (let o of this.model.edges) {
+			let s = o.routePoints;
+			if (!(!Array.isArray(s) || s.length < 2)) for (let c = 0; c < s.length - 1; c++) {
+				let l = s[c], u = s[c + 1];
+				if (!this.segmentIntersectsRect(l, u, t)) continue;
+				let d = this.distancePointToSegment({
+					x: n,
+					y: r
+				}, l, u);
+				d < a && this.canSplitEdgeWith(o, e) && (i = o, a = d);
+			}
+		}
+		return i;
+	}
+	distancePointToSegment(e, t, n) {
+		let r = n.x - t.x, i = n.y - t.y, a = r * r + i * i, o = a ? Math.max(0, Math.min(1, ((e.x - t.x) * r + (e.y - t.y) * i) / a)) : 0;
+		return Math.hypot(e.x - (t.x + o * r), e.y - (t.y + o * i));
+	}
+	getHandleFacing(e, t, n = null) {
+		let r = this.getPorts(e), i = t.x - (e.x + e.width / 2), a = t.y - (e.y + e.height / 2), o = i < 0 ? "left" : "right", s = a < 0 ? "top" : "bottom";
+		return (Math.abs(i) >= Math.abs(a) ? [
+			o,
+			s,
+			a < 0 ? "bottom" : "top",
+			i < 0 ? "right" : "left"
+		] : [
+			s,
+			o,
+			i < 0 ? "right" : "left",
+			a < 0 ? "bottom" : "top"
+		]).find((e) => r[e] && e !== n) || Object.keys(r)[0];
+	}
+	buildSplitEdges(e, t) {
+		let n = this.getNode(e.sourceNodeId), r = this.getNode(e.targetNodeId), i = this.getHandlePoint(n, e.sourceHandle), a = this.getHandlePoint(r, e.targetHandle), o = this.getHandleFacing(t, i), s = this.getHandleFacing(t, a, o);
+		return [{
+			...e,
+			targetNodeId: t.id,
+			targetHandle: o,
+			routePoints: [],
+			routingMeta: null,
+			isAutoRoute: !0
+		}, {
+			id: crypto.randomUUID(),
+			type: e.type,
+			sourceNodeId: t.id,
+			targetNodeId: e.targetNodeId,
+			sourceHandle: s,
+			targetHandle: e.targetHandle,
+			label: "",
+			isAutoRoute: !0
+		}];
+	}
+	splitEdgeWithNode(e, t) {
+		let [n, r] = this.buildSplitEdges(e, t);
+		return Object.assign(e, n), delete e.bendPoints, this.model.edges.push(r), [e, r].forEach((e) => {
+			this.assignEdgeType(e), this.updateEdgeRoute(e);
+		}), r;
+	}
+	renderSplitPreview() {
+		let e = this.model.edges.find((e) => e.id === this.state.splitEdgeId), t = this.getNode(this.state.draggingNodeId);
+		e && t && this.buildSplitEdges(e, t).forEach((e) => {
+			let t = this.routeTemporaryEdge({
+				...e,
+				id: "__split__"
+			});
+			if (!t || t.length < 2) return;
+			let n = this.createEdgePath(this.buildRoundedOrthogonalPath(t, this.options.edgeCornerRadius), !0, !1, this.getEdgeTypeDefinition(e));
+			n.classList.add("weavle-edge--split-preview"), this.layers.overlay.appendChild(n);
+		});
+	}
 	isContainer(e) {
 		return !!(e && this.diagram.nodeTypes?.[e.type]?.isContainer);
 	}
@@ -4855,7 +4947,7 @@ var x = class {
 			let n = t.x - this.state.offsetX, r = t.y - this.state.offsetY;
 			this.options.snapToGrid && ({x: n, y: r} = this.snapNodePosition(e, n, r)), e.x = n, e.y = r;
 			let i = this.findAlignmentGuides(e, 8);
-			this.state.snapGuideX = i.snapGuideX, this.state.snapGuideY = i.snapGuideY, i.snapGuideX !== null && (e.x = i.snapGuideX - e.width / 2), i.snapGuideY !== null && (e.y = i.snapGuideY - e.height / 2), Object.assign(e, this.constrainNodePosition(e, e.x, e.y)), this.state.dropTargetId = this.findContainerFor(e)?.id || null, this.render();
+			this.state.snapGuideX = i.snapGuideX, this.state.snapGuideY = i.snapGuideY, i.snapGuideX !== null && (e.x = i.snapGuideX - e.width / 2), i.snapGuideY !== null && (e.y = i.snapGuideY - e.height / 2), Object.assign(e, this.constrainNodePosition(e, e.x, e.y)), this.state.dropTargetId = this.findContainerFor(e)?.id || null, this.state.splitEdgeId = this.findSplitEdgeFor(e)?.id || null, this.render();
 			return;
 		}
 	}
@@ -4936,12 +5028,12 @@ var x = class {
 			this.resetSnapGuides();
 			return;
 		}
-		let t = this.model.nodes.find((e) => e.id === this.state.draggingNodeId), n = this.state.dragStartPositions || {}, r = this.didNodesMove(this.state.dragStartPositions);
-		if (this.state.draggingNodeId = null, this.state.dragStartPositions = null, this.state.dragRootIds = null, this.state.dragPrimaryId = null, this.state.dropTargetId = null, this.resetSnapGuides(), !r) {
+		let t = this.model.nodes.find((e) => e.id === this.state.draggingNodeId), n = this.state.dragStartPositions || {}, r = this.didNodesMove(this.state.dragStartPositions), i = r && this.state.splitEdgeId ? this.model.edges.find((e) => e.id === this.state.splitEdgeId) : null;
+		if (this.state.draggingNodeId = null, this.state.splitEdgeId = null, this.state.dragStartPositions = null, this.state.dragRootIds = null, this.state.dragPrimaryId = null, this.state.dropTargetId = null, this.resetSnapGuides(), !r) {
 			this.render();
 			return;
 		}
-		t && (this.applyContainment([t], this.moveContext([t], n)), this.emit("weavle:nodemoved", {
+		t && (i && this.canSplitEdgeWith(i, t) && this.splitEdgeWithNode(i, t), this.applyContainment([t], this.moveContext([t], n)), this.emit("weavle:nodemoved", {
 			node: JSON.parse(JSON.stringify(t)),
 			model: this.getData()
 		})), this.pushHistory(), this.emit("weavle:modelchanged", { model: this.getData() }), this.render();
@@ -4961,7 +5053,7 @@ var x = class {
 						height: n.height
 					}), this.restoreGeometry(n.snapshot)), this.resetResizeState(), t = !0;
 				}
-				this.state.connectingNodeId && (this.resetConnectionState(), t = !0), this.state.reconnectingEdgeId && (this.resetReconnectionState(), t = !0), this.state.creatingNodeType && (this.resetCreationState(), t = !0), this.state.draggingNodeId && (this.state.draggingNodeId = null, t = !0), this.state.draggingNodeIds && (this.resetDraggingState(), t = !0), this.state.isMarqueeSelecting && (this.resetMarqeeState(), t = !0), t && (this.setTextSelectionEnabled(!0), this.render(), e.preventDefault());
+				this.state.connectingNodeId && (this.resetConnectionState(), t = !0), this.state.reconnectingEdgeId && (this.resetReconnectionState(), t = !0), this.state.creatingNodeType && (this.resetCreationState(), t = !0), this.state.draggingNodeId && (this.state.draggingNodeId = null, this.state.splitEdgeId = null, t = !0), this.state.draggingNodeIds && (this.resetDraggingState(), t = !0), this.state.isMarqueeSelecting && (this.resetMarqeeState(), t = !0), t && (this.setTextSelectionEnabled(!0), this.render(), e.preventDefault());
 				return;
 			}
 			if (e.key === "Delete" || e.key === "Backspace") {
