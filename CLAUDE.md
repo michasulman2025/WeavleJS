@@ -97,6 +97,10 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
   halves are routed, and centres on the crossed segment (`state.creationAlign`, `getSegmentAlignment`).
   The reverse is the built-in context action `detachNode` ("Losmaken", `detachNode(node)`, `hasEdges(node)`).
   The open node tool surface is rebuilt on every `weavle:modelchanged` (`refreshNodeToolSurface`).
+- Optimise edges (`optimizeEdges`): per edge `getPortPairCandidates` → route each (`routeTemporaryEdge`) →
+  `scoreEdgeRoute` (`countRouteConflicts`, shared ports, flow direction from `getLayoutDirection`); short edges
+  first, two passes. While it runs `state.routeOccupancy` (`buildRouteOccupancy`) adds A* step costs
+  (`getOccupancyPenalty`). Toolbar entries come from `getTidyActions()`. Roadmap: optimise flow (layered layout).
 - Edge routing: orthogonal — straight or simple routes first, then A* on a grid (`findPathWithAStar`),
   tuned per definition via `getRoutingConfig`.
 - The diagram definition is the extension point for new diagram types: shapes, nodeTypes, getPorts,

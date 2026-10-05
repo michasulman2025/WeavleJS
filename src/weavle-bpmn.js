@@ -944,6 +944,11 @@ export function createBpmnDefinition() {
         },
 
         // Node tools float next to the selected node (like the bpmn.io context pad).
+        // BPMN processes read left to right.
+        getLayoutConfig() {
+            return { direction: "LR" };
+        },
+
         getNodeInteractionMode(node) {
             return "action-surface";
         },

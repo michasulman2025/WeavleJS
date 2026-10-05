@@ -427,7 +427,11 @@ const FLOWCHART_TYPES = FLOWCHART_GROUPS.flatMap(g => g.types);
 // Node types whose shape is a circle (keep their proportions).
 const FLOWCHART_ROUND = ["onPageConnector", "summingJunction", "or"];
 
-export function createFlowchartDefinition() {
+/**
+ * @param {object} [options]
+ * @param {"TB"|"LR"} [options.direction="TB"]  flow direction for the tidy-up functions
+ */
+export function createFlowchartDefinition({ direction = "TB" } = {}) {
     return {
 
         id: "flowchart",
@@ -650,6 +654,11 @@ export function createFlowchartDefinition() {
         },
 
         // Node tools float next to the selected node, like BPMN.
+        // Flow direction for optimise edges / flow (top to bottom unless configured otherwise).
+        getLayoutConfig() {
+            return { direction };
+        },
+
         getNodeInteractionMode(node) {
             return "action-surface";
         },

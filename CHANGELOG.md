@@ -3,6 +3,14 @@
 ## Unreleased
 
 ### Added
+- **Lijnen optimaliseren** (toolbar button, `optimizeEdges({ nodeIds?, edgeIds? })`, OutSystems
+  `controller.optimizeEdges(nodeIdsJson)`): nodes stay put; every edge gets the best port pair and route,
+  scored on length, bends, crossings, overlap with other edges, shared ports and going against the flow.
+  Short edges first, then a second pass; A* avoids cells other edges already use. Manual routes are
+  replaced. One undo step. `options.tidyTools: false` hides the button.
+- Flow direction: `options.layoutDirection` ("LR" | "TB"), `setLayoutDirection()`, definition hook
+  `getLayoutConfig()` (BPMN "LR"; flowchart "TB", `createFlowchartDefinition({ direction })`).
+  Playground: "Flow direction" select.
 - **Canvas toolbar** docked at the top while nothing is selected: insert any shape, pool or lane from
   grouped submenus, then click where it goes (Escape cancels). Built from the palette, or from a
   definition's `getCanvasActions()`; option `toolbar: false` turns it off.

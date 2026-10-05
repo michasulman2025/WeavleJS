@@ -266,7 +266,7 @@ var a = {
 	}
 ];
 o.flatMap((e) => e.types);
-function s() {
+function s({ direction: e = "TB" } = {}) {
 	return {
 		id: "flowchart",
 		shapes: a,
@@ -748,6 +748,9 @@ function s() {
 				width: 140,
 				height: 70
 			};
+		},
+		getLayoutConfig() {
+			return { direction: e };
 		},
 		getNodeInteractionMode(e) {
 			return "action-surface";
@@ -1978,6 +1981,9 @@ function b() {
 				label: "Verwijderen"
 			}), s;
 		},
+		getLayoutConfig() {
+			return { direction: "LR" };
+		},
 		getNodeInteractionMode(e) {
 			return "action-surface";
 		},
@@ -2256,7 +2262,9 @@ var x = class {
 			debugAStarGrid: !1,
 			debugRoutePoints: !1,
 			toolSurfaceDockHost: null,
-			toolbar: !0
+			toolbar: !0,
+			tidyTools: !0,
+			layoutDirection: null
 		}, t), this.diagram = n || s(), this.model = {
 			nodes: [],
 			edges: []
@@ -3636,7 +3644,7 @@ var x = class {
 				let l = o(c);
 				if (v.has(l) || this.isBlocked(c.x, c.y, n, r, i.obstacleMargin)) continue;
 				let u = a;
-				s.dir && s.dir !== e.name && (u += i.turnPenalty || 0), i.preferredDirection && this.isBacktracking(e.name, i.preferredDirection) && (u += i.backtrackPenalty || 0), u += this.getProximityPenalty(c.x, c.y, n, r, i) || 0;
+				s.dir && s.dir !== e.name && (u += i.turnPenalty || 0), i.preferredDirection && this.isBacktracking(e.name, i.preferredDirection) && (u += i.backtrackPenalty || 0), u += this.getProximityPenalty(c.x, c.y, n, r, i) || 0, u += this.getOccupancyPenalty(s.point, c, a);
 				let d = s.g + u, f = d + this.manhattan(c, t), p = _.get(l);
 				(!p || d < p.g) && _.set(l, {
 					point: c,
@@ -4082,12 +4090,19 @@ var x = class {
 			nodeType: e,
 			label: this.getTypeTitle(e)
 		});
-		return (this.diagram.palette || []).map((t) => t.group ? {
+		return [...(this.diagram.palette || []).map((t) => t.group ? {
 			type: "group",
 			label: t.group,
 			nodeType: t.types[0],
 			children: t.types.map(e)
-		} : e(t.type));
+		} : e(t.type)), ...this.getTidyActions()];
+	}
+	getTidyActions() {
+		return this.options.tidyTools === !1 ? [] : [{
+			type: "optimizeEdges",
+			label: "Lijnen optimaliseren",
+			icon: "tidyEdges"
+		}];
 	}
 	createCanvasToolbar() {
 		if (this.options.toolbar === !1) return;
@@ -4103,6 +4118,10 @@ var x = class {
 	runCanvasAction(e) {
 		if (this.closeToolbarSubmenus(), e.type === "createNode") {
 			this.startNodeCreation(e.nodeType);
+			return;
+		}
+		if (e.type === "optimizeEdges") {
+			this.optimizeEdges();
 			return;
 		}
 		typeof this.diagram.handleCanvasAction == "function" && this.diagram.handleCanvasAction(e, this);
@@ -4203,7 +4222,17 @@ var x = class {
 			"stroke-width": 2.5,
 			"stroke-linecap": "round",
 			"stroke-linejoin": "round"
-		}) : r === "plus" ? i("path", {
+		}) : r === "tidyEdges" ? (i("path", {
+			d: "M 6 12 L 18 12 L 18 28 L 30 28 M 6 20 L 12 20 L 12 34 L 26 34",
+			fill: "none",
+			stroke: "currentColor",
+			"stroke-width": 2.2,
+			"stroke-linejoin": "round"
+		}), i("path", {
+			d: "M 31 5 L 32.5 9.5 L 37 11 L 32.5 12.5 L 31 17 L 29.5 12.5 L 25 11 L 29.5 9.5 Z",
+			fill: "currentColor",
+			stroke: "none"
+		})) : r === "plus" ? i("path", {
 			d: "M 20 10 L 20 30 M 10 20 L 30 20",
 			fill: "none",
 			stroke: "currentColor",
@@ -4537,6 +4566,149 @@ var x = class {
 	}
 	hasEdges(e) {
 		return !!e && this.model.edges.some((t) => t.sourceNodeId === e.id || t.targetNodeId === e.id);
+	}
+	getLayoutDirection() {
+		let e = typeof this.diagram.getLayoutConfig == "function" ? this.diagram.getLayoutConfig(this) : null;
+		return this.options.layoutDirection || e?.direction || "LR";
+	}
+	setLayoutDirection(e) {
+		this.options.layoutDirection = e === "TB" ? "TB" : "LR";
+	}
+	optimizeEdges({ edgeIds: e = null, nodeIds: t = null } = {}) {
+		let n = this.model.edges;
+		if (e ? n = n.filter((t) => e.includes(t.id)) : t && (n = n.filter((e) => t.includes(e.sourceNodeId) || t.includes(e.targetNodeId))), n = n.filter((e) => this.getNode(e.sourceNodeId) && this.getNode(e.targetNodeId)), !n.length) return !1;
+		let r = JSON.stringify(n.map((e) => [
+			e.sourceHandle,
+			e.targetHandle,
+			e.routePoints,
+			e.isAutoRoute
+		]));
+		n.forEach((e) => {
+			e.isAutoRoute = !0, delete e.bendPoints;
+		});
+		let i = (e) => ({
+			x: e.x + e.width / 2,
+			y: e.y + e.height / 2
+		}), a = (e) => this.manhattan(i(this.getNode(e.sourceNodeId)), i(this.getNode(e.targetNodeId))), o = [...n].sort((e, t) => a(e) - a(t)), s = new Set(this.model.edges.filter((e) => !n.includes(e)));
+		o.forEach((e) => {
+			this.optimizeEdgeRoute(e, [...s]), s.add(e);
+		}), o.forEach((e) => this.optimizeEdgeRoute(e, this.model.edges.filter((t) => t !== e)));
+		let c = JSON.stringify(n.map((e) => [
+			e.sourceHandle,
+			e.targetHandle,
+			e.routePoints,
+			e.isAutoRoute
+		])) !== r;
+		return c && (this.pushHistory(), this.emit("weavle:modelchanged", { model: this.getData() })), this.render(), c;
+	}
+	optimizeEdgeRoute(e, t) {
+		let n = this.getNode(e.sourceNodeId), r = this.getNode(e.targetNodeId);
+		if (!n || !r) return;
+		let i = t.filter((e) => Array.isArray(e.routePoints) && e.routePoints.length >= 2), a = this.getRoutingConfig(e).gridSize || 20;
+		this.state.routeOccupancy = this.buildRouteOccupancy(i, a);
+		let o = null;
+		try {
+			for (let [t, a] of this.getPortPairCandidates(e, n, r)) {
+				let n = {
+					...e,
+					sourceHandle: t,
+					targetHandle: a,
+					routePoints: [],
+					routingMeta: null,
+					isAutoRoute: !0
+				}, r = this.routeTemporaryEdge(n);
+				if (!r || r.length < 2) continue;
+				let s = this.scoreEdgeRoute(n, r, i);
+				(!o || s < o.cost) && (o = {
+					cost: s,
+					sourceHandle: t,
+					targetHandle: a,
+					points: r,
+					meta: n.routingMeta
+				});
+			}
+		} finally {
+			this.state.routeOccupancy = null;
+		}
+		o && (e.sourceHandle = o.sourceHandle, e.targetHandle = o.targetHandle, e.routePoints = o.points, e.routingMeta = o.meta);
+	}
+	getPortPairCandidates(e, t, n, r = 5) {
+		let i = Object.keys(this.getPorts(t)), a = Object.keys(this.getPorts(n)), o = {
+			x: t.x + t.width / 2,
+			y: t.y + t.height / 2
+		}, s = {
+			x: n.x + n.width / 2,
+			y: n.y + n.height / 2
+		}, c = (e, t, n) => {
+			let r = this.getHandleDirection(e);
+			return r.x * (n.x - t.x) + r.y * (n.y - t.y);
+		}, l = [];
+		for (let e of i) for (let r of a) {
+			let i = this.getHandleExitPoint(this.getHandlePoint(t, e), e, 20), a = this.getHandleExitPoint(this.getHandlePoint(n, r), r, 20), u = this.manhattan(i, a);
+			c(e, i, s) < 0 && (u += 200), c(r, a, o) < 0 && (u += 200), l.push({
+				pair: [e, r],
+				estimate: u
+			});
+		}
+		l.sort((e, t) => e.estimate - t.estimate);
+		let u = l.slice(0, r).map((e) => e.pair);
+		return e.sourceHandle && e.targetHandle && !u.some(([t, n]) => t === e.sourceHandle && n === e.targetHandle) && u.push([e.sourceHandle, e.targetHandle]), u;
+	}
+	scoreEdgeRoute(e, t, n) {
+		let { pathLength: r, turns: i } = this.calculateRouteStats(t), { crossings: a, overlap: o } = this.countRouteConflicts(t, n), s = r + i * 30 + a * 120 + o * 3;
+		this.isFallbackRoute(e) && (s += 2e3);
+		for (let t of n) for (let [n, r, i] of [[
+			e.sourceNodeId,
+			e.sourceHandle,
+			!0
+		], [
+			e.targetNodeId,
+			e.targetHandle,
+			!1
+		]]) t.sourceNodeId === n && t.sourceHandle === r && (s += i ? 30 : 80), t.targetNodeId === n && t.targetHandle === r && (s += i ? 80 : 30);
+		let [c, l] = this.getLayoutDirection() === "TB" ? ["top", "bottom"] : ["left", "right"];
+		return e.sourceHandle === c && (s += 25), e.targetHandle === l && (s += 25), s;
+	}
+	countRouteConflicts(e, t) {
+		let n = 0, r = 0, i = (e, t, n) => e > Math.min(t, n) && e < Math.max(t, n);
+		for (let a = 0; a < e.length - 1; a++) {
+			let o = e[a], s = e[a + 1], c = o.y === s.y;
+			if (o.x !== s.x || o.y !== s.y) for (let e of t) {
+				let t = e.routePoints;
+				for (let e = 0; e < t.length - 1; e++) {
+					let a = t[e], l = t[e + 1];
+					if (c !== (a.y === l.y)) {
+						let e = c ? [o, s] : [a, l], t = c ? [a, l] : [o, s];
+						i(t[0].x, e[0].x, e[1].x) && i(e[0].y, t[0].y, t[1].y) && n++;
+					} else c && o.y === a.y ? r += Math.max(0, Math.min(Math.max(o.x, s.x), Math.max(a.x, l.x)) - Math.max(Math.min(o.x, s.x), Math.min(a.x, l.x))) : !c && o.x === a.x && (r += Math.max(0, Math.min(Math.max(o.y, s.y), Math.max(a.y, l.y)) - Math.max(Math.min(o.y, s.y), Math.min(a.y, l.y))));
+				}
+			}
+		}
+		return {
+			crossings: n,
+			overlap: r
+		};
+	}
+	buildRouteOccupancy(e, t) {
+		let n = /* @__PURE__ */ new Set(), r = /* @__PURE__ */ new Set(), i = (e) => Math.round(e / t) * t;
+		for (let a of e) {
+			let e = a.routePoints;
+			for (let a = 0; a < e.length - 1; a++) {
+				let o = i(e[a].x), s = i(e[a].y), c = i(e[a + 1].x), l = i(e[a + 1].y), u = Math.sign(c - o) * t, d = Math.sign(l - s) * t;
+				if (!(u && d)) for (n.add(`${o},${s}`); (u || d) && (o !== c || s !== l);) r.add(this.occupancyStepKey(o, s, o + u, s + d)), o += u, s += d, n.add(`${o},${s}`);
+			}
+		}
+		return {
+			points: n,
+			steps: r
+		};
+	}
+	occupancyStepKey(e, t, n, r) {
+		return e < n || e === n && t < r ? `${e},${t}|${n},${r}` : `${n},${r}|${e},${t}`;
+	}
+	getOccupancyPenalty(e, t, n) {
+		let r = this.state.routeOccupancy;
+		return r ? r.steps.has(this.occupancyStepKey(e.x, e.y, t.x, t.y)) ? n * 3 : r.points.has(`${t.x},${t.y}`) ? n * .5 : 0 : 0;
 	}
 	isContainer(e) {
 		return !!(e && this.diagram.nodeTypes?.[e.type]?.isContainer);
@@ -5243,6 +5415,13 @@ function D(e, t = {}) {
 		},
 		clear() {
 			i.clear();
+		},
+		optimizeEdges(e) {
+			let t = e ? typeof e == "string" ? JSON.parse(e) : e : null;
+			return i.optimizeEdges({ nodeIds: t && t.length ? t : null });
+		},
+		setLayoutDirection(e) {
+			i.setLayoutDirection(e);
 		},
 		setReadOnly(e) {
 			let t = !!e;

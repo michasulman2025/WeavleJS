@@ -52,6 +52,8 @@ export class WeavleJS {
             debugRoutePoints: false,
             toolSurfaceDockHost: null,
             toolbar: true,             // canvas toolbar (insert shapes) while nothing is selected
+            tidyTools: true,           // "Lijnen optimaliseren" (and later "Flow optimaliseren") in the toolbar
+            layoutDirection: null,     // "LR" | "TB" — flow direction; null = diagram.getLayoutConfig().direction
         }, options);
 
         // The diagram definition drives node types, port layout, routing and context actions.
@@ -3443,6 +3445,7 @@ export class WeavleJS {
                 }
 
                 stepCost += this.getProximityPenalty(next.x, next.y, sourceId, targetId, cfg) || 0;
+                stepCost += this.getOccupancyPenalty(current.point, next, grid);
 
                 const g = current.g + stepCost;
                 const h = this.manhattan(next, goal);
@@ -4291,9 +4294,17 @@ export class WeavleJS {
 
         const make = type => ({ type: "createNode", nodeType: type, label: this.getTypeTitle(type) });
 
-        return (this.diagram.palette || []).map(entry => entry.group
+        const actions = (this.diagram.palette || []).map(entry => entry.group
             ? { type: "group", label: entry.group, nodeType: entry.types[0], children: entry.types.map(make) }
             : make(entry.type));
+
+        return [...actions, ...this.getTidyActions()];
+    }
+
+    /** Built-in tidy-up actions at the end of the toolbar (options.tidyTools = false hides them). */
+    getTidyActions() {
+        if (this.options.tidyTools === false) return [];
+        return [{ type: "optimizeEdges", label: "Lijnen optimaliseren", icon: "tidyEdges" }];
     }
 
     /**
@@ -4335,6 +4346,11 @@ export class WeavleJS {
 
         if (action.type === "createNode") {
             this.startNodeCreation(action.nodeType);
+            return;
+        }
+
+        if (action.type === "optimizeEdges") {
+            this.optimizeEdges();
             return;
         }
 
@@ -4545,6 +4561,10 @@ export class WeavleJS {
                 d: "M 17 23 L 12 28 A 4 4 0 0 1 6 22 L 11 17 M 23 17 L 28 12 A 4 4 0 0 1 34 18 L 29 23 M 14 9 L 15 13 M 9 14 L 13 15 M 26 31 L 25 27 M 31 26 L 27 25",
                 fill: "none", stroke: "currentColor", "stroke-width": 2.5, "stroke-linecap": "round", "stroke-linejoin": "round"
             });
+        } else if (icon === "tidyEdges") {
+            // Two tidy orthogonal connectors with a small sparkle: "make the lines neat".
+            add("path", { d: "M 6 12 L 18 12 L 18 28 L 30 28 M 6 20 L 12 20 L 12 34 L 26 34", fill: "none", stroke: "currentColor", "stroke-width": 2.2, "stroke-linejoin": "round" });
+            add("path", { d: "M 31 5 L 32.5 9.5 L 37 11 L 32.5 12.5 L 31 17 L 29.5 12.5 L 25 11 L 29.5 9.5 Z", fill: "currentColor", stroke: "none" });
         } else if (icon === "plus") {
             add("path", { d: "M 20 10 L 20 30 M 10 20 L 30 20", fill: "none", stroke: "currentColor", "stroke-width": 3, "stroke-linecap": "round" });
         } else if (action.nodeType) {
@@ -5357,6 +5377,248 @@ export class WeavleJS {
     /** True if any edge starts or ends at the node. */
     hasEdges(node) {
         return !!node && this.model.edges.some(e => e.sourceNodeId === node.id || e.targetNodeId === node.id);
+    }
+
+    // ------------------------------------------------------------
+    // Optimise edges: nodes stay where they are, the edges get better ports and routes.
+    //
+    // Per edge a few port pairs are tried (the ones facing each other, plus the current pair), each is
+    // routed, and the route with the lowest cost wins: length, bends, crossing / overlapping other
+    // edges, sharing a port with an edge in the opposite direction, and leaving against the flow
+    // direction. Short edges are placed first, then everything gets a second pass with all other
+    // edges in place. While routing, A* also avoids the cells other edges already run through.
+    // ------------------------------------------------------------
+
+    /** Flow direction: options.layoutDirection, else the definition's getLayoutConfig().direction, else "LR". */
+    getLayoutDirection() {
+        const config = typeof this.diagram.getLayoutConfig === "function" ? this.diagram.getLayoutConfig(this) : null;
+        return this.options.layoutDirection || config?.direction || "LR";
+    }
+
+    /** Sets the flow direction ("LR" or "TB") used by the tidy-up functions. */
+    setLayoutDirection(direction) {
+        this.options.layoutDirection = direction === "TB" ? "TB" : "LR";
+    }
+
+    /**
+     * Re-picks ports and re-routes edges. Manual routes are replaced by automatic ones.
+     * @param {object}   [options]
+     * @param {string[]} [options.edgeIds]  only these edges
+     * @param {string[]} [options.nodeIds]  only edges touching these nodes (e.g. the selection)
+     * @returns {boolean} true if anything changed (one undo step)
+     */
+    optimizeEdges({ edgeIds = null, nodeIds = null } = {}) {
+        let edges = this.model.edges;
+        if (edgeIds) edges = edges.filter(e => edgeIds.includes(e.id));
+        else if (nodeIds) edges = edges.filter(e => nodeIds.includes(e.sourceNodeId) || nodeIds.includes(e.targetNodeId));
+        edges = edges.filter(e => this.getNode(e.sourceNodeId) && this.getNode(e.targetNodeId));
+        if (!edges.length) return false;
+
+        const snapshot = JSON.stringify(edges.map(e => [e.sourceHandle, e.targetHandle, e.routePoints, e.isAutoRoute]));
+
+        edges.forEach(edge => {
+            edge.isAutoRoute = true;
+            delete edge.bendPoints;
+        });
+
+        // Short edges first: they have the fewest sensible options, long ones route around them.
+        const centre = n => ({ x: n.x + n.width / 2, y: n.y + n.height / 2 });
+        const span = e => this.manhattan(centre(this.getNode(e.sourceNodeId)), centre(this.getNode(e.targetNodeId)));
+        const order = [...edges].sort((a, b) => span(a) - span(b));
+
+        // Pass 1 sees only the edges placed so far; pass 2 revisits each with all others in place.
+        const placed = new Set(this.model.edges.filter(e => !edges.includes(e)));
+        order.forEach(edge => {
+            this.optimizeEdgeRoute(edge, [...placed]);
+            placed.add(edge);
+        });
+        order.forEach(edge => this.optimizeEdgeRoute(edge, this.model.edges.filter(e => e !== edge)));
+
+        const changed = JSON.stringify(edges.map(e => [e.sourceHandle, e.targetHandle, e.routePoints, e.isAutoRoute])) !== snapshot;
+
+        if (changed) {
+            this.pushHistory();
+            this.emit("weavle:modelchanged", { model: this.getData() });
+        }
+        this.render();
+        return changed;
+    }
+
+    /** Picks the best port pair and route for one edge, given the edges already in place. */
+    optimizeEdgeRoute(edge, others) {
+        const source = this.getNode(edge.sourceNodeId);
+        const target = this.getNode(edge.targetNodeId);
+        if (!source || !target) return;
+
+        const routed = others.filter(e => Array.isArray(e.routePoints) && e.routePoints.length >= 2);
+        const grid   = this.getRoutingConfig(edge).gridSize || 20;
+
+        this.state.routeOccupancy = this.buildRouteOccupancy(routed, grid);
+
+        let best = null;
+        try {
+            for (const [sourceHandle, targetHandle] of this.getPortPairCandidates(edge, source, target)) {
+                const trial = { ...edge, sourceHandle, targetHandle, routePoints: [], routingMeta: null, isAutoRoute: true };
+                const points = this.routeTemporaryEdge(trial);
+                if (!points || points.length < 2) continue;
+
+                const cost = this.scoreEdgeRoute(trial, points, routed);
+                if (!best || cost < best.cost) best = { cost, sourceHandle, targetHandle, points, meta: trial.routingMeta };
+            }
+        } finally {
+            this.state.routeOccupancy = null;
+        }
+
+        if (!best) return;
+
+        edge.sourceHandle = best.sourceHandle;
+        edge.targetHandle = best.targetHandle;
+        edge.routePoints  = best.points;
+        edge.routingMeta  = best.meta;
+    }
+
+    /**
+     * Port pairs worth routing: every combination ranked by a cheap estimate (exit-to-exit distance,
+     * ports facing away from the other node cost extra); the best few plus the current pair.
+     */
+    getPortPairCandidates(edge, source, target, limit = 5) {
+        const sourcePorts = Object.keys(this.getPorts(source));
+        const targetPorts = Object.keys(this.getPorts(target));
+        const sc = { x: source.x + source.width / 2, y: source.y + source.height / 2 };
+        const tc = { x: target.x + target.width / 2, y: target.y + target.height / 2 };
+
+        // > 0 when the port points towards the other node's centre.
+        const facing = (handle, point, toward) => {
+            const d = this.getHandleDirection(handle);
+            return d.x * (toward.x - point.x) + d.y * (toward.y - point.y);
+        };
+
+        const pairs = [];
+        for (const sh of sourcePorts) {
+            for (const th of targetPorts) {
+                const sp = this.getHandleExitPoint(this.getHandlePoint(source, sh), sh, 20);
+                const tp = this.getHandleExitPoint(this.getHandlePoint(target, th), th, 20);
+                let estimate = this.manhattan(sp, tp);
+                if (facing(sh, sp, tc) < 0) estimate += 200;
+                if (facing(th, tp, sc) < 0) estimate += 200;
+                pairs.push({ pair: [sh, th], estimate });
+            }
+        }
+
+        pairs.sort((a, b) => a.estimate - b.estimate);
+        const result = pairs.slice(0, limit).map(p => p.pair);
+
+        if (edge.sourceHandle && edge.targetHandle &&
+            !result.some(([s, t]) => s === edge.sourceHandle && t === edge.targetHandle)) {
+            result.push([edge.sourceHandle, edge.targetHandle]);
+        }
+        return result;
+    }
+
+    /** Cost of a candidate route: lower is better. */
+    scoreEdgeRoute(edge, points, others) {
+        const { pathLength, turns } = this.calculateRouteStats(points);
+        const { crossings, overlap } = this.countRouteConflicts(points, others);
+
+        let cost = pathLength + turns * 30 + crossings * 120 + overlap * 3;
+
+        if (this.isFallbackRoute(edge)) cost += 2000;
+
+        // Sharing a port: mildly bad for two edges in the same direction (a fan), bad for in + out.
+        for (const other of others) {
+            for (const [nodeId, handle, outgoing] of [[edge.sourceNodeId, edge.sourceHandle, true], [edge.targetNodeId, edge.targetHandle, false]]) {
+                if (other.sourceNodeId === nodeId && other.sourceHandle === handle) cost += outgoing ? 30 : 80;
+                if (other.targetNodeId === nodeId && other.targetHandle === handle) cost += outgoing ? 80 : 30;
+            }
+        }
+
+        // Against the flow: leaving through the "back" or entering through the "front".
+        const [back, front] = this.getLayoutDirection() === "TB" ? ["top", "bottom"] : ["left", "right"];
+        if (edge.sourceHandle === back)  cost += 25;
+        if (edge.targetHandle === front) cost += 25;
+
+        return cost;
+    }
+
+    /**
+     * Crossings (perpendicular segments cutting each other) and overlap (length of collinear shared
+     * segments) between a route and the routes of other edges.
+     */
+    countRouteConflicts(points, others) {
+        let crossings = 0;
+        let overlap   = 0;
+        const between = (v, a, b) => v > Math.min(a, b) && v < Math.max(a, b);
+
+        for (let i = 0; i < points.length - 1; i++) {
+            const a = points[i];
+            const b = points[i + 1];
+            const aHorizontal = a.y === b.y;
+            if (a.x === b.x && a.y === b.y) continue;
+
+            for (const other of others) {
+                const route = other.routePoints;
+                for (let j = 0; j < route.length - 1; j++) {
+                    const c = route[j];
+                    const d = route[j + 1];
+                    const cHorizontal = c.y === d.y;
+
+                    if (aHorizontal !== cHorizontal) {
+                        const h = aHorizontal ? [a, b] : [c, d];
+                        const v = aHorizontal ? [c, d] : [a, b];
+                        if (between(v[0].x, h[0].x, h[1].x) && between(h[0].y, v[0].y, v[1].y)) crossings++;
+                    } else if (aHorizontal && a.y === c.y) {
+                        overlap += Math.max(0, Math.min(Math.max(a.x, b.x), Math.max(c.x, d.x)) - Math.max(Math.min(a.x, b.x), Math.min(c.x, d.x)));
+                    } else if (!aHorizontal && a.x === c.x) {
+                        overlap += Math.max(0, Math.min(Math.max(a.y, b.y), Math.max(c.y, d.y)) - Math.max(Math.min(a.y, b.y), Math.min(c.y, d.y)));
+                    }
+                }
+            }
+        }
+        return { crossings, overlap };
+    }
+
+    /**
+     * Grid cells and unit steps that the given routes run through (coordinates snapped to the grid),
+     * used by getOccupancyPenalty while optimising.
+     */
+    buildRouteOccupancy(edges, grid) {
+        const points = new Set();
+        const steps  = new Set();
+        const snap = v => Math.round(v / grid) * grid;
+
+        for (const edge of edges) {
+            const route = edge.routePoints;
+            for (let i = 0; i < route.length - 1; i++) {
+                let x = snap(route[i].x), y = snap(route[i].y);
+                const x2 = snap(route[i + 1].x), y2 = snap(route[i + 1].y);
+                const dx = Math.sign(x2 - x) * grid;
+                const dy = Math.sign(y2 - y) * grid;
+                if (dx && dy) continue;   // diagonal (straight edge types): ignore
+
+                points.add(`${x},${y}`);
+                while ((dx || dy) && (x !== x2 || y !== y2)) {
+                    steps.add(this.occupancyStepKey(x, y, x + dx, y + dy));
+                    x += dx;
+                    y += dy;
+                    points.add(`${x},${y}`);
+                }
+            }
+        }
+        return { points, steps };
+    }
+
+    occupancyStepKey(x1, y1, x2, y2) {
+        return x1 < x2 || (x1 === x2 && y1 < y2) ? `${x1},${y1}|${x2},${y2}` : `${x2},${y2}|${x1},${y1}`;
+    }
+
+    /** A* step cost while optimising: running along another edge is expensive, crossing one is cheap. */
+    getOccupancyPenalty(from, to, grid) {
+        const occupancy = this.state.routeOccupancy;
+        if (!occupancy) return 0;
+
+        if (occupancy.steps.has(this.occupancyStepKey(from.x, from.y, to.x, to.y))) return grid * 3;
+        if (occupancy.points.has(`${to.x},${to.y}`)) return grid * 0.5;
+        return 0;
     }
 
 

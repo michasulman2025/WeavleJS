@@ -128,6 +128,15 @@ export function mount(container, config = {}) {
         redo()  { editor.redo(); },
         clear() { editor.clear(); },
 
+        /** Re-picks ports and re-routes edges; nodeIdsJson (optional) = JSON array limiting it to those nodes. */
+        optimizeEdges(nodeIdsJson) {
+            const nodeIds = nodeIdsJson ? (typeof nodeIdsJson === "string" ? JSON.parse(nodeIdsJson) : nodeIdsJson) : null;
+            return editor.optimizeEdges({ nodeIds: nodeIds && nodeIds.length ? nodeIds : null });
+        },
+
+        /** "LR" or "TB": flow direction for the tidy-up functions. */
+        setLayoutDirection(direction) { editor.setLayoutDirection(direction); },
+
         setReadOnly(readOnly) {
             const value = !!readOnly;
             if (editor.options.readOnly === value) return;
