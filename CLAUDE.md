@@ -91,7 +91,10 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
   the menu name when the default label is not one (connectors).
 - Edge splitting: dragging a single free node over an edge sets `state.splitEdgeId` (`findSplitEdgeFor`,
   rules in `canSplitEdgeWith`: at most one own edge, not to either end, both halves keep the edge type, optional
-  `diagram.canSplitEdge`); `renderSplitPreview` draws the halves; mouseup calls `splitEdgeWithNode`.
+  `diagram.canSplitEdge`; the edge must pass within a quarter of the node's smaller side of its centre);
+  `renderEdges` draws the edge as its two future halves (`renderSplitPreview`); mouseup calls `splitEdgeWithNode`.
+  The reverse is the built-in context action `detachNode` ("Losmaken", `detachNode(node)`, `hasEdges(node)`).
+  The open node tool surface is rebuilt on every `weavle:modelchanged` (`refreshNodeToolSurface`).
 - Edge routing: orthogonal — straight or simple routes first, then A* on a grid (`findPathWithAStar`),
   tuned per definition via `getRoutingConfig`.
 - The diagram definition is the extension point for new diagram types: shapes, nodeTypes, getPorts,

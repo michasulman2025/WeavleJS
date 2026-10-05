@@ -21,7 +21,6 @@
     --weavle-port-fill:          #ffffff;
     --weavle-port-stroke:        #2ea8df;
     --weavle-port-hot:           #eb6c4c;
-    --weavle-split-color:        #2ea8df;   /* preview when dropping a node onto an edge */
 
     /* Node tools (context pad) and menus */
     --weavle-ui-font:            12px/1.35 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -66,16 +65,8 @@
     user-select: none;
 }
 
-/* Dropping a node onto an edge: the edge fades, the two new halves are previewed. */
-.weavle-edge.is-split-target {
-    opacity: 0.25;
-}
-
-.weavle-edge--split-preview {
-    stroke: var(--weavle-split-color);
-    stroke-width: 2;
-    stroke-dasharray: 6 4;
-}
+/* Dropping a node onto an edge: the edge is drawn as the two halves it will become. These look like
+   regular edges (what you see is what you get on release); restyle .weavle-edge--split-preview to mark them. */
 
 /* ── Selection, handles, ports ────────────────────────────── */
 

@@ -868,8 +868,11 @@ export function createBpmnDefinition() {
         },
 
         // ── Context actions (floating rail) ──────────────────
-        getContextActions(node) {
+        getContextActions(node, engine) {
             const def = this.nodeTypes[node.type];
+
+            // Take the node out of its flow (A → node → B becomes A → B), to move it elsewhere.
+            const detach = engine?.hasEdges(node) ? [{ type: "detachNode", label: "Losmaken" }] : [];
 
             // Pools can get lanes; lanes and pools can be deleted (with their contents)
             if (node.type === "pool") {
@@ -885,7 +888,7 @@ export function createBpmnDefinition() {
 
             // Data objects, stores and annotations: nothing to add from there.
             if (["dataObject", "dataStore", "annotation"].includes(node.type)) {
-                return [{ type: "deleteNode", label: "Verwijderen" }];
+                return [...detach, { type: "deleteNode", label: "Verwijderen" }];
             }
 
             const label  = type => this.nodeTypes[type].defaultLabel;
@@ -936,7 +939,7 @@ export function createBpmnDefinition() {
                 );
             }
 
-            actions.push({ type: "deleteNode", label: "Verwijderen" });
+            actions.push(...detach, { type: "deleteNode", label: "Verwijderen" });
             return actions;
         },
 

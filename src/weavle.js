@@ -436,6 +436,10 @@ export class WeavleJS {
     emit(eventName, payload) {
         if (!this.container) return;
 
+        // The node tools depend on the model (e.g. "Losmaken" only for a connected node): rebuild the
+        // open surface after every change, so it never offers stale actions.
+        if (eventName === "weavle:modelchanged") this.refreshNodeToolSurface();
+
         this.container.dispatchEvent(
             new CustomEvent(eventName, {
                 detail: payload
@@ -793,6 +797,12 @@ export class WeavleJS {
             if (!sourceNode || !targetNode) return;
             if (!edge.sourceHandle || !edge.targetHandle) return;
 
+            // A dragged node hovers over this edge: show the two halves it would become instead.
+            if (edge.id === this.state.splitEdgeId && this.state.draggingNodeId) {
+                this.renderSplitPreview(edge);
+                return;
+            }
+
             const sourcePoint = this.getHandlePoint(sourceNode, edge.sourceHandle);
             const targetPoint = this.getHandlePoint(targetNode, edge.targetHandle);
 
@@ -840,8 +850,6 @@ export class WeavleJS {
             // Visible edge path.
             const visiblePath = this.createEdgePath(pathData, false, isSelected, this.getEdgeTypeDefinition(edge));
             visiblePath.setAttribute("data-edge-id", edge.id);
-            // The edge a dragged node would be inserted into: dimmed under the split preview.
-            if (edge.id === this.state.splitEdgeId) visiblePath.classList.add("is-split-target");
             this.layers.edges.appendChild(visiblePath);
 
             //If edge has a label, we place it on the right spot..
@@ -955,7 +963,6 @@ export class WeavleJS {
         if (this.state.draggingNodeId || this.state.draggingNodeIds) {
             const NS = "http://www.w3.org/2000/svg";
 
-            if (this.state.splitEdgeId) this.renderSplitPreview();
 
             if (this.state.snapGuideX !== null) {
                 const lineX = document.createElementNS(NS, "line");
@@ -4248,6 +4255,19 @@ export class WeavleJS {
         this.state.nodeToolNodeId = node.id;
     }
 
+    /** Rebuilds the open node tool surface (if any) for its node; drops it if the node is gone or deselected. */
+    refreshNodeToolSurface() {
+        const id = this.state.nodeToolNodeId;
+        if (!id) return;
+
+        const node = this.getNode(id);
+        if (node && this.isNodeSelected(id) && this.getSelectedNodeIds().length === 1) {
+            this.renderNodeToolSurface(node);
+        } else {
+            this.clearNodeToolSurface();
+        }
+    }
+
 
 
     // ------------------------------------------------------------
@@ -4498,7 +4518,7 @@ export class WeavleJS {
         svg.setAttribute("width", "20");
         svg.setAttribute("height", "20");
 
-        const icon = action.icon || (action.type === "deleteNode" ? "delete" : null);
+        const icon = action.icon || { deleteNode: "delete", detachNode: "detach" }[action.type] || null;
 
         const add = (tag, attrs) => {
             const el = document.createElementNS(NS, tag);
@@ -4513,6 +4533,12 @@ export class WeavleJS {
             add("path", {
                 d: "M 26 8 A 7 7 0 0 0 19 17 L 9 27 A 3 3 0 0 0 13 31 L 23 21 A 7 7 0 0 0 32 14 L 27 17 L 23 13 Z",
                 fill: "none", stroke: "currentColor", "stroke-width": 2.2, "stroke-linejoin": "round"
+            });
+        } else if (icon === "detach") {
+            // A broken chain: two link halves pulled apart.
+            add("path", {
+                d: "M 17 23 L 12 28 A 4 4 0 0 1 6 22 L 11 17 M 23 17 L 28 12 A 4 4 0 0 1 34 18 L 29 23 M 14 9 L 15 13 M 9 14 L 13 15 M 26 31 L 25 27 M 31 26 L 27 25",
+                fill: "none", stroke: "currentColor", "stroke-width": 2.5, "stroke-linecap": "round", "stroke-linejoin": "round"
             });
         } else if (icon === "plus") {
             add("path", { d: "M 20 10 L 20 30 M 10 20 L 30 20", fill: "none", stroke: "currentColor", "stroke-width": 3, "stroke-linecap": "round" });
@@ -4678,6 +4704,16 @@ export class WeavleJS {
             this.pushHistory();
             this.emit("weavle:modelchanged", { model: this.getData() });
             this.render();
+            return;
+        }
+
+        if (action.type === "detachNode") {
+            if (!this.detachNode(node)) return;
+
+            this.pushHistory();
+            this.emit("weavle:modelchanged", { model: this.getData() });
+            this.render();
+            if (this.isNodeSelected(node.id)) this.renderNodeToolSurface(node);
             return;
         }
 
@@ -5083,7 +5119,11 @@ export class WeavleJS {
         return true;
     }
 
-    /** The edge under a dragged node that it could be inserted into (closest to its centre), or null. */
+    /**
+     * The edge under a dragged node that it could be inserted into, or null. The edge must pass close
+     * to the node's centre (within a quarter of its smaller side, at least 12), so merely touching an
+     * edge with a corner does not offer a split.
+     */
     findSplitEdgeFor(node) {
         if (!node) return null;
 
@@ -5092,7 +5132,7 @@ export class WeavleJS {
         const cy = node.y + node.height / 2;
 
         let best = null;
-        let bestDist = Infinity;
+        let bestDist = Math.max(12, Math.min(node.width, node.height) / 4);
 
         for (const edge of this.model.edges) {
             const points = edge.routePoints;
@@ -5192,9 +5232,11 @@ export class WeavleJS {
         return second;
     }
 
-    /** Dashed previews of both halves while a node hovers over a splittable edge. */
-    renderSplitPreview() {
-        const edge = this.model.edges.find(e => e.id === this.state.splitEdgeId);
+    /**
+     * Draws, in place of the edge, the two halves exactly as they will look after the drop
+     * (same routing, style and label); called by renderEdges for state.splitEdgeId.
+     */
+    renderSplitPreview(edge) {
         const node = this.getNode(this.state.draggingNodeId);
         if (!edge || !node) return;
 
@@ -5204,13 +5246,67 @@ export class WeavleJS {
 
             const path = this.createEdgePath(
                 this.buildRoundedOrthogonalPath(points, this.options.edgeCornerRadius),
-                true,
+                false,
                 false,
                 this.getEdgeTypeDefinition(half)
             );
             path.classList.add("weavle-edge--split-preview");
-            this.layers.overlay.appendChild(path);
+            this.layers.edges.appendChild(path);
+
+            if (half.label) {
+                this.layers.edges.appendChild(this.createEdgeLabelFromPoints(points, half.label));
+            }
         });
+    }
+
+    /**
+     * Takes a node out of the flow so it can be moved elsewhere: removes its edges and, when it sat
+     * between exactly one incoming and one outgoing edge (A → node → B), reconnects A → B
+     * (the reverse of dropping a node onto an edge). Returns false if the node had no edges.
+     */
+    detachNode(node) {
+        const own = this.model.edges.filter(e => e.sourceNodeId === node.id || e.targetNodeId === node.id);
+        if (!own.length) return false;
+
+        const incoming = own.filter(e => e.targetNodeId === node.id);
+        const outgoing = own.filter(e => e.sourceNodeId === node.id);
+
+        this.model.edges = this.model.edges.filter(e => !own.includes(e));
+
+        if (incoming.length === 1 && outgoing.length === 1) {
+            const into = incoming[0];
+            const out  = outgoing[0];
+            const sourceId = into.sourceNodeId;
+            const targetId = out.targetNodeId;
+            const exists = this.model.edges.some(e => e.sourceNodeId === sourceId && e.targetNodeId === targetId);
+
+            if (sourceId !== targetId && !exists) {
+                const joined = {
+                    ...into,
+                    targetNodeId: targetId,
+                    targetHandle: out.targetHandle,
+                    label:        into.label || out.label || "",
+                    routePoints:  [],
+                    routingMeta:  null,
+                    isAutoRoute:  true
+                };
+                delete joined.bendPoints;
+
+                this.assignEdgeType(joined);
+                this.updateEdgeRoute(joined);
+                this.model.edges.push(joined);
+            }
+        }
+
+        if (this.state.selectedEdgeId && !this.model.edges.some(e => e.id === this.state.selectedEdgeId)) {
+            this.state.selectedEdgeId = null;
+        }
+        return true;
+    }
+
+    /** True if any edge starts or ends at the node. */
+    hasEdges(node) {
+        return !!node && this.model.edges.some(e => e.sourceNodeId === node.id || e.targetNodeId === node.id);
     }
 
 

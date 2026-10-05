@@ -16,10 +16,14 @@
   opmerkingen (on-page connector, off-page connector, comment). Small symbols label below the shape;
   a comment is linked with a dashed line without an arrow (edge type `comment`, flow lines are `flow`).
 - **Drop a node onto an edge** to insert it into the flow: while dragging a free node (no edges, or one
-  edge to another node) over an edge, the edge fades and the two new halves are previewed; on release
-  A → B becomes A → node → B. Only where both halves keep the edge's type (an annotation or data object
-  never splits a flow); definitions can narrow it with `canSplitEdge(edge, node, engine)`. Styling:
-  `.weavle-edge.is-split-target`, `.weavle-edge--split-preview`, `--weavle-split-color`.
+  edge to another node) with its centre over an edge, the edge is drawn as the two halves it will become,
+  exactly as they will look after the release; on release A → B becomes A → node → B. Only where both
+  halves keep the edge's type (an annotation or data object never splits a flow); definitions can narrow it
+  with `canSplitEdge(edge, node, engine)`. The halves carry `.weavle-edge--split-preview` for custom styling.
+- **"Losmaken"** in the node tools (flowchart and BPMN, when the node has edges): built-in action
+  `detachNode` removes the node's edges and, if it sat between one incoming and one outgoing edge,
+  reconnects A → B — the reverse of dropping it onto an edge. Icon "detach".
+- The node tools are rebuilt after every model change, so they never offer stale actions.
 - Submenus can hold section headings (`{ type: "heading", label }` children), used to group "Type wijzigen".
 - `nodeTypes[type].title`: the name in menus and the toolbar when the default label is not a good name
   (connector "A" → "On-page verbinder"); `getTypeTitle(type)`.

@@ -596,21 +596,21 @@ function s() {
 		routeEdge({ sourcePoint: e, targetPoint: t, sourceHandle: n, targetHandle: r, edge: i, engine: a }) {
 			return a.buildRoutedEdgePoints(e, t, n, r, i);
 		},
-		getContextActions(e) {
-			let t = (e) => this.nodeTypes[e].title || this.nodeTypes[e].defaultLabel;
+		getContextActions(e, t) {
+			let n = (e) => this.nodeTypes[e].title || this.nodeTypes[e].defaultLabel;
 			return [
 				{
 					type: "group",
 					label: "Type wijzigen",
 					icon: "wrench",
-					children: o.flatMap((n) => [{
+					children: o.flatMap((t) => [{
 						type: "heading",
-						label: n.group
-					}, ...n.types.map((n) => ({
+						label: t.group
+					}, ...t.types.map((t) => ({
 						type: "changeType",
-						nodeType: n,
-						label: t(n),
-						active: n === e.type
+						nodeType: t,
+						label: n(t),
+						active: t === e.type
 					}))])
 				},
 				...o.map((e) => ({
@@ -620,9 +620,13 @@ function s() {
 					children: e.types.map((e) => ({
 						type: "addConnectedNode",
 						nodeType: e,
-						label: t(e)
+						label: n(e)
 					}))
 				})),
+				...t?.hasEdges(e) ? [{
+					type: "detachNode",
+					label: "Losmaken"
+				}] : [],
 				{
 					type: "deleteNode",
 					label: "Verwijderen"
@@ -1873,8 +1877,11 @@ function b() {
 		routeEdge({ sourcePoint: e, targetPoint: t, sourceHandle: n, targetHandle: r, edge: i, engine: a }) {
 			return a.buildRoutedEdgePoints(e, t, n, r, i);
 		},
-		getContextActions(e) {
-			let t = this.nodeTypes[e.type];
+		getContextActions(e, t) {
+			let n = this.nodeTypes[e.type], r = t?.hasEdges(e) ? [{
+				type: "detachNode",
+				label: "Losmaken"
+			}] : [];
 			if (e.type === "pool") return [{
 				type: "addLane",
 				nodeType: "swimlane",
@@ -1883,34 +1890,38 @@ function b() {
 				type: "deleteNode",
 				label: "Verwijderen"
 			}];
-			if (t && t.isContainer || [
-				"dataObject",
-				"dataStore",
-				"annotation"
-			].includes(e.type)) return [{
+			if (n && n.isContainer) return [{
 				type: "deleteNode",
 				label: "Verwijderen"
 			}];
-			let n = (e) => this.nodeTypes[e].defaultLabel, r = (e) => ({
+			if ([
+				"dataObject",
+				"dataStore",
+				"annotation"
+			].includes(e.type)) return [...r, {
+				type: "deleteNode",
+				label: "Verwijderen"
+			}];
+			let i = (e) => this.nodeTypes[e].defaultLabel, a = (e) => ({
 				type: "addConnectedNode",
 				nodeType: e,
-				label: n(e)
-			}), i = this.getTypeFamily(e.type), a = [];
-			i && a.push({
+				label: i(e)
+			}), o = this.getTypeFamily(e.type), s = [];
+			o && s.push({
 				type: "group",
 				label: "Type wijzigen",
 				icon: "wrench",
-				children: i.map((t) => ({
+				children: o.map((t) => ({
 					type: "changeType",
 					nodeType: t,
-					label: n(t),
+					label: i(t),
 					active: t === e.type
 				}))
 			});
-			let o = f[e.type];
-			if (o?.kind === "boundary" && !o.alwaysInterrupting) {
+			let c = f[e.type];
+			if (c?.kind === "boundary" && !c.alwaysInterrupting) {
 				let t = e.interrupting !== !1;
-				a.push({
+				s.push({
 					type: "group",
 					label: "Gedrag",
 					nodeType: e.type,
@@ -1929,30 +1940,30 @@ function b() {
 					}]
 				});
 			}
-			return m.includes(e.type) && a.push({
+			return m.includes(e.type) && s.push({
 				type: "group",
 				label: "Boundary event",
 				nodeType: "timerBoundaryEvent",
 				children: Object.keys(f).filter((e) => f[e].kind === "boundary").map((e) => ({
 					type: "addBoundaryEvent",
 					nodeType: e,
-					label: n(e)
+					label: i(e)
 				}))
-			}), o?.kind !== "end" && a.push({
+			}), c?.kind !== "end" && s.push({
 				type: "group",
 				label: "Activiteit toevoegen",
 				nodeType: "task",
-				children: m.map(r)
+				children: m.map(a)
 			}, {
 				type: "group",
 				label: "Gateway toevoegen",
 				nodeType: "exclusiveGateway",
-				children: h.map(r)
+				children: h.map(a)
 			}, {
 				type: "group",
 				label: "Event toevoegen",
 				nodeType: "intermediateEvent",
-				children: Object.keys(f).filter((e) => ["intermediate", "end"].includes(f[e].kind)).map(r)
+				children: Object.keys(f).filter((e) => ["intermediate", "end"].includes(f[e].kind)).map(a)
 			}, {
 				type: "group",
 				label: "Data & annotatie",
@@ -1961,11 +1972,11 @@ function b() {
 					"dataObject",
 					"dataStore",
 					"annotation"
-				].map(r)
-			}), a.push({
+				].map(a)
+			}), s.push(...r, {
 				type: "deleteNode",
 				label: "Verwijderen"
-			}), a;
+			}), s;
 		},
 		getNodeInteractionMode(e) {
 			return "action-surface";
@@ -2372,7 +2383,7 @@ var x = class {
 		return JSON.parse(JSON.stringify(this.model));
 	}
 	emit(e, t) {
-		this.container && this.container.dispatchEvent(new CustomEvent(e, { detail: t }));
+		this.container && (e === "weavle:modelchanged" && this.refreshNodeToolSurface(), this.container.dispatchEvent(new CustomEvent(e, { detail: t })));
 	}
 	emitModelChanged() {
 		this.emit("weavle:modelchanged", { model: this.getData() });
@@ -2484,12 +2495,16 @@ var x = class {
 		[...t, ...n].forEach((e) => {
 			let t = this.model.nodes.find((t) => t.id === e.sourceNodeId), n = this.model.nodes.find((t) => t.id === e.targetNodeId);
 			if (!t || !n || !e.sourceHandle || !e.targetHandle) return;
+			if (e.id === this.state.splitEdgeId && this.state.draggingNodeId) {
+				this.renderSplitPreview(e);
+				return;
+			}
 			let r = this.getHandlePoint(t, e.sourceHandle), i = this.getHandlePoint(n, e.targetHandle), a = e.routePoints, o = this.state.draggingNodeId || this.state.resizingNodeId;
 			if (o && (e.sourceNodeId === o || e.targetNodeId === o) && (a = e.isAutoRoute === !1 ? this.getManualEdgePreviewRoute(e) : this.getEdgeRoute(r, i, e.sourceHandle, e.targetHandle, e)), !Array.isArray(a) || a.length < 2) return;
 			let s = this.buildRoundedOrthogonalPath(a, this.options.edgeCornerRadius), c = e.id === this.state.selectedEdgeId, l = this.createEdgeHitPath(s, e.id);
 			this.layers.edges.appendChild(l);
 			let u = this.createEdgePath(s, !1, c, this.getEdgeTypeDefinition(e));
-			if (u.setAttribute("data-edge-id", e.id), e.id === this.state.splitEdgeId && u.classList.add("is-split-target"), this.layers.edges.appendChild(u), e.label) {
+			if (u.setAttribute("data-edge-id", e.id), this.layers.edges.appendChild(u), e.label) {
 				let t = this.createEdgeLabelFromPoints(a, e.label);
 				this.layers.edges.appendChild(t);
 			}
@@ -2535,7 +2550,7 @@ var x = class {
 		}
 		if (this.state.draggingNodeId || this.state.draggingNodeIds) {
 			let e = "http://www.w3.org/2000/svg";
-			if (this.state.splitEdgeId && this.renderSplitPreview(), this.state.snapGuideX !== null) {
+			if (this.state.snapGuideX !== null) {
 				let t = document.createElementNS(e, "line");
 				t.setAttribute("x1", this.state.snapGuideX), t.setAttribute("y1", 0), t.setAttribute("x2", this.state.snapGuideX), t.setAttribute("y2", this.options.height), t.setAttribute("stroke", "#4da3ff"), t.setAttribute("stroke-width", "1"), t.setAttribute("stroke-dasharray", "4,4"), t.setAttribute("pointer-events", "none"), this.layers.overlay.appendChild(t);
 			}
@@ -4052,6 +4067,12 @@ var x = class {
 		let r = this.createToolSurfaceShell(e, t);
 		this.renderToolSurfaceContent(r, e, n), this.mountToolSurface(r, e, t), this.nodeToolEl = r, this.state.nodeToolNodeId = e.id;
 	}
+	refreshNodeToolSurface() {
+		let e = this.state.nodeToolNodeId;
+		if (!e) return;
+		let t = this.getNode(e);
+		t && this.isNodeSelected(e) && this.getSelectedNodeIds().length === 1 ? this.renderNodeToolSurface(t) : this.clearNodeToolSurface();
+	}
 	getCanvasActions() {
 		if (typeof this.diagram.getCanvasActions == "function") return this.diagram.getCanvasActions(this) || [];
 		let e = (e) => ({
@@ -4153,7 +4174,10 @@ var x = class {
 	createActionIcon(e) {
 		let t = "http://www.w3.org/2000/svg", n = document.createElementNS(t, "svg");
 		n.setAttribute("class", "weavle-tool-icon"), n.setAttribute("viewBox", "0 0 40 40"), n.setAttribute("width", "20"), n.setAttribute("height", "20");
-		let r = e.icon || (e.type === "deleteNode" ? "delete" : null), i = (e, r) => {
+		let r = e.icon || {
+			deleteNode: "delete",
+			detachNode: "detach"
+		}[e.type] || null, i = (e, r) => {
 			let i = document.createElementNS(t, e);
 			for (let [e, t] of Object.entries(r)) i.setAttribute(e, t);
 			i.setAttribute("class", "weavle-tool-glyph"), n.appendChild(i);
@@ -4169,6 +4193,13 @@ var x = class {
 			fill: "none",
 			stroke: "currentColor",
 			"stroke-width": 2.2,
+			"stroke-linejoin": "round"
+		}) : r === "detach" ? i("path", {
+			d: "M 17 23 L 12 28 A 4 4 0 0 1 6 22 L 11 17 M 23 17 L 28 12 A 4 4 0 0 1 34 18 L 29 23 M 14 9 L 15 13 M 9 14 L 13 15 M 26 31 L 25 27 M 31 26 L 27 25",
+			fill: "none",
+			stroke: "currentColor",
+			"stroke-width": 2.5,
+			"stroke-linecap": "round",
 			"stroke-linejoin": "round"
 		}) : r === "plus" ? i("path", {
 			d: "M 20 10 L 20 30 M 10 20 L 30 20",
@@ -4247,6 +4278,11 @@ var x = class {
 			if (e.type === "addConnectedNode") {
 				let n = this.createConnectedNode(t, e.nodeType);
 				n && (this.selectSingleNode(n.id), this.renderNodeToolSurface(n), this.emitSelectionChanged()), this.pushHistory(), this.emit("weavle:modelchanged", { model: this.getData() }), this.render();
+				return;
+			}
+			if (e.type === "detachNode") {
+				if (!this.detachNode(t)) return;
+				this.pushHistory(), this.emit("weavle:modelchanged", { model: this.getData() }), this.render(), this.isNodeSelected(t.id) && this.renderNodeToolSurface(t);
 				return;
 			}
 			if (e.type === "deleteNode") {
@@ -4382,7 +4418,7 @@ var x = class {
 			y: e.y,
 			width: e.width,
 			height: e.height
-		}, n = e.x + e.width / 2, r = e.y + e.height / 2, i = null, a = Infinity;
+		}, n = e.x + e.width / 2, r = e.y + e.height / 2, i = null, a = Math.max(12, Math.min(e.width, e.height) / 4);
 		for (let o of this.model.edges) {
 			let s = o.routePoints;
 			if (!(!Array.isArray(s) || s.length < 2)) for (let c = 0; c < s.length - 1; c++) {
@@ -4441,17 +4477,41 @@ var x = class {
 			this.assignEdgeType(e), this.updateEdgeRoute(e);
 		}), r;
 	}
-	renderSplitPreview() {
-		let e = this.model.edges.find((e) => e.id === this.state.splitEdgeId), t = this.getNode(this.state.draggingNodeId);
+	renderSplitPreview(e) {
+		let t = this.getNode(this.state.draggingNodeId);
 		e && t && this.buildSplitEdges(e, t).forEach((e) => {
 			let t = this.routeTemporaryEdge({
 				...e,
 				id: "__split__"
 			});
 			if (!t || t.length < 2) return;
-			let n = this.createEdgePath(this.buildRoundedOrthogonalPath(t, this.options.edgeCornerRadius), !0, !1, this.getEdgeTypeDefinition(e));
-			n.classList.add("weavle-edge--split-preview"), this.layers.overlay.appendChild(n);
+			let n = this.createEdgePath(this.buildRoundedOrthogonalPath(t, this.options.edgeCornerRadius), !1, !1, this.getEdgeTypeDefinition(e));
+			n.classList.add("weavle-edge--split-preview"), this.layers.edges.appendChild(n), e.label && this.layers.edges.appendChild(this.createEdgeLabelFromPoints(t, e.label));
 		});
+	}
+	detachNode(e) {
+		let t = this.model.edges.filter((t) => t.sourceNodeId === e.id || t.targetNodeId === e.id);
+		if (!t.length) return !1;
+		let n = t.filter((t) => t.targetNodeId === e.id), r = t.filter((t) => t.sourceNodeId === e.id);
+		if (this.model.edges = this.model.edges.filter((e) => !t.includes(e)), n.length === 1 && r.length === 1) {
+			let e = n[0], t = r[0], i = e.sourceNodeId, a = t.targetNodeId, o = this.model.edges.some((e) => e.sourceNodeId === i && e.targetNodeId === a);
+			if (i !== a && !o) {
+				let n = {
+					...e,
+					targetNodeId: a,
+					targetHandle: t.targetHandle,
+					label: e.label || t.label || "",
+					routePoints: [],
+					routingMeta: null,
+					isAutoRoute: !0
+				};
+				delete n.bendPoints, this.assignEdgeType(n), this.updateEdgeRoute(n), this.model.edges.push(n);
+			}
+		}
+		return this.state.selectedEdgeId && !this.model.edges.some((e) => e.id === this.state.selectedEdgeId) && (this.state.selectedEdgeId = null), !0;
+	}
+	hasEdges(e) {
+		return !!e && this.model.edges.some((t) => t.sourceNodeId === e.id || t.targetNodeId === e.id);
 	}
 	isContainer(e) {
 		return !!(e && this.diagram.nodeTypes?.[e.type]?.isContainer);

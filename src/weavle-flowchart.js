@@ -582,7 +582,7 @@ export function createFlowchartDefinition() {
 
         // Same menu style as BPMN: change type, add a connected step, delete.
         // One "add" submenu per shape group; "Type wijzigen" lists every shape under group headings.
-        getContextActions(node) {
+        getContextActions(node, engine) {
             const label = type => this.nodeTypes[type].title || this.nodeTypes[type].defaultLabel;
 
             return [
@@ -597,6 +597,8 @@ export function createFlowchartDefinition() {
                     type: "group", label: g.group + " toevoegen", nodeType: g.types[0],
                     children: g.types.map(t => ({ type: "addConnectedNode", nodeType: t, label: label(t) }))
                 })),
+                // Take the node out of its flow (A → node → B becomes A → B), to move it elsewhere.
+                ...(engine?.hasEdges(node) ? [{ type: "detachNode", label: "Losmaken" }] : []),
                 { type: "deleteNode", label: "Verwijderen" }
             ];
         },
