@@ -944,9 +944,10 @@ export function createBpmnDefinition() {
         },
 
         // Node tools float next to the selected node (like the bpmn.io context pad).
-        // BPMN processes read left to right.
+        // BPMN processes read left to right; only sequence flows shape the layout
+        // (message flows, associations and data associations just follow).
         getLayoutConfig() {
-            return { direction: "LR" };
+            return { direction: "LR", isFlowEdge: edge => (edge.type || "sequenceFlow") === "sequenceFlow" };
         },
 
         getNodeInteractionMode(node) {

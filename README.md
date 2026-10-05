@@ -18,6 +18,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the design and roadmap.
   annotations, pools & lanes — with "change type" in the node tools
 - Drag, multi-select (Ctrl+click, marquee), group drag, delete, undo / redo
 - Orthogonal edge routing with obstacle avoidance (A*), live while dragging
+- "Flow optimaliseren": automatic layered layout (left → right or top → bottom), then tidy edges
 - "Lijnen optimaliseren": re-picks ports and re-routes all (or selected) edges for fewer bends, crossings and overlaps
 - Drop a shape onto an edge to insert it into the flow (live preview of the result); "Losmaken" takes it out again
 - Edge types per diagram: orthogonal or straight, filled / open / no arrowheads, dash patterns

@@ -134,6 +134,12 @@ export function mount(container, config = {}) {
             return editor.optimizeEdges({ nodeIds: nodeIds && nodeIds.length ? nodeIds : null });
         },
 
+        /** Lays out the flow in layers and re-routes the edges; nodeIdsJson (optional) limits it to those nodes. */
+        optimizeLayout(nodeIdsJson) {
+            const nodeIds = nodeIdsJson ? (typeof nodeIdsJson === "string" ? JSON.parse(nodeIdsJson) : nodeIdsJson) : null;
+            return editor.optimizeLayout({ nodeIds: nodeIds && nodeIds.length ? nodeIds : null });
+        },
+
         /** "LR" or "TB": flow direction for the tidy-up functions. */
         setLayoutDirection(direction) { editor.setLayoutDirection(direction); },
 

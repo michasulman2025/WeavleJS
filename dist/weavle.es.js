@@ -750,7 +750,10 @@ function s({ direction: e = "TB" } = {}) {
 			};
 		},
 		getLayoutConfig() {
-			return { direction: e };
+			return {
+				direction: e,
+				isFlowEdge: (e) => e.type !== "comment"
+			};
 		},
 		getNodeInteractionMode(e) {
 			return "action-surface";
@@ -1982,7 +1985,10 @@ function b() {
 			}), s;
 		},
 		getLayoutConfig() {
-			return { direction: "LR" };
+			return {
+				direction: "LR",
+				isFlowEdge: (e) => (e.type || "sequenceFlow") === "sequenceFlow"
+			};
 		},
 		getNodeInteractionMode(e) {
 			return "action-surface";
@@ -2243,8 +2249,225 @@ function b() {
 	};
 }
 //#endregion
+//#region src/weavle-layout.js
+function x(e, t = {}) {
+	let n = {
+		direction: "LR",
+		layerGap: 80,
+		nodeGap: 50,
+		componentGap: 80,
+		...t
+	}, r = n.direction !== "TB", i = (e) => r ? e.width : e.height, a = (e) => r ? e.height : e.width, o = (e) => r ? e.y : e.x, s = /* @__PURE__ */ new Map(), c = 0;
+	for (let t of S(e)) {
+		let e = C(t, n, i, a, o), l = Infinity, u = -Infinity;
+		for (let [n, r] of e.positions) {
+			let e = a(t.nodeById.get(n)) / 2;
+			l = Math.min(l, r.across - e), u = Math.max(u, r.across + e);
+		}
+		for (let [t, n] of e.positions) {
+			let e = n.across - l + c;
+			s.set(t, r ? {
+				x: n.along,
+				y: e
+			} : {
+				x: e,
+				y: n.along
+			});
+		}
+		c += u - l + n.componentGap;
+	}
+	let l = Infinity, u = Infinity, d = new Map(e.nodes.map((e) => [e.id, e]));
+	for (let [e, t] of s) {
+		let n = d.get(e);
+		l = Math.min(l, t.x - n.width / 2), u = Math.min(u, t.y - n.height / 2);
+	}
+	for (let e of s.values()) e.x -= l, e.y -= u;
+	return s;
+}
+function S(e) {
+	let t = new Map(e.nodes.map((e) => [e.id, e])), n = new Map(e.nodes.map((e) => [e.id, []])), r = e.edges.filter((e) => t.has(e.source) && t.has(e.target) && e.source !== e.target);
+	r.forEach((e) => {
+		n.get(e.source).push(e.target), n.get(e.target).push(e.source);
+	});
+	let i = /* @__PURE__ */ new Set(), a = [];
+	for (let o of e.nodes) {
+		if (i.has(o.id)) continue;
+		let e = [], s = [o.id];
+		for (i.add(o.id); s.length;) {
+			let t = s.pop();
+			e.push(t);
+			for (let e of n.get(t)) i.has(e) || (i.add(e), s.push(e));
+		}
+		let c = new Set(e);
+		a.push({
+			nodes: e.map((e) => t.get(e)),
+			edges: r.filter((e) => c.has(e.source)),
+			nodeById: t
+		});
+	}
+	return a;
+}
+function C(e, t, n, r, i) {
+	let { nodes: a, edges: o, nodeById: s } = e, c = w(a, o, i), l = T(a, c), u = E(a, c, l), d = D(u, l, s, i), f = d.map((e) => Math.max(0, ...e.map((e) => u.isDummy(e) ? 0 : n(s.get(e))))), p = [], m = 0;
+	f.forEach((e, n) => {
+		p[n] = m + e / 2, m += e + t.layerGap;
+	});
+	let h = k(d, u, s, r, t.nodeGap), g = /* @__PURE__ */ new Map();
+	return d.forEach((e, t) => e.forEach((e) => {
+		u.isDummy(e) || g.set(e, {
+			along: p[t],
+			across: h.get(e)
+		});
+	})), { positions: g };
+}
+function w(e, t, n) {
+	let r = new Map(e.map((e) => [e.id, []])), i = new Map(e.map((e) => [e.id, 0]));
+	t.forEach((e) => {
+		r.get(e.source).push(e), i.set(e.target, i.get(e.target) + 1);
+	});
+	let a = /* @__PURE__ */ new Map(), o = /* @__PURE__ */ new Set(), s = [...e].sort((e, t) => (i.get(e.id) === 0 ? 0 : 1) - (i.get(t.id) === 0 ? 0 : 1) || n(e) - n(t)), c = (e) => {
+		a.set(e, 1);
+		for (let t of r.get(e)) {
+			let e = a.get(t.target);
+			e === 1 ? o.add(t) : e || c(t.target);
+		}
+		a.set(e, 2);
+	};
+	return s.forEach((e) => {
+		a.get(e.id) || c(e.id);
+	}), t.filter((e) => !o.has(e)).map((e) => ({
+		source: e.source,
+		target: e.target
+	}));
+}
+function T(e, t) {
+	let n = new Map(e.map((e) => [e.id, []])), r = new Map(e.map((e) => [e.id, []]));
+	t.forEach((e) => {
+		n.get(e.target).push(e.source), r.get(e.source).push(e.target);
+	});
+	let i = /* @__PURE__ */ new Map(), a = (e) => {
+		if (i.has(e)) return i.get(e);
+		i.set(e, 0);
+		let t = n.get(e).length ? Math.max(...n.get(e).map((e) => a(e) + 1)) : 0;
+		return i.set(e, t), t;
+	};
+	return e.forEach((e) => a(e.id)), e.forEach((e) => {
+		!n.get(e.id).length && r.get(e.id).length && i.set(e.id, Math.max(0, Math.min(...r.get(e.id).map((e) => i.get(e))) - 1));
+	}), i;
+}
+function E(e, t, n) {
+	let r = /* @__PURE__ */ new Set(), i = new Map(e.map((e) => [e.id, []])), a = new Map(e.map((e) => [e.id, []])), o = 0, s = (e, t) => {
+		a.get(e).push(t), i.get(t).push(e);
+	};
+	return t.forEach((e) => {
+		let t = e.source;
+		for (let c = n.get(e.source) + 1; c < n.get(e.target); c++) {
+			let e = `__dummy_${o++}`;
+			r.add(e), n.set(e, c), i.set(e, []), a.set(e, []), s(t, e), t = e;
+		}
+		s(t, e.target);
+	}), {
+		up: i,
+		down: a,
+		layer: n,
+		isDummy: (e) => r.has(e)
+	};
+}
+function D(e, t, n, r) {
+	let i = Math.max(...t.values()) + 1, a = Array.from({ length: i }, () => []);
+	for (let [e, n] of t) a[n].push(e);
+	let o = /* @__PURE__ */ new Map(), s = (t) => {
+		if (o.has(t)) return o.get(t);
+		let i = e.isDummy(t) ? s(e.up.get(t)[0]) : r(n.get(t));
+		return o.set(t, i), i;
+	};
+	a.forEach((e) => e.sort((e, t) => s(e) - s(t)));
+	let c = /* @__PURE__ */ new Map(), l = () => a.forEach((e) => e.forEach((e, t) => c.set(e, t)));
+	l();
+	let u = a.map((e) => [...e]), d = O(a, e, c);
+	for (let t = 0; t < 12 && d > 0; t++) {
+		let n = t % 2 == 0, r = n ? [...Array(i).keys()].slice(1) : [...Array(i).keys()].reverse().slice(1);
+		for (let t of r) {
+			let r = n ? e.up : e.down, i = /* @__PURE__ */ new Map();
+			a[t].forEach((e) => {
+				let t = r.get(e);
+				i.set(e, t.length ? t.reduce((e, t) => e + c.get(t), 0) / t.length : c.get(e));
+			}), a[t].sort((e, t) => i.get(e) - i.get(t) || c.get(e) - c.get(t)), a[t].forEach((e, t) => c.set(e, t));
+		}
+		let o = O(a, e, c);
+		o < d && (d = o, u = a.map((e) => [...e]));
+	}
+	return u.forEach((e, t) => {
+		a[t] = e;
+	}), l(), a;
+}
+function O(e, t, n) {
+	let r = 0;
+	for (let i = 0; i < e.length - 1; i++) {
+		let a = [];
+		e[i].forEach((e) => t.down.get(e).forEach((t) => a.push([n.get(e), n.get(t)])));
+		for (let e = 0; e < a.length; e++) for (let t = e + 1; t < a.length; t++) {
+			let [n, i] = a[e], [o, s] = a[t];
+			(n - o) * (i - s) < 0 && r++;
+		}
+	}
+	return r;
+}
+function k(e, t, n, r, i) {
+	let a = (e) => t.isDummy(e) ? 0 : r(n.get(e)), o = /* @__PURE__ */ new Map();
+	e.forEach((e) => {
+		let t = 0;
+		e.forEach((e) => {
+			o.set(e, t + a(e) / 2), t += a(e) + i;
+		});
+	});
+	let s = (e, t, n) => {
+		let r = [], s = 0;
+		e.forEach((t, n) => {
+			n > 0 && (s += (a(e[n - 1]) + a(t)) / 2 + i), r.push(s);
+		});
+		let c = A(e.map((e, n) => t.get(e) - r[n]), e.map(n));
+		e.forEach((e, t) => o.set(e, c[t] + r[t]));
+	}, c = (e) => t.isDummy(e) ? 4 : 1, l = (e) => {
+		let t = e.map((e) => o.get(e)).sort((e, t) => e - t), n = Math.floor(t.length / 2);
+		return t.length % 2 ? t[n] : (t[n - 1] + t[n]) / 2;
+	};
+	for (let n = 0; n < 9; n++) {
+		let r = n % 2 == 0, i = r ? e.slice(1) : e.slice(0, -1).reverse(), a = r ? t.up : t.down;
+		i.forEach((e) => {
+			let t = /* @__PURE__ */ new Map();
+			e.forEach((e) => {
+				let n = a.get(e);
+				t.set(e, n.length ? l(n) : o.get(e));
+			}), s(e, t, c);
+		});
+	}
+	return o;
+}
+function A(e, t) {
+	let n = [];
+	e.forEach((e, r) => {
+		for (n.push({
+			value: e,
+			weight: t[r],
+			count: 1
+		}); n.length > 1 && n[n.length - 2].value > n[n.length - 1].value;) {
+			let e = n.pop(), t = n.pop(), r = t.weight + e.weight;
+			n.push({
+				value: (t.value * t.weight + e.value * e.weight) / r,
+				weight: r,
+				count: t.count + e.count
+			});
+		}
+	});
+	let r = [];
+	return n.forEach((e) => {
+		for (let t = 0; t < e.count; t++) r.push(e.value);
+	}), r;
+}
+//#endregion
 //#region src/weavle.js
-var x = class {
+var j = class {
 	constructor(e, t = {}, n = null) {
 		this.container = typeof e == "string" ? document.querySelector(e) : e, this.options = Object.assign({
 			width: 1200,
@@ -4099,6 +4322,10 @@ var x = class {
 	}
 	getTidyActions() {
 		return this.options.tidyTools === !1 ? [] : [{
+			type: "optimizeLayout",
+			label: "Flow optimaliseren",
+			icon: "tidyFlow"
+		}, {
 			type: "optimizeEdges",
 			label: "Lijnen optimaliseren",
 			icon: "tidyEdges"
@@ -4122,6 +4349,10 @@ var x = class {
 		}
 		if (e.type === "optimizeEdges") {
 			this.optimizeEdges();
+			return;
+		}
+		if (e.type === "optimizeLayout") {
+			this.optimizeLayout();
 			return;
 		}
 		typeof this.diagram.handleCanvasAction == "function" && this.diagram.handleCanvasAction(e, this);
@@ -4222,7 +4453,43 @@ var x = class {
 			"stroke-width": 2.5,
 			"stroke-linecap": "round",
 			"stroke-linejoin": "round"
-		}) : r === "tidyEdges" ? (i("path", {
+		}) : r === "tidyFlow" ? (i("rect", {
+			x: 3,
+			y: 16,
+			width: 9,
+			height: 8,
+			rx: 1.5,
+			fill: "none",
+			stroke: "currentColor",
+			"stroke-width": 2
+		}), i("rect", {
+			x: 16,
+			y: 16,
+			width: 9,
+			height: 8,
+			rx: 1.5,
+			fill: "none",
+			stroke: "currentColor",
+			"stroke-width": 2
+		}), i("rect", {
+			x: 29,
+			y: 26,
+			width: 9,
+			height: 8,
+			rx: 1.5,
+			fill: "none",
+			stroke: "currentColor",
+			"stroke-width": 2
+		}), i("path", {
+			d: "M 12 20 L 16 20 M 25 20 L 33.5 20 L 33.5 26",
+			fill: "none",
+			stroke: "currentColor",
+			"stroke-width": 2
+		}), i("path", {
+			d: "M 31 3 L 32.5 7.5 L 37 9 L 32.5 10.5 L 31 15 L 29.5 10.5 L 25 9 L 29.5 7.5 Z",
+			fill: "currentColor",
+			stroke: "none"
+		})) : r === "tidyEdges" ? (i("path", {
 			d: "M 6 12 L 18 12 L 18 28 L 30 28 M 6 20 L 12 20 L 12 34 L 26 34",
 			fill: "none",
 			stroke: "currentColor",
@@ -4574,32 +4841,115 @@ var x = class {
 	setLayoutDirection(e) {
 		this.options.layoutDirection = e === "TB" ? "TB" : "LR";
 	}
-	optimizeEdges({ edgeIds: e = null, nodeIds: t = null } = {}) {
-		let n = this.model.edges;
-		if (e ? n = n.filter((t) => e.includes(t.id)) : t && (n = n.filter((e) => t.includes(e.sourceNodeId) || t.includes(e.targetNodeId))), n = n.filter((e) => this.getNode(e.sourceNodeId) && this.getNode(e.targetNodeId)), !n.length) return !1;
-		let r = JSON.stringify(n.map((e) => [
+	optimizeEdges({ edgeIds: e = null, nodeIds: t = null, record: n = !0 } = {}) {
+		let r = this.model.edges;
+		if (e ? r = r.filter((t) => e.includes(t.id)) : t && (r = r.filter((e) => t.includes(e.sourceNodeId) || t.includes(e.targetNodeId))), r = r.filter((e) => this.getNode(e.sourceNodeId) && this.getNode(e.targetNodeId)), !r.length) return !1;
+		let i = JSON.stringify(r.map((e) => [
 			e.sourceHandle,
 			e.targetHandle,
 			e.routePoints,
 			e.isAutoRoute
 		]));
-		n.forEach((e) => {
+		r.forEach((e) => {
 			e.isAutoRoute = !0, delete e.bendPoints;
 		});
-		let i = (e) => ({
+		let a = (e) => ({
 			x: e.x + e.width / 2,
 			y: e.y + e.height / 2
-		}), a = (e) => this.manhattan(i(this.getNode(e.sourceNodeId)), i(this.getNode(e.targetNodeId))), o = [...n].sort((e, t) => a(e) - a(t)), s = new Set(this.model.edges.filter((e) => !n.includes(e)));
-		o.forEach((e) => {
-			this.optimizeEdgeRoute(e, [...s]), s.add(e);
-		}), o.forEach((e) => this.optimizeEdgeRoute(e, this.model.edges.filter((t) => t !== e)));
-		let c = JSON.stringify(n.map((e) => [
+		}), o = (e) => this.manhattan(a(this.getNode(e.sourceNodeId)), a(this.getNode(e.targetNodeId))), s = [...r].sort((e, t) => o(e) - o(t)), c = new Set(this.model.edges.filter((e) => !r.includes(e)));
+		s.forEach((e) => {
+			this.optimizeEdgeRoute(e, [...c]), c.add(e);
+		}), s.forEach((e) => this.optimizeEdgeRoute(e, this.model.edges.filter((t) => t !== e)));
+		let l = JSON.stringify(r.map((e) => [
 			e.sourceHandle,
 			e.targetHandle,
 			e.routePoints,
 			e.isAutoRoute
-		])) !== r;
-		return c && (this.pushHistory(), this.emit("weavle:modelchanged", { model: this.getData() })), this.render(), c;
+		])) !== i;
+		return n ? (l && (this.pushHistory(), this.emit("weavle:modelchanged", { model: this.getData() })), this.render(), l) : l;
+	}
+	getLayoutSettings() {
+		return {
+			layerGap: 80,
+			nodeGap: 50,
+			isFlowEdge: (e) => this.getEdgeTypeDefinition(e).router !== "straight",
+			...typeof this.diagram.getLayoutConfig == "function" && this.diagram.getLayoutConfig(this) || {},
+			direction: this.getLayoutDirection()
+		};
+	}
+	optimizeLayout({ nodeIds: e = null } = {}) {
+		let t = this.getLayoutSettings(), n = this.options.gridSize || 20, r = this.model.nodes.filter((t) => !this.isContainer(t) && !t.parentId && !t.attachedToId && (!e || e.includes(t.id))), i = new Set(r.map((e) => e.id)), a = this.model.edges.filter((e) => i.has(e.sourceNodeId) && i.has(e.targetNodeId) && e.sourceNodeId !== e.targetNodeId && t.isFlowEdge(e)), o = new Set(a.flatMap((e) => [e.sourceNodeId, e.targetNodeId]));
+		if (!o.size) return !1;
+		let s = r.filter((e) => o.has(e.id)), c = () => JSON.stringify([this.model.nodes.map((e) => [e.x, e.y]), this.model.edges.map((e) => [
+			e.sourceHandle,
+			e.targetHandle,
+			e.routePoints
+		])]), l = c(), u = [], d = [];
+		r.filter((e) => !o.has(e.id)).forEach((t) => {
+			let n = this.model.edges.find((e) => e.sourceNodeId === t.id && o.has(e.targetNodeId) || e.targetNodeId === t.id && o.has(e.sourceNodeId));
+			if (n) {
+				let e = this.getNode(n.sourceNodeId === t.id ? n.targetNodeId : n.sourceNodeId);
+				u.push({
+					node: t,
+					anchor: e,
+					dx: t.x - e.x,
+					dy: t.y - e.y
+				});
+			} else e || d.push(t);
+		});
+		let f = Math.min(...s.map((e) => e.x)), p = Math.min(...s.map((e) => e.y)), m = x({
+			nodes: s.map((e) => ({
+				id: e.id,
+				width: e.width,
+				height: e.height,
+				x: e.x + e.width / 2,
+				y: e.y + e.height / 2
+			})),
+			edges: a.map((e) => ({
+				source: e.sourceNodeId,
+				target: e.targetNodeId
+			}))
+		}, {
+			direction: t.direction,
+			layerGap: t.layerGap,
+			nodeGap: t.nodeGap
+		}), h = (e, t, n) => {
+			let r = this.options.snapToGrid ? this.snapNodePosition(e, t, n) : {
+				x: t,
+				y: n
+			}, i = r.x - e.x, a = r.y - e.y;
+			e.x = r.x, e.y = r.y, this.getAttachedNodes(e).forEach((e) => {
+				e.x += i, e.y += a;
+			});
+		};
+		if (s.forEach((e) => {
+			let t = m.get(e.id);
+			h(e, f + t.x - e.width / 2, p + t.y - e.height / 2);
+		}), u.forEach((e) => h(e.node, e.anchor.x + e.dx, e.anchor.y + e.dy)), d.length) {
+			let e = t.direction !== "TB", n = [...s, ...u.map((e) => e.node)], r = e ? f : p, i = e ? Math.max(...n.map((e) => e.y + e.height)) + t.layerGap : Math.max(...n.map((e) => e.x + e.width)) + t.layerGap;
+			d.forEach((n) => {
+				e ? h(n, r, i) : h(n, i, r), r += (e ? n.width : n.height) + t.nodeGap;
+			});
+		}
+		let g = [
+			...s,
+			...u.map((e) => e.node),
+			...d
+		];
+		g.push(...g.flatMap((e) => this.getAttachedNodes(e)));
+		let _ = Math.max(0, n - Math.min(...g.map((e) => e.x))), v = Math.max(0, n - Math.min(...g.map((e) => e.y)));
+		if (_ || v) {
+			let e = (e) => Math.ceil(e / n) * n;
+			g.forEach((t) => {
+				t.x += e(_), t.y += e(v);
+			});
+		}
+		this.optimizeEdges({
+			nodeIds: e ? [...i] : null,
+			record: !1
+		});
+		let y = c() !== l;
+		return y && (this.pushHistory(), this.emit("weavle:modelchanged", { model: this.getData() })), this.render(), y;
 	}
 	optimizeEdgeRoute(e, t) {
 		let n = this.getNode(e.sourceNodeId), r = this.getNode(e.targetNodeId);
@@ -5364,32 +5714,32 @@ var x = class {
 			e.label = t, this.selectSingleNode(e.id), this.state.selectedEdgeId = null, this.emit("weavle:modelchanged", { model: this.getData() }), this.render();
 		}
 	}
-}, S = {
+}, M = {
 	bpmn: b,
 	flowchart: s
-}, C = {
+}, N = {
 	nodes: [],
 	edges: []
 };
-function w(e, t) {
-	S[e] = t;
+function P(e, t) {
+	M[e] = t;
 }
-function T() {
-	return Object.keys(S);
+function F() {
+	return Object.keys(M);
 }
-function E(e) {
-	return O(e)?._weavle || null;
+function I(e) {
+	return R(e)?._weavle || null;
 }
-function D(e, t = {}) {
-	let n = O(e);
+function L(e, t = {}) {
+	let n = R(e);
 	if (!n) throw Error(`Weavle.mount: container "${e}" not found`);
 	n._weavle?.destroy();
-	let r = typeof t.diagramType == "function" ? t.diagramType : S[t.diagramType || "bpmn"];
-	if (!r) throw Error(`Weavle.mount: unknown diagram type "${t.diagramType}" (known: ${T().join(", ")})`);
-	let i = new x(n, k(t.options) || {}, r()), a = null, o = {
+	let r = typeof t.diagramType == "function" ? t.diagramType : M[t.diagramType || "bpmn"];
+	if (!r) throw Error(`Weavle.mount: unknown diagram type "${t.diagramType}" (known: ${F().join(", ")})`);
+	let i = new j(n, z(t.options) || {}, r()), a = null, o = {
 		"weavle:modelchanged": (e) => {
 			let n = JSON.stringify(e.detail.model);
-			a = A(e.detail.model), t.onModelChanged?.(n);
+			a = B(e.detail.model), t.onModelChanged?.(n);
 		},
 		"weavle:selectionchanged": (e) => {
 			t.onSelectionChanged?.(e.detail.primarySelectedNodeId || "", e.detail.selectedEdgeId || "", JSON.stringify(e.detail.selectedNodeIds || []));
@@ -5401,7 +5751,7 @@ function D(e, t = {}) {
 	let s = () => i.emit("weavle:modelchanged", { model: i.getData() }), c = {
 		editor: i,
 		setModel(e) {
-			let t = (typeof e == "string" ? k(e) : e) || C, n = A(t);
+			let t = (typeof e == "string" ? z(e) : e) || N, n = B(t);
 			return n !== a && (a = n, i.load(JSON.parse(JSON.stringify(t))), !0);
 		},
 		getModel() {
@@ -5419,6 +5769,10 @@ function D(e, t = {}) {
 		optimizeEdges(e) {
 			let t = e ? typeof e == "string" ? JSON.parse(e) : e : null;
 			return i.optimizeEdges({ nodeIds: t && t.length ? t : null });
+		},
+		optimizeLayout(e) {
+			let t = e ? typeof e == "string" ? JSON.parse(e) : e : null;
+			return i.optimizeLayout({ nodeIds: t && t.length ? t : null });
 		},
 		setLayoutDirection(e) {
 			i.setLayoutDirection(e);
@@ -5447,21 +5801,21 @@ function D(e, t = {}) {
 			i.destroy(), n._weavle === c && delete n._weavle;
 		}
 	};
-	return n._weavle = c, c.setModel(t.model ?? C), c;
+	return n._weavle = c, c.setModel(t.model ?? N), c;
 }
-function O(e) {
+function R(e) {
 	return e ? typeof e == "string" ? document.getElementById(e) || document.querySelector(e) : e : null;
 }
-function k(e) {
+function z(e) {
 	return typeof e == "string" ? e.trim() ? JSON.parse(e) : null : e ?? null;
 }
-function A(e) {
+function B(e) {
 	return JSON.stringify(e, (e, t) => t && typeof t == "object" && !Array.isArray(t) ? Object.fromEntries(Object.keys(t).sort().map((e) => [e, t[e]])) : t);
 }
 //#endregion
 //#region src/index.js
-var j = "0.9.0";
+var V = "0.9.0";
 //#endregion
-export { x as WeavleJS, b as createBpmnDefinition, s as createFlowchartDefinition, T as getDiagramTypes, E as getInstance, D as mount, w as registerDiagramType, j as version };
+export { j as WeavleJS, b as createBpmnDefinition, s as createFlowchartDefinition, F as getDiagramTypes, I as getInstance, L as mount, P as registerDiagramType, V as version };
 
 //# sourceMappingURL=weavle.es.js.map

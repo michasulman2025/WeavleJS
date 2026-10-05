@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### Added
+- **Flow optimaliseren** (toolbar button, `optimizeLayout({ nodeIds? })`, OutSystems
+  `controller.optimizeLayout(nodeIdsJson)`): layered layout (new `src/weavle-layout.js`, no dependencies) —
+  loops left out, longest-path layers, barycenter crossing reduction, straight main lines (branches
+  symmetric around a split, joins back on it), components stacked; then all edges are optimised.
+  Settings via `getLayoutConfig()`: `direction`, `layerGap`, `nodeGap`, `isFlowEdge(edge)` (BPMN: sequence
+  flows; flowchart: all but comment lines). Annotations / data keep their offset to their node, unconnected
+  nodes are lined up after the flow, boundary events follow their host. Not yet: pools and lanes.
 - **Lijnen optimaliseren** (toolbar button, `optimizeEdges({ nodeIds?, edgeIds? })`, OutSystems
   `controller.optimizeEdges(nodeIdsJson)`): nodes stay put; every edge gets the best port pair and route,
   scored on length, bends, crossings, overlap with other edges, shared ports and going against the flow.

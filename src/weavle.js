@@ -1,6 +1,7 @@
 
 import { createFlowchartDefinition } from "./weavle-flowchart.js";
 import { createBpmnDefinition  } from "./weavle-bpmn.js";
+import { computeLayeredLayout } from "./weavle-layout.js";
 
 export class WeavleJS {
 
@@ -4304,7 +4305,10 @@ export class WeavleJS {
     /** Built-in tidy-up actions at the end of the toolbar (options.tidyTools = false hides them). */
     getTidyActions() {
         if (this.options.tidyTools === false) return [];
-        return [{ type: "optimizeEdges", label: "Lijnen optimaliseren", icon: "tidyEdges" }];
+        return [
+            { type: "optimizeLayout", label: "Flow optimaliseren",   icon: "tidyFlow" },
+            { type: "optimizeEdges",  label: "Lijnen optimaliseren", icon: "tidyEdges" }
+        ];
     }
 
     /**
@@ -4351,6 +4355,11 @@ export class WeavleJS {
 
         if (action.type === "optimizeEdges") {
             this.optimizeEdges();
+            return;
+        }
+
+        if (action.type === "optimizeLayout") {
+            this.optimizeLayout();
             return;
         }
 
@@ -4561,6 +4570,13 @@ export class WeavleJS {
                 d: "M 17 23 L 12 28 A 4 4 0 0 1 6 22 L 11 17 M 23 17 L 28 12 A 4 4 0 0 1 34 18 L 29 23 M 14 9 L 15 13 M 9 14 L 13 15 M 26 31 L 25 27 M 31 26 L 27 25",
                 fill: "none", stroke: "currentColor", "stroke-width": 2.5, "stroke-linecap": "round", "stroke-linejoin": "round"
             });
+        } else if (icon === "tidyFlow") {
+            // Three aligned boxes joined by arrows, with a sparkle: "lay the flow out neatly".
+            add("rect", { x: 3,  y: 16, width: 9, height: 8, rx: 1.5, fill: "none", stroke: "currentColor", "stroke-width": 2 });
+            add("rect", { x: 16, y: 16, width: 9, height: 8, rx: 1.5, fill: "none", stroke: "currentColor", "stroke-width": 2 });
+            add("rect", { x: 29, y: 26, width: 9, height: 8, rx: 1.5, fill: "none", stroke: "currentColor", "stroke-width": 2 });
+            add("path", { d: "M 12 20 L 16 20 M 25 20 L 33.5 20 L 33.5 26", fill: "none", stroke: "currentColor", "stroke-width": 2 });
+            add("path", { d: "M 31 3 L 32.5 7.5 L 37 9 L 32.5 10.5 L 31 15 L 29.5 10.5 L 25 9 L 29.5 7.5 Z", fill: "currentColor", stroke: "none" });
         } else if (icon === "tidyEdges") {
             // Two tidy orthogonal connectors with a small sparkle: "make the lines neat".
             add("path", { d: "M 6 12 L 18 12 L 18 28 L 30 28 M 6 20 L 12 20 L 12 34 L 26 34", fill: "none", stroke: "currentColor", "stroke-width": 2.2, "stroke-linejoin": "round" });
@@ -5405,9 +5421,10 @@ export class WeavleJS {
      * @param {object}   [options]
      * @param {string[]} [options.edgeIds]  only these edges
      * @param {string[]} [options.nodeIds]  only edges touching these nodes (e.g. the selection)
+     * @param {boolean}  [options.record=true]  false: no undo step / events / render (part of a larger change)
      * @returns {boolean} true if anything changed (one undo step)
      */
-    optimizeEdges({ edgeIds = null, nodeIds = null } = {}) {
+    optimizeEdges({ edgeIds = null, nodeIds = null, record = true } = {}) {
         let edges = this.model.edges;
         if (edgeIds) edges = edges.filter(e => edgeIds.includes(e.id));
         else if (nodeIds) edges = edges.filter(e => nodeIds.includes(e.sourceNodeId) || nodeIds.includes(e.targetNodeId));
@@ -5435,7 +5452,129 @@ export class WeavleJS {
         order.forEach(edge => this.optimizeEdgeRoute(edge, this.model.edges.filter(e => e !== edge)));
 
         const changed = JSON.stringify(edges.map(e => [e.sourceHandle, e.targetHandle, e.routePoints, e.isAutoRoute])) !== snapshot;
+        if (!record) return changed;
 
+        if (changed) {
+            this.pushHistory();
+            this.emit("weavle:modelchanged", { model: this.getData() });
+        }
+        this.render();
+        return changed;
+    }
+
+    // ------------------------------------------------------------
+    // Optimise flow: lay the nodes out in layers along the flow direction (weavle-layout.js),
+    // then optimise all edges. Which edges carry the flow and the spacing come from
+    // diagram.getLayoutConfig(): { direction, layerGap, nodeGap, isFlowEdge(edge) }.
+    // Not (yet) laid out: containers and their contents, attached nodes (they follow their host).
+    // Nodes only linked by non-flow edges (annotations, data) keep their offset to that node;
+    // unconnected nodes are lined up after the flow.
+    // ------------------------------------------------------------
+
+    /** Layout settings: defaults, then diagram.getLayoutConfig(), then options.layoutDirection. */
+    getLayoutSettings() {
+        const config = typeof this.diagram.getLayoutConfig === "function" ? this.diagram.getLayoutConfig(this) || {} : {};
+        return {
+            layerGap: 80,
+            nodeGap:  50,
+            isFlowEdge: edge => this.getEdgeTypeDefinition(edge).router !== "straight",
+            ...config,
+            direction: this.getLayoutDirection()
+        };
+    }
+
+    /**
+     * Lays out the flow (all nodes, or only nodeIds) in layers and re-routes the edges. The result is
+     * placed at the top-left corner of the nodes' current bounding box. One undo step.
+     * @returns {boolean} true if anything changed
+     */
+    optimizeLayout({ nodeIds = null } = {}) {
+        const settings = this.getLayoutSettings();
+        const grid = this.options.gridSize || 20;
+
+        const candidates = this.model.nodes.filter(n =>
+            !this.isContainer(n) && !n.parentId && !n.attachedToId && (!nodeIds || nodeIds.includes(n.id)));
+        const ids = new Set(candidates.map(n => n.id));
+
+        const flowEdges = this.model.edges.filter(e =>
+            ids.has(e.sourceNodeId) && ids.has(e.targetNodeId) && e.sourceNodeId !== e.targetNodeId && settings.isFlowEdge(e));
+        const inFlow = new Set(flowEdges.flatMap(e => [e.sourceNodeId, e.targetNodeId]));
+        if (!inFlow.size) return false;
+
+        const flowNodes = candidates.filter(n => inFlow.has(n.id));
+        const state = () => JSON.stringify([this.model.nodes.map(n => [n.x, n.y]), this.model.edges.map(e => [e.sourceHandle, e.targetHandle, e.routePoints])]);
+        const snapshot = state();
+
+        // Satellites keep their offset to the flow node they are linked to.
+        const satellites = [];
+        const loose = [];
+        candidates.filter(n => !inFlow.has(n.id)).forEach(n => {
+            const link = this.model.edges.find(e =>
+                (e.sourceNodeId === n.id && inFlow.has(e.targetNodeId)) || (e.targetNodeId === n.id && inFlow.has(e.sourceNodeId)));
+            if (link) {
+                const anchor = this.getNode(link.sourceNodeId === n.id ? link.targetNodeId : link.sourceNodeId);
+                satellites.push({ node: n, anchor, dx: n.x - anchor.x, dy: n.y - anchor.y });
+            } else if (!nodeIds) {
+                loose.push(n);
+            }
+        });
+
+        // Anchor the result at the flow's current top-left corner.
+        const originX = Math.min(...flowNodes.map(n => n.x));
+        const originY = Math.min(...flowNodes.map(n => n.y));
+
+        const positions = computeLayeredLayout({
+            nodes: flowNodes.map(n => ({ id: n.id, width: n.width, height: n.height, x: n.x + n.width / 2, y: n.y + n.height / 2 })),
+            edges: flowEdges.map(e => ({ source: e.sourceNodeId, target: e.targetNodeId }))
+        }, { direction: settings.direction, layerGap: settings.layerGap, nodeGap: settings.nodeGap });
+
+        const moveNode = (node, x, y) => {
+            const target = this.options.snapToGrid ? this.snapNodePosition(node, x, y) : { x, y };
+            const dx = target.x - node.x;
+            const dy = target.y - node.y;
+            node.x = target.x;
+            node.y = target.y;
+
+            // Attached nodes (boundary events) move along with their host.
+            this.getAttachedNodes(node).forEach(a => { a.x += dx; a.y += dy; });
+        };
+
+        flowNodes.forEach(n => {
+            const p = positions.get(n.id);
+            moveNode(n, originX + p.x - n.width / 2, originY + p.y - n.height / 2);
+        });
+
+        satellites.forEach(s => moveNode(s.node, s.anchor.x + s.dx, s.anchor.y + s.dy));
+
+        // Unconnected nodes: one row (LR) or column (TB) after the flow.
+        if (loose.length) {
+            const horizontal = settings.direction !== "TB";
+            const placed = [...flowNodes, ...satellites.map(s => s.node)];
+            let cursor = horizontal ? originX : originY;
+            const start = horizontal
+                ? Math.max(...placed.map(n => n.y + n.height)) + settings.layerGap
+                : Math.max(...placed.map(n => n.x + n.width)) + settings.layerGap;
+
+            loose.forEach(n => {
+                if (horizontal) moveNode(n, cursor, start);
+                else            moveNode(n, start, cursor);
+                cursor += (horizontal ? n.width : n.height) + settings.nodeGap;
+            });
+        }
+
+        // Keep everything on the canvas (a satellite above the first node could end up at y < 0).
+        const moved = [...flowNodes, ...satellites.map(s => s.node), ...loose];
+        moved.push(...moved.flatMap(n => this.getAttachedNodes(n)));
+        const shiftX = Math.max(0, grid - Math.min(...moved.map(n => n.x)));
+        const shiftY = Math.max(0, grid - Math.min(...moved.map(n => n.y)));
+        if (shiftX || shiftY) {
+            const step = v => Math.ceil(v / grid) * grid;   // whole grid steps keep the snapping
+            moved.forEach(n => { n.x += step(shiftX); n.y += step(shiftY); });
+        }
+
+        this.optimizeEdges({ nodeIds: nodeIds ? [...ids] : null, record: false });
+
+        const changed = state() !== snapshot;
         if (changed) {
             this.pushHistory();
             this.emit("weavle:modelchanged", { model: this.getData() });

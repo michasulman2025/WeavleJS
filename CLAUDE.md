@@ -22,6 +22,7 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
 - `src/weavle.js` — the engine, `export class WeavleJS` (~4900 lines).
 - `src/weavle-flowchart.js` — `export function createFlowchartDefinition()`.
 - `src/weavle-bpmn.js` — `export function createBpmnDefinition()`.
+- `src/weavle-layout.js` — `computeLayeredLayout(graph, options)`, the layered layout behind "Flow optimaliseren".
 - `src/weavle-outsystems.js` — host adapter: `mount(container, config)` → controller, `getInstance`,
   `registerDiagramType`; JSON in / out and echo protection (`setModel` skips the model the editor reported).
 - `src/index.js` — library entry (exports everything, imports weavle.css). `wrappers/outsystems/` — block guide
@@ -97,6 +98,10 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
   halves are routed, and centres on the crossed segment (`state.creationAlign`, `getSegmentAlignment`).
   The reverse is the built-in context action `detachNode` ("Losmaken", `detachNode(node)`, `hasEdges(node)`).
   The open node tool surface is rebuilt on every `weavle:modelchanged` (`refreshNodeToolSurface`).
+- Optimise flow (`optimizeLayout`): collects flow nodes (not containers / contents / attached) and flow edges
+  (`getLayoutSettings().isFlowEdge`), runs `computeLayeredLayout` from `src/weavle-layout.js` (pure function:
+  cycle removal, layers, dummies, barycenter ordering, isotonic-regression coordinates), applies it at the old
+  top-left, moves satellites / attached / loose nodes, then `optimizeEdges({ record: false })`; one undo step.
 - Optimise edges (`optimizeEdges`): per edge `getPortPairCandidates` → route each (`routeTemporaryEdge`) →
   `scoreEdgeRoute` (`countRouteConflicts`, shared ports, flow direction from `getLayoutDirection`); short edges
   first, two passes. While it runs `state.routeOccupancy` (`buildRouteOccupancy`) adds A* step costs
