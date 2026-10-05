@@ -5465,19 +5465,22 @@ export class WeavleJS {
     // ------------------------------------------------------------
     // Optimise flow: lay the nodes out in layers along the flow direction (weavle-layout.js),
     // then optimise all edges. Which edges carry the flow and the spacing come from
-    // diagram.getLayoutConfig(): { direction, layerGap, nodeGap, isFlowEdge(edge) }.
-    // Not (yet) laid out: containers and their contents, attached nodes (they follow their host).
-    // Nodes only linked by non-flow edges (annotations, data) keep their offset to that node;
-    // unconnected nodes are lined up after the flow.
+    // diagram.getLayoutConfig(): { direction, layerGap, nodeGap, isFlowEdge(edge), getSatelliteSide(node) }.
+    // Not (yet) laid out: containers and their contents. Attached nodes (boundary events) follow their
+    // host, and their outgoing flows count as the host's, so an exception path is laid out after it.
+    // Satellites — nodes only linked by non-flow edges (annotations, data) — are placed beside the
+    // node(s) they belong to (placeSatellites); unconnected nodes are lined up after the flow.
     // ------------------------------------------------------------
 
     /** Layout settings: defaults, then diagram.getLayoutConfig(), then options.layoutDirection. */
     getLayoutSettings() {
         const config = typeof this.diagram.getLayoutConfig === "function" ? this.diagram.getLayoutConfig(this) || {} : {};
         return {
-            layerGap: 80,
-            nodeGap:  50,
-            isFlowEdge: edge => this.getEdgeTypeDefinition(edge).router !== "straight",
+            layerGap:     80,
+            nodeGap:      50,
+            satelliteGap: 30,
+            isFlowEdge:   edge => this.getEdgeTypeDefinition(edge).router !== "straight",
+            getSatelliteSide: () => "after",
             ...config,
             direction: this.getLayoutDirection()
         };
@@ -5496,27 +5499,41 @@ export class WeavleJS {
             !this.isContainer(n) && !n.parentId && !n.attachedToId && (!nodeIds || nodeIds.includes(n.id)));
         const ids = new Set(candidates.map(n => n.id));
 
-        const flowEdges = this.model.edges.filter(e =>
-            ids.has(e.sourceNodeId) && ids.has(e.targetNodeId) && e.sourceNodeId !== e.targetNodeId && settings.isFlowEdge(e));
-        const inFlow = new Set(flowEdges.flatMap(e => [e.sourceNodeId, e.targetNodeId]));
+        // An attached node (boundary event) stands in for its host.
+        const layoutId = (id) => {
+            const node = this.getNode(id);
+            return node?.attachedToId && ids.has(node.attachedToId) ? node.attachedToId : id;
+        };
+
+        const flowLinks = [];
+        this.model.edges.forEach(e => {
+            if (!settings.isFlowEdge(e)) return;
+            const source = layoutId(e.sourceNodeId);
+            const target = layoutId(e.targetNodeId);
+            // Flows leaving an attached node are side branches (exception paths): laid out after the main flow.
+            const secondary = source !== e.sourceNodeId;
+            if (source !== target && ids.has(source) && ids.has(target)) flowLinks.push({ source, target, secondary });
+        });
+
+        const inFlow = new Set(flowLinks.flatMap(l => [l.source, l.target]));
         if (!inFlow.size) return false;
 
         const flowNodes = candidates.filter(n => inFlow.has(n.id));
         const state = () => JSON.stringify([this.model.nodes.map(n => [n.x, n.y]), this.model.edges.map(e => [e.sourceHandle, e.targetHandle, e.routePoints])]);
         const snapshot = state();
 
-        // Satellites keep their offset to the flow node they are linked to.
+        // Satellites: linked to the flow, but not part of it.
         const satellites = [];
         const loose = [];
         candidates.filter(n => !inFlow.has(n.id)).forEach(n => {
-            const link = this.model.edges.find(e =>
-                (e.sourceNodeId === n.id && inFlow.has(e.targetNodeId)) || (e.targetNodeId === n.id && inFlow.has(e.sourceNodeId)));
-            if (link) {
-                const anchor = this.getNode(link.sourceNodeId === n.id ? link.targetNodeId : link.sourceNodeId);
-                satellites.push({ node: n, anchor, dx: n.x - anchor.x, dy: n.y - anchor.y });
-            } else if (!nodeIds) {
-                loose.push(n);
-            }
+            const anchorIds = new Set();
+            this.model.edges.forEach(e => {
+                const other = e.sourceNodeId === n.id ? e.targetNodeId : (e.targetNodeId === n.id ? e.sourceNodeId : null);
+                if (other && inFlow.has(layoutId(other))) anchorIds.add(layoutId(other));
+            });
+
+            if (anchorIds.size) satellites.push({ node: n, anchors: [...anchorIds].map(id => this.getNode(id)) });
+            else if (!nodeIds) loose.push(n);
         });
 
         // Anchor the result at the flow's current top-left corner.
@@ -5525,7 +5542,7 @@ export class WeavleJS {
 
         const positions = computeLayeredLayout({
             nodes: flowNodes.map(n => ({ id: n.id, width: n.width, height: n.height, x: n.x + n.width / 2, y: n.y + n.height / 2 })),
-            edges: flowEdges.map(e => ({ source: e.sourceNodeId, target: e.targetNodeId }))
+            edges: flowLinks
         }, { direction: settings.direction, layerGap: settings.layerGap, nodeGap: settings.nodeGap });
 
         const moveNode = (node, x, y) => {
@@ -5535,8 +5552,9 @@ export class WeavleJS {
             node.x = target.x;
             node.y = target.y;
 
-            // Attached nodes (boundary events) move along with their host.
+            // Attached nodes (boundary events) move along with their host, and stay on its border.
             this.getAttachedNodes(node).forEach(a => { a.x += dx; a.y += dy; });
+            this.reattachNodes(node);
         };
 
         flowNodes.forEach(n => {
@@ -5544,7 +5562,7 @@ export class WeavleJS {
             moveNode(n, originX + p.x - n.width / 2, originY + p.y - n.height / 2);
         });
 
-        satellites.forEach(s => moveNode(s.node, s.anchor.x + s.dx, s.anchor.y + s.dy));
+        this.placeSatellites(satellites, flowNodes, settings, moveNode);
 
         // Unconnected nodes: one row (LR) or column (TB) after the flow.
         if (loose.length) {
@@ -5581,6 +5599,79 @@ export class WeavleJS {
         }
         this.render();
         return changed;
+    }
+
+    /**
+     * Places satellites beside their anchor node(s): across the flow on the side the definition asks
+     * for (getSatelliteSide(node): "before" = above in LR / left in TB, "after" = below / right),
+     * centred on their anchors along the flow (a data object used by two tasks sits between them).
+     * The cheapest free spot wins: straight beside the anchor on its side; the other side, further out or
+     * shifted along the flow cost more (see findSpot).
+     */
+    placeSatellites(satellites, flowNodes, settings, moveNode) {
+        if (!satellites.length) return;
+
+        const horizontal = settings.direction !== "TB";
+        const gap  = settings.satelliteGap;
+        const grid = this.options.gridSize || 20;
+
+        const along      = n => horizontal ? n.x : n.y;
+        const across     = n => horizontal ? n.y : n.x;
+        const alongSize  = n => horizontal ? n.width  : n.height;
+        const acrossSize = n => horizontal ? n.height : n.width;
+
+        // Obstacles: the laid-out flow (with its boundary events), then every satellite once placed.
+        const placed = [...flowNodes, ...flowNodes.flatMap(n => this.getAttachedNodes(n))];
+        const isFree = (x, y, w, h) => !placed.some(n =>
+            x - gap / 2 < n.x + n.width && x + w + gap / 2 > n.x &&
+            y - gap / 2 < n.y + n.height && y + h + gap / 2 > n.y);
+
+        // Along the flow, first come first served.
+        const centreAlong = s => s.anchors.reduce((sum, a) => sum + along(a) + alongSize(a) / 2, 0) / s.anchors.length;
+        const ordered = [...satellites].sort((a, b) => centreAlong(a) - centreAlong(b));
+
+        for (const sat of ordered) {
+            const node = sat.node;
+            const preferred = settings.getSatelliteSide(node) === "before" ? "before" : "after";
+            const sides = preferred === "before" ? ["before", "after"] : ["after", "before"];
+            const centre = centreAlong(sat);
+            const step = alongSize(node) + gap;
+
+            // Cheapest free spot: the other side costs a little, moving along the flow (away from the
+            // anchor, its link crossing other lines) more, moving further out in between.
+            const findSpot = () => {
+                let best = null;
+                sides.forEach((side, sideIndex) => {
+                    const edge = side === "before"
+                        ? Math.min(...sat.anchors.map(across))
+                        : Math.max(...sat.anchors.map(a => across(a) + acrossSize(a)));
+
+                    for (let ring = 0; ring < 6; ring++) {
+                        const distance = gap + ring * grid * 2;
+                        const acrossPos = side === "before" ? edge - distance - acrossSize(node) : edge + distance;
+
+                        for (const shift of [0, 1, -1, 2, -2]) {
+                            const cost = sideIndex * 40 + ring * 30 + Math.abs(shift) * 60;
+                            if (best && cost >= best.cost) continue;
+
+                            const alongPos = centre + shift * step - alongSize(node) / 2;
+                            const [x, y] = horizontal ? [alongPos, acrossPos] : [acrossPos, alongPos];
+                            if (isFree(x, y, node.width, node.height)) best = { x, y, cost };
+                        }
+                    }
+                });
+                return best;
+            };
+
+            // Crowded everywhere nearby: straight beside the anchor on the preferred side.
+            const a = sat.anchors[0];
+            const spot = findSpot() || (horizontal
+                ? { x: centre - node.width / 2, y: preferred === "before" ? a.y - gap - node.height : a.y + a.height + gap }
+                : { x: preferred === "before" ? a.x - gap - node.width : a.x + a.width + gap, y: centre - node.height / 2 });
+
+            moveNode(node, spot.x, spot.y);
+            placed.push(node);
+        }
     }
 
     /** Picks the best port pair and route for one edge, given the edges already in place. */

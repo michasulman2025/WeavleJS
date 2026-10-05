@@ -752,7 +752,8 @@ function s({ direction: e = "TB" } = {}) {
 		getLayoutConfig() {
 			return {
 				direction: e,
-				isFlowEdge: (e) => e.type !== "comment"
+				isFlowEdge: (e) => e.type !== "comment",
+				getSatelliteSide: () => "after"
 			};
 		},
 		getNodeInteractionMode(e) {
@@ -1987,7 +1988,8 @@ function b() {
 		getLayoutConfig() {
 			return {
 				direction: "LR",
-				isFlowEdge: (e) => (e.type || "sequenceFlow") === "sequenceFlow"
+				isFlowEdge: (e) => (e.type || "sequenceFlow") === "sequenceFlow",
+				getSatelliteSide: (e) => e.type === "annotation" ? "before" : "after"
 			};
 		},
 		getNodeInteractionMode(e) {
@@ -2337,7 +2339,8 @@ function w(e, t, n) {
 		a.get(e.id) || c(e.id);
 	}), t.filter((e) => !o.has(e)).map((e) => ({
 		source: e.source,
-		target: e.target
+		target: e.target,
+		secondary: !!e.secondary
 	}));
 }
 function T(e, t) {
@@ -2356,21 +2359,25 @@ function T(e, t) {
 	}), i;
 }
 function E(e, t, n) {
-	let r = /* @__PURE__ */ new Set(), i = new Map(e.map((e) => [e.id, []])), a = new Map(e.map((e) => [e.id, []])), o = 0, s = (e, t) => {
-		a.get(e).push(t), i.get(t).push(e);
+	let r = /* @__PURE__ */ new Set(), i = /* @__PURE__ */ new Set(), a = new Map(e.map((e) => [e.id, []])), o = new Map(e.map((e) => [e.id, []])), s = 0, c = (e, t) => {
+		o.get(e).push(t), a.get(t).push(e);
 	};
 	return t.forEach((e) => {
 		let t = e.source;
-		for (let c = n.get(e.source) + 1; c < n.get(e.target); c++) {
-			let e = `__dummy_${o++}`;
-			r.add(e), n.set(e, c), i.set(e, []), a.set(e, []), s(t, e), t = e;
+		for (let l = n.get(e.source) + 1; l < n.get(e.target); l++) {
+			let u = `__dummy_${s++}`;
+			r.add(u), e.secondary && i.add(u), n.set(u, l), a.set(u, []), o.set(u, []), c(t, u), t = u;
 		}
-		s(t, e.target);
+		c(t, e.target);
+	}), e.forEach((e) => {
+		let n = t.filter((t) => t.target === e.id);
+		n.length && n.every((e) => e.secondary) && i.add(e.id);
 	}), {
-		up: i,
-		down: a,
+		up: a,
+		down: o,
 		layer: n,
-		isDummy: (e) => r.has(e)
+		isDummy: (e) => r.has(e),
+		isSecondary: (e) => i.has(e)
 	};
 }
 function D(e, t, n, r) {
@@ -2378,10 +2385,10 @@ function D(e, t, n, r) {
 	for (let [e, n] of t) a[n].push(e);
 	let o = /* @__PURE__ */ new Map(), s = (t) => {
 		if (o.has(t)) return o.get(t);
-		let i = e.isDummy(t) ? s(e.up.get(t)[0]) : r(n.get(t));
+		let i = e.isSecondary(t) ? Infinity : e.isDummy(t) ? s(e.up.get(t)[0]) : r(n.get(t));
 		return o.set(t, i), i;
 	};
-	a.forEach((e) => e.sort((e, t) => s(e) - s(t)));
+	a.forEach((e) => e.sort((e, t) => s(e) === s(t) ? 0 : s(e) - s(t)));
 	let c = /* @__PURE__ */ new Map(), l = () => a.forEach((e) => e.forEach((e, t) => c.set(e, t)));
 	l();
 	let u = a.map((e) => [...e]), d = O(a, e, c);
@@ -2428,7 +2435,7 @@ function k(e, t, n, r, i) {
 		});
 		let c = A(e.map((e, n) => t.get(e) - r[n]), e.map(n));
 		e.forEach((e, t) => o.set(e, c[t] + r[t]));
-	}, c = (e) => t.isDummy(e) ? 4 : 1, l = (e) => {
+	}, c = (e) => t.isSecondary(e) ? .05 : t.isDummy(e) ? 4 : 1, l = (e) => {
 		let t = e.map((e) => o.get(e)).sort((e, t) => e - t), n = Math.floor(t.length / 2);
 		return t.length % 2 ? t[n] : (t[n - 1] + t[n]) / 2;
 	};
@@ -4872,84 +4879,132 @@ var j = class {
 		return {
 			layerGap: 80,
 			nodeGap: 50,
+			satelliteGap: 30,
 			isFlowEdge: (e) => this.getEdgeTypeDefinition(e).router !== "straight",
+			getSatelliteSide: () => "after",
 			...typeof this.diagram.getLayoutConfig == "function" && this.diagram.getLayoutConfig(this) || {},
 			direction: this.getLayoutDirection()
 		};
 	}
 	optimizeLayout({ nodeIds: e = null } = {}) {
-		let t = this.getLayoutSettings(), n = this.options.gridSize || 20, r = this.model.nodes.filter((t) => !this.isContainer(t) && !t.parentId && !t.attachedToId && (!e || e.includes(t.id))), i = new Set(r.map((e) => e.id)), a = this.model.edges.filter((e) => i.has(e.sourceNodeId) && i.has(e.targetNodeId) && e.sourceNodeId !== e.targetNodeId && t.isFlowEdge(e)), o = new Set(a.flatMap((e) => [e.sourceNodeId, e.targetNodeId]));
-		if (!o.size) return !1;
-		let s = r.filter((e) => o.has(e.id)), c = () => JSON.stringify([this.model.nodes.map((e) => [e.x, e.y]), this.model.edges.map((e) => [
+		let t = this.getLayoutSettings(), n = this.options.gridSize || 20, r = this.model.nodes.filter((t) => !this.isContainer(t) && !t.parentId && !t.attachedToId && (!e || e.includes(t.id))), i = new Set(r.map((e) => e.id)), a = (e) => {
+			let t = this.getNode(e);
+			return t?.attachedToId && i.has(t.attachedToId) ? t.attachedToId : e;
+		}, o = [];
+		this.model.edges.forEach((e) => {
+			if (!t.isFlowEdge(e)) return;
+			let n = a(e.sourceNodeId), r = a(e.targetNodeId), s = n !== e.sourceNodeId;
+			n !== r && i.has(n) && i.has(r) && o.push({
+				source: n,
+				target: r,
+				secondary: s
+			});
+		});
+		let s = new Set(o.flatMap((e) => [e.source, e.target]));
+		if (!s.size) return !1;
+		let c = r.filter((e) => s.has(e.id)), l = () => JSON.stringify([this.model.nodes.map((e) => [e.x, e.y]), this.model.edges.map((e) => [
 			e.sourceHandle,
 			e.targetHandle,
 			e.routePoints
-		])]), l = c(), u = [], d = [];
-		r.filter((e) => !o.has(e.id)).forEach((t) => {
-			let n = this.model.edges.find((e) => e.sourceNodeId === t.id && o.has(e.targetNodeId) || e.targetNodeId === t.id && o.has(e.sourceNodeId));
-			if (n) {
-				let e = this.getNode(n.sourceNodeId === t.id ? n.targetNodeId : n.sourceNodeId);
-				u.push({
-					node: t,
-					anchor: e,
-					dx: t.x - e.x,
-					dy: t.y - e.y
-				});
-			} else e || d.push(t);
+		])]), u = l(), d = [], f = [];
+		r.filter((e) => !s.has(e.id)).forEach((t) => {
+			let n = /* @__PURE__ */ new Set();
+			this.model.edges.forEach((e) => {
+				let r = e.sourceNodeId === t.id ? e.targetNodeId : e.targetNodeId === t.id ? e.sourceNodeId : null;
+				r && s.has(a(r)) && n.add(a(r));
+			}), n.size ? d.push({
+				node: t,
+				anchors: [...n].map((e) => this.getNode(e))
+			}) : e || f.push(t);
 		});
-		let f = Math.min(...s.map((e) => e.x)), p = Math.min(...s.map((e) => e.y)), m = x({
-			nodes: s.map((e) => ({
+		let p = Math.min(...c.map((e) => e.x)), m = Math.min(...c.map((e) => e.y)), h = x({
+			nodes: c.map((e) => ({
 				id: e.id,
 				width: e.width,
 				height: e.height,
 				x: e.x + e.width / 2,
 				y: e.y + e.height / 2
 			})),
-			edges: a.map((e) => ({
-				source: e.sourceNodeId,
-				target: e.targetNodeId
-			}))
+			edges: o
 		}, {
 			direction: t.direction,
 			layerGap: t.layerGap,
 			nodeGap: t.nodeGap
-		}), h = (e, t, n) => {
+		}), g = (e, t, n) => {
 			let r = this.options.snapToGrid ? this.snapNodePosition(e, t, n) : {
 				x: t,
 				y: n
 			}, i = r.x - e.x, a = r.y - e.y;
 			e.x = r.x, e.y = r.y, this.getAttachedNodes(e).forEach((e) => {
 				e.x += i, e.y += a;
-			});
+			}), this.reattachNodes(e);
 		};
-		if (s.forEach((e) => {
-			let t = m.get(e.id);
-			h(e, f + t.x - e.width / 2, p + t.y - e.height / 2);
-		}), u.forEach((e) => h(e.node, e.anchor.x + e.dx, e.anchor.y + e.dy)), d.length) {
-			let e = t.direction !== "TB", n = [...s, ...u.map((e) => e.node)], r = e ? f : p, i = e ? Math.max(...n.map((e) => e.y + e.height)) + t.layerGap : Math.max(...n.map((e) => e.x + e.width)) + t.layerGap;
-			d.forEach((n) => {
-				e ? h(n, r, i) : h(n, i, r), r += (e ? n.width : n.height) + t.nodeGap;
+		if (c.forEach((e) => {
+			let t = h.get(e.id);
+			g(e, p + t.x - e.width / 2, m + t.y - e.height / 2);
+		}), this.placeSatellites(d, c, t, g), f.length) {
+			let e = t.direction !== "TB", n = [...c, ...d.map((e) => e.node)], r = e ? p : m, i = e ? Math.max(...n.map((e) => e.y + e.height)) + t.layerGap : Math.max(...n.map((e) => e.x + e.width)) + t.layerGap;
+			f.forEach((n) => {
+				e ? g(n, r, i) : g(n, i, r), r += (e ? n.width : n.height) + t.nodeGap;
 			});
 		}
-		let g = [
-			...s,
-			...u.map((e) => e.node),
-			...d
+		let _ = [
+			...c,
+			...d.map((e) => e.node),
+			...f
 		];
-		g.push(...g.flatMap((e) => this.getAttachedNodes(e)));
-		let _ = Math.max(0, n - Math.min(...g.map((e) => e.x))), v = Math.max(0, n - Math.min(...g.map((e) => e.y)));
-		if (_ || v) {
+		_.push(..._.flatMap((e) => this.getAttachedNodes(e)));
+		let v = Math.max(0, n - Math.min(..._.map((e) => e.x))), y = Math.max(0, n - Math.min(..._.map((e) => e.y)));
+		if (v || y) {
 			let e = (e) => Math.ceil(e / n) * n;
-			g.forEach((t) => {
-				t.x += e(_), t.y += e(v);
+			_.forEach((t) => {
+				t.x += e(v), t.y += e(y);
 			});
 		}
 		this.optimizeEdges({
 			nodeIds: e ? [...i] : null,
 			record: !1
 		});
-		let y = c() !== l;
-		return y && (this.pushHistory(), this.emit("weavle:modelchanged", { model: this.getData() })), this.render(), y;
+		let b = l() !== u;
+		return b && (this.pushHistory(), this.emit("weavle:modelchanged", { model: this.getData() })), this.render(), b;
+	}
+	placeSatellites(e, t, n, r) {
+		if (!e.length) return;
+		let i = n.direction !== "TB", a = n.satelliteGap, o = this.options.gridSize || 20, s = (e) => i ? e.x : e.y, c = (e) => i ? e.y : e.x, l = (e) => i ? e.width : e.height, u = (e) => i ? e.height : e.width, d = [...t, ...t.flatMap((e) => this.getAttachedNodes(e))], f = (e, t, n, r) => !d.some((i) => e - a / 2 < i.x + i.width && e + n + a / 2 > i.x && t - a / 2 < i.y + i.height && t + r + a / 2 > i.y), p = (e) => e.anchors.reduce((e, t) => e + s(t) + l(t) / 2, 0) / e.anchors.length, m = [...e].sort((e, t) => p(e) - p(t));
+		for (let e of m) {
+			let t = e.node, s = n.getSatelliteSide(t) === "before" ? "before" : "after", m = s === "before" ? ["before", "after"] : ["after", "before"], h = p(e), g = l(t) + a, _ = () => {
+				let n = null;
+				return m.forEach((r, s) => {
+					let d = r === "before" ? Math.min(...e.anchors.map(c)) : Math.max(...e.anchors.map((e) => c(e) + u(e)));
+					for (let e = 0; e < 6; e++) {
+						let c = a + e * o * 2, p = r === "before" ? d - c - u(t) : d + c;
+						for (let r of [
+							0,
+							1,
+							-1,
+							2,
+							-2
+						]) {
+							let a = s * 40 + e * 30 + Math.abs(r) * 60;
+							if (n && a >= n.cost) continue;
+							let o = h + r * g - l(t) / 2, [c, u] = i ? [o, p] : [p, o];
+							f(c, u, t.width, t.height) && (n = {
+								x: c,
+								y: u,
+								cost: a
+							});
+						}
+					}
+				}), n;
+			}, v = e.anchors[0], y = _() || (i ? {
+				x: h - t.width / 2,
+				y: s === "before" ? v.y - a - t.height : v.y + v.height + a
+			} : {
+				x: s === "before" ? v.x - a - t.width : v.x + v.width + a,
+				y: h - t.height / 2
+			});
+			r(t, y.x, y.y), d.push(t);
+		}
 	}
 	optimizeEdgeRoute(e, t) {
 		let n = this.getNode(e.sourceNodeId), r = this.getNode(e.targetNodeId);

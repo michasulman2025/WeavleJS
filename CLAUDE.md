@@ -101,7 +101,9 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
 - Optimise flow (`optimizeLayout`): collects flow nodes (not containers / contents / attached) and flow edges
   (`getLayoutSettings().isFlowEdge`), runs `computeLayeredLayout` from `src/weavle-layout.js` (pure function:
   cycle removal, layers, dummies, barycenter ordering, isotonic-regression coordinates), applies it at the old
-  top-left, moves satellites / attached / loose nodes, then `optimizeEdges({ record: false })`; one undo step.
+  top-left, places satellites (`placeSatellites`, side from `getSatelliteSide`, scored free spots), keeps attached
+  nodes on their host (`reattachNodes`) — their flows are `secondary` layout edges (ordered last, low weight) —
+  lines up loose nodes, then `optimizeEdges({ record: false })`; one undo step.
 - Optimise edges (`optimizeEdges`): per edge `getPortPairCandidates` → route each (`routeTemporaryEdge`) →
   `scoreEdgeRoute` (`countRouteConflicts`, shared ports, flow direction from `getLayoutDirection`); short edges
   first, two passes. While it runs `state.routeOccupancy` (`buildRouteOccupancy`) adds A* step costs

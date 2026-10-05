@@ -947,7 +947,12 @@ export function createBpmnDefinition() {
         // BPMN processes read left to right; only sequence flows shape the layout
         // (message flows, associations and data associations just follow).
         getLayoutConfig() {
-            return { direction: "LR", isFlowEdge: edge => (edge.type || "sequenceFlow") === "sequenceFlow" };
+            return {
+                direction: "LR",
+                isFlowEdge: edge => (edge.type || "sequenceFlow") === "sequenceFlow",
+                // Annotations above the flow, data objects and stores below it.
+                getSatelliteSide: node => node.type === "annotation" ? "before" : "after"
+            };
         },
 
         getNodeInteractionMode(node) {

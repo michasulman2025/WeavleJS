@@ -8,8 +8,13 @@
   loops left out, longest-path layers, barycenter crossing reduction, straight main lines (branches
   symmetric around a split, joins back on it), components stacked; then all edges are optimised.
   Settings via `getLayoutConfig()`: `direction`, `layerGap`, `nodeGap`, `isFlowEdge(edge)` (BPMN: sequence
-  flows; flowchart: all but comment lines). Annotations / data keep their offset to their node, unconnected
-  nodes are lined up after the flow, boundary events follow their host. Not yet: pools and lanes.
+  flows; flowchart: all but comment lines). Unconnected nodes are lined up after the flow. Not yet: pools and lanes.
+- Flow layout places **satellites** (annotations, data objects, stores, comments) beside the node(s) they
+  belong to: on the side from `getLayoutConfig().getSatelliteSide(node)` (BPMN: annotations above, data
+  below; flowchart: right / below), centred between several anchors, on the cheapest free spot (other
+  side, further out, shifted along the flow). **Boundary events** stay on their host and their outgoing
+  flows count as side branches: the exception path is laid out after the host, below the main line
+  (layout edges may be `secondary`).
 - **Lijnen optimaliseren** (toolbar button, `optimizeEdges({ nodeIds?, edgeIds? })`, OutSystems
   `controller.optimizeEdges(nodeIdsJson)`): nodes stay put; every edge gets the best port pair and route,
   scored on length, bends, crossings, overlap with other edges, shared ports and going against the flow.

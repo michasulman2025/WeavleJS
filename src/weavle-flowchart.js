@@ -656,7 +656,8 @@ export function createFlowchartDefinition({ direction = "TB" } = {}) {
         // Node tools float next to the selected node, like BPMN.
         // Flow direction for optimise edges / flow (top to bottom unless configured otherwise).
         getLayoutConfig() {
-            return { direction, isFlowEdge: edge => edge.type !== "comment" };
+            // Comments go beside the flow (right of it top-to-bottom, below it left-to-right).
+            return { direction, isFlowEdge: edge => edge.type !== "comment", getSatelliteSide: () => "after" };
         },
 
         getNodeInteractionMode(node) {

@@ -16,7 +16,8 @@
  * @param {object}   graph
  * @param {Array<{id: string, width: number, height: number, x?: number, y?: number}>} graph.nodes
  *        x / y (current centre) only steer the initial order, so the result stays recognisable
- * @param {Array<{source: string, target: string}>} graph.edges
+ * @param {Array<{source: string, target: string, secondary?: boolean}>} graph.edges
+ *        secondary: a side branch (e.g. from a BPMN boundary event) — laid out after the main flow
  * @param {object}   [options]
  * @param {"LR"|"TB"} [options.direction="LR"]
  * @param {number}   [options.layerGap=80]  free space between layers (along the flow)
@@ -165,7 +166,7 @@ function breakCycles(nodes, edges, posAcross) {
 
     // Loops (back edges) are left out: they would add long dummy chains that pull the main line
     // aside. The edge router draws them around the finished layout.
-    return edges.filter(e => !reversed.has(e)).map(e => ({ source: e.source, target: e.target }));
+    return edges.filter(e => !reversed.has(e)).map(e => ({ source: e.source, target: e.target, secondary: !!e.secondary }));
 }
 
 /** Longest path from the sources; a source is then pulled up to just before its nearest successor. */
@@ -199,6 +200,7 @@ function assignLayers(nodes, dag) {
 /** Splits edges that span more than one layer with dummy nodes; returns adjacency between neighbouring layers. */
 function insertDummies(nodes, dag, layer) {
     const dummies = new Set();
+    const secondary = new Set();   // dummies on secondary edges, and nodes only reached through them
     const up   = new Map(nodes.map(n => [n.id, []]));   // neighbours in the previous layer
     const down = new Map(nodes.map(n => [n.id, []]));   // neighbours in the next layer
     let counter = 0;
@@ -210,6 +212,7 @@ function insertDummies(nodes, dag, layer) {
         for (let l = layer.get(e.source) + 1; l < layer.get(e.target); l++) {
             const id = `__dummy_${counter++}`;
             dummies.add(id);
+            if (e.secondary) secondary.add(id);
             layer.set(id, l);
             up.set(id, []);
             down.set(id, []);
@@ -219,7 +222,12 @@ function insertDummies(nodes, dag, layer) {
         link(from, e.target);
     });
 
-    return { up, down, layer, isDummy: id => dummies.has(id) };
+    nodes.forEach(n => {
+        const incoming = dag.filter(e => e.target === n.id);
+        if (incoming.length && incoming.every(e => e.secondary)) secondary.add(n.id);
+    });
+
+    return { up, down, layer, isDummy: id => dummies.has(id), isSecondary: id => secondary.has(id) };
 }
 
 /** Barycenter sweeps; the ordering with the fewest crossings wins. */
@@ -228,17 +236,18 @@ function orderLayers(chains, layer, nodeById, posAcross) {
     const layers = Array.from({ length: count }, () => []);
     for (const [id, l] of layer) layers[l].push(id);
 
-    // Initial order: current position across the flow (dummies follow their source).
+    // Initial order: current position across the flow (dummies follow their source); secondary
+    // branches (e.g. exception paths) go last, below / right of the main flow.
     const initial = new Map();
     const position = (id) => {
         if (initial.has(id)) return initial.get(id);
-        const value = chains.isDummy(id)
+        const value = chains.isSecondary(id) ? Infinity : chains.isDummy(id)
             ? position(chains.up.get(id)[0])
             : posAcross(nodeById.get(id));
         initial.set(id, value);
         return value;
     };
-    layers.forEach(ids => ids.sort((a, b) => position(a) - position(b)));
+    layers.forEach(ids => ids.sort((a, b) => position(a) === position(b) ? 0 : position(a) - position(b)));
 
     const index = new Map();
     const reindex = () => layers.forEach(ids => ids.forEach((id, i) => index.set(id, i)));
@@ -319,7 +328,8 @@ function assignAcross(layers, chains, nodeById, across, gap) {
         ids.forEach((id, i) => pos.set(id, z[i] + offsets[i]));
     };
 
-    const weight = id => chains.isDummy(id) ? 4 : 1;
+    // Long edges stay straight (dummies weigh more); secondary branches give way to the main line.
+    const weight = id => chains.isSecondary(id) ? 0.05 : (chains.isDummy(id) ? 4 : 1);
 
     // Median of the neighbours' positions (with two: their middle), so one far-off neighbour
     // doesn't drag a node off its main line.
