@@ -93,6 +93,8 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
   rules in `canSplitEdgeWith`: at most one own edge, not to either end, both halves keep the edge type, optional
   `diagram.canSplitEdge`; the edge must pass within a quarter of the node's smaller side of its centre);
   `renderEdges` draws the edge as its two future halves (`renderSplitPreview`); mouseup calls `splitEdgeWithNode`.
+  Also while placing a node from the toolbar: the ghost (`buildPreviewNode`) is added to the model only while the
+  halves are routed, and centres on the crossed segment (`state.creationAlign`, `getSegmentAlignment`).
   The reverse is the built-in context action `detachNode` ("Losmaken", `detachNode(node)`, `hasEdges(node)`).
   The open node tool surface is rebuilt on every `weavle:modelchanged` (`refreshNodeToolSurface`).
 - Edge routing: orthogonal — straight or simple routes first, then A* on a grid (`findPathWithAStar`),

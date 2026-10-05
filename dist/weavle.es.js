@@ -2495,7 +2495,7 @@ var x = class {
 		[...t, ...n].forEach((e) => {
 			let t = this.model.nodes.find((t) => t.id === e.sourceNodeId), n = this.model.nodes.find((t) => t.id === e.targetNodeId);
 			if (!t || !n || !e.sourceHandle || !e.targetHandle) return;
-			if (e.id === this.state.splitEdgeId && this.state.draggingNodeId) {
+			if (e.id === this.state.splitEdgeId && (this.state.draggingNodeId || this.state.creatingNodeType)) {
 				this.renderSplitPreview(e);
 				return;
 			}
@@ -3910,7 +3910,9 @@ var x = class {
 	}
 	buildPreviewNode() {
 		let e = this.options.gridSize, t = this.state.creationPreviewX, n = this.state.creationPreviewY;
-		return this.options.snapToGrid && (t = Math.round(t / e) * e, n = Math.round(n / e) * e), {
+		this.options.snapToGrid && (t = Math.round(t / e) * e, n = Math.round(n / e) * e);
+		let r = this.state.creationAlign;
+		return r?.x != null && (t = r.x), r?.y != null && (n = r.y), {
 			id: "__preview__",
 			type: this.state.creatingNodeType,
 			x: t - this.state.creatingNodeWidth / 2,
@@ -4390,7 +4392,7 @@ var x = class {
 		this.state.reconnectingEdgeId = null, this.state.reconnectingSide = null, this.state.reconnectionPreviewX = 0, this.state.reconnectionPreviewY = 0, this.resetHoverState();
 	}
 	resetCreationState() {
-		this.state.creationArmed = !1, this.svg?.classList.remove("is-creating"), this.state.creatingNodeType = null, this.state.creatingNodeWidth = 0, this.state.creatingNodeHeight = 0, this.state.creationPreviewX = 0, this.state.creationPreviewY = 0;
+		this.state.creationArmed = !1, this.svg?.classList.remove("is-creating"), this.state.creatingNodeType = null, this.state.splitEdgeId = null, this.state.creationAlign = null, this.state.creatingNodeWidth = 0, this.state.creatingNodeHeight = 0, this.state.creationPreviewX = 0, this.state.creationPreviewY = 0;
 	}
 	resetMarqeeState() {
 		this.state.isMarqueeSelecting = !1, this.state.marqueeStartX = 0, this.state.marqueeStartY = 0, this.state.marqueeCurrentX = 0, this.state.marqueeCurrentY = 0, this.state.marqueeAdditive = !1;
@@ -4432,6 +4434,19 @@ var x = class {
 			}
 		}
 		return i;
+	}
+	getSegmentAlignment(e, t) {
+		let n = e.routePoints || [], r = {
+			x: t.x + t.width / 2,
+			y: t.y + t.height / 2
+		}, i = null, a = Infinity;
+		for (let e = 0; e < n.length - 1; e++) {
+			let t = this.distancePointToSegment(r, n[e], n[e + 1]);
+			t < a && (a = t, i = [n[e], n[e + 1]]);
+		}
+		if (!i) return null;
+		let [o, s] = i;
+		return o.y === s.y ? { y: o.y } : o.x === s.x ? { x: o.x } : null;
 	}
 	distancePointToSegment(e, t, n) {
 		let r = n.x - t.x, i = n.y - t.y, a = r * r + i * i, o = a ? Math.max(0, Math.min(1, ((e.x - t.x) * r + (e.y - t.y) * i) / a)) : 0;
@@ -4478,8 +4493,18 @@ var x = class {
 		}), r;
 	}
 	renderSplitPreview(e) {
-		let t = this.getNode(this.state.draggingNodeId);
-		e && t && this.buildSplitEdges(e, t).forEach((e) => {
+		let t = this.state.draggingNodeId ? this.getNode(this.state.draggingNodeId) : this.state.creatingNodeType ? this.buildPreviewNode() : null;
+		if (!e || !t) return;
+		let n = !this.model.nodes.includes(t);
+		n && this.model.nodes.push(t);
+		try {
+			this.drawSplitHalves(e, t);
+		} finally {
+			n && this.model.nodes.splice(this.model.nodes.indexOf(t), 1);
+		}
+	}
+	drawSplitHalves(e, t) {
+		this.buildSplitEdges(e, t).forEach((e) => {
 			let t = this.routeTemporaryEdge({
 				...e,
 				id: "__split__"
@@ -4932,7 +4957,9 @@ var x = class {
 			return;
 		}
 		if (this.state.creatingNodeType) {
-			this.state.creationPreviewX = t.x, this.state.creationPreviewY = t.y, this.render();
+			this.state.creationPreviewX = t.x, this.state.creationPreviewY = t.y, this.state.creationAlign = null;
+			let e = this.buildPreviewNode(), n = this.findSplitEdgeFor(e);
+			this.state.splitEdgeId = n?.id || null, this.state.creationAlign = n ? this.getSegmentAlignment(n, e) : null, this.render();
 			return;
 		}
 		if (this.state.resizingNodeId) {
@@ -5039,7 +5066,7 @@ var x = class {
 		if (this.state.creatingNodeType) {
 			if (!this.state.creationArmed) return;
 			this.state.creationArmed = !1;
-			let e = this.buildPreviewNode(), t = {
+			let e = this.buildPreviewNode(), t = this.state.splitEdgeId ? this.model.edges.find((e) => e.id === this.state.splitEdgeId) : null, n = {
 				id: this.generateId(),
 				type: e.type,
 				x: e.x,
@@ -5048,7 +5075,7 @@ var x = class {
 				height: e.height,
 				label: e.label
 			};
-			this.model.nodes.push(t), this.notifyNodeCreated(t), this.applyContainment([t]), this.resetCreationState(), this.selectSingleNode(t.id), this.renderNodeToolSurface(t), this.emitSelectionChanged(), this.pushHistory(), this.emit("weavle:modelchanged", { model: this.getData() }), this.render();
+			this.model.nodes.push(n), this.notifyNodeCreated(n), t && this.canSplitEdgeWith(t, n) && this.splitEdgeWithNode(t, n), this.applyContainment([n]), this.resetCreationState(), this.selectSingleNode(n.id), this.renderNodeToolSurface(n), this.emitSelectionChanged(), this.pushHistory(), this.emit("weavle:modelchanged", { model: this.getData() }), this.render();
 			return;
 		}
 		if (this.state.connectingNodeId) {

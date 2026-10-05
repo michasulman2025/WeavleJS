@@ -20,6 +20,7 @@
   exactly as they will look after the release; on release A → B becomes A → node → B. Only where both
   halves keep the edge's type (an annotation or data object never splits a flow); definitions can narrow it
   with `canSplitEdge(edge, node, engine)`. The halves carry `.weavle-edge--split-preview` for custom styling.
+  Works the same when placing a new node from the toolbar; the ghost then centres on the edge segment.
 - **"Losmaken"** in the node tools (flowchart and BPMN, when the node has edges): built-in action
   `detachNode` removes the node's edges and, if it sat between one incoming and one outgoing edge,
   reconnects A → B — the reverse of dropping it onto an edge. Icon "detach".

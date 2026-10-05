@@ -798,7 +798,7 @@ export class WeavleJS {
             if (!edge.sourceHandle || !edge.targetHandle) return;
 
             // A dragged node hovers over this edge: show the two halves it would become instead.
-            if (edge.id === this.state.splitEdgeId && this.state.draggingNodeId) {
+            if (edge.id === this.state.splitEdgeId && (this.state.draggingNodeId || this.state.creatingNodeType)) {
                 this.renderSplitPreview(edge);
                 return;
             }
@@ -3968,6 +3968,11 @@ export class WeavleJS {
             y = Math.round(y / g) * g;
         }
 
+        // Centred on the edge it is about to split (see getSegmentAlignment).
+        const align = this.state.creationAlign;
+        if (align?.x != null) x = align.x;
+        if (align?.y != null) y = align.y;
+
         return {
             id:     "__preview__",
             type:   this.state.creatingNodeType,
@@ -5059,6 +5064,8 @@ export class WeavleJS {
         this.state.creationArmed      = false;
         this.svg?.classList.remove("is-creating");
         this.state.creatingNodeType   = null;
+        this.state.splitEdgeId        = null;
+        this.state.creationAlign      = null;
         this.state.creatingNodeWidth  = 0;
         this.state.creatingNodeHeight = 0;
         this.state.creationPreviewX   = 0;
@@ -5154,6 +5161,32 @@ export class WeavleJS {
         return best;
     }
 
+    /**
+     * Centre coordinate that puts the node on the edge segment nearest to its centre:
+     * { y } for a horizontal segment, { x } for a vertical one, null for a diagonal one.
+     */
+    getSegmentAlignment(edge, node) {
+        const points = edge.routePoints || [];
+        const c = { x: node.x + node.width / 2, y: node.y + node.height / 2 };
+
+        let best = null;
+        let bestDist = Infinity;
+
+        for (let i = 0; i < points.length - 1; i++) {
+            const dist = this.distancePointToSegment(c, points[i], points[i + 1]);
+            if (dist < bestDist) {
+                bestDist = dist;
+                best = [points[i], points[i + 1]];
+            }
+        }
+
+        if (!best) return null;
+        const [a, b] = best;
+        if (a.y === b.y) return { y: a.y };
+        if (a.x === b.x) return { x: a.x };
+        return null;
+    }
+
     /** Shortest distance from point p to segment a–b. */
     distancePointToSegment(p, a, b) {
         const dx = b.x - a.x;
@@ -5237,9 +5270,26 @@ export class WeavleJS {
      * (same routing, style and label); called by renderEdges for state.splitEdgeId.
      */
     renderSplitPreview(edge) {
-        const node = this.getNode(this.state.draggingNodeId);
+        // The dragged node, or the ghost of a node being placed from the toolbar.
+        const node = this.state.draggingNodeId
+            ? this.getNode(this.state.draggingNodeId)
+            : (this.state.creatingNodeType ? this.buildPreviewNode() : null);
         if (!edge || !node) return;
 
+        // A ghost isn't part of the model: add it for the moment, so the halves route to it
+        // (and around it) exactly as they will after placing.
+        const isGhost = !this.model.nodes.includes(node);
+        if (isGhost) this.model.nodes.push(node);
+
+        try {
+            this.drawSplitHalves(edge, node);
+        } finally {
+            if (isGhost) this.model.nodes.splice(this.model.nodes.indexOf(node), 1);
+        }
+    }
+
+    /** Draws the two halves that inserting the node into the edge would create, into the edges layer. */
+    drawSplitHalves(edge, node) {
         this.buildSplitEdges(edge, node).forEach(half => {
             const points = this.routeTemporaryEdge({ ...half, id: "__split__" });
             if (!points || points.length < 2) return;
@@ -6359,6 +6409,15 @@ export class WeavleJS {
         if (this.state.creatingNodeType) {
             this.state.creationPreviewX = pos.x;
             this.state.creationPreviewY = pos.y;
+
+            // Over an edge the new node may join: preview inserting it there, centred on the
+            // edge segment it crosses (so the halves come out straight instead of with a jog).
+            this.state.creationAlign = null;
+            const ghost     = this.buildPreviewNode();
+            const splitEdge = this.findSplitEdgeFor(ghost);
+            this.state.splitEdgeId   = splitEdge?.id || null;
+            this.state.creationAlign = splitEdge ? this.getSegmentAlignment(splitEdge, ghost) : null;
+
             this.render();
             return;
         }
@@ -6721,6 +6780,9 @@ export class WeavleJS {
             this.state.creationArmed = false;
 
             const previewNode = this.buildPreviewNode();
+            const splitEdge   = this.state.splitEdgeId
+                ? this.model.edges.find(e => e.id === this.state.splitEdgeId)
+                : null;
 
             const newNode = {
                 id:     this.generateId(),
@@ -6734,6 +6796,12 @@ export class WeavleJS {
 
             this.model.nodes.push(newNode);
             this.notifyNodeCreated(newNode);
+
+            // Placed onto an edge it may join: A → B becomes A → new node → B.
+            if (splitEdge && this.canSplitEdgeWith(splitEdge, newNode)) {
+                this.splitEdgeWithNode(splitEdge, newNode);
+            }
+
             this.applyContainment([newNode]);
             this.resetCreationState();
 
