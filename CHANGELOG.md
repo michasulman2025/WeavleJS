@@ -7,6 +7,9 @@
   grouped submenus, then click where it goes (Escape cancels). Built from the palette, or from a
   definition's `getCanvasActions()`; option `toolbar: false` turns it off.
 
+- **Flowchart** uses the same node tools as BPMN: floating next to the node, with "Type wijzigen"
+  (all seven shapes) and "Stap toevoegen"; the canvas toolbar offers all seven shapes.
+
 ### Fixed
 - Label editing: a click anywhere on the canvas ends the edit and keeps the text; unchanged text adds no
   undo step. Typing reaches the editor right after a double-click (the focus was taken back by the canvas).

@@ -160,6 +160,9 @@ const flowchartShapes = {
 };
 
 
+// All flowchart shape types, in palette order.
+const FLOWCHART_TYPES = ["process", "decision", "terminator", "inputOutput", "document", "subProcess", "database"];
+
 export function createFlowchartDefinition() {
     return {
 
@@ -223,11 +226,8 @@ export function createFlowchartDefinition() {
                 shape: "database"
             }
         },
-        palette: [
-            { type: "process" },
-            { type: "decision" },
-            { type: "terminator" }
-        ],
+        // All shapes; few enough to sit directly in the canvas toolbar (no submenu).
+        palette: FLOWCHART_TYPES.map(type => ({ type })),
 
         getPorts(node) {
             return {
@@ -260,16 +260,34 @@ export function createFlowchartDefinition() {
             );
         },
 
+        // Same menu style as BPMN: change type, add a connected step, delete.
         getContextActions(node) {
-            const types = ["process", "decision", "terminator", "inputOutput", "document", "subProcess", "database"];
+            const label = type => this.nodeTypes[type].defaultLabel;
 
             return [
                 {
+                    type: "group", label: "Type wijzigen", icon: "wrench",
+                    children: FLOWCHART_TYPES.map(t => ({ type: "changeType", nodeType: t, label: label(t), active: t === node.type }))
+                },
+                {
                     type: "group", label: "Stap toevoegen", nodeType: "process",
-                    children: types.map(t => ({ type: "addConnectedNode", nodeType: t, label: this.nodeTypes[t].defaultLabel }))
+                    children: FLOWCHART_TYPES.map(t => ({ type: "addConnectedNode", nodeType: t, label: label(t) }))
                 },
                 { type: "deleteNode", label: "Verwijderen" }
             ];
+        },
+
+        handleAction(action, node) {
+            if (action.type !== "changeType" || !action.nodeType || action.nodeType === node.type) return false;
+
+            // Keep a custom label; replace the default label of the old type.
+            const oldDefault = this.nodeTypes[node.type]?.defaultLabel;
+            node.type = action.nodeType;
+
+            if (!node.label || node.label === oldDefault) {
+                node.label = this.nodeTypes[node.type].defaultLabel;
+            }
+            return true;
         },
 
         getDefaultSize(nodeType) {
@@ -285,8 +303,9 @@ export function createFlowchartDefinition() {
             return sizes[nodeType] || { width: 140, height: 70 };
         },
 
+        // Node tools float next to the selected node, like BPMN.
         getNodeInteractionMode(node) {
-            return "docked-panel";
+            return "action-surface";
         },
 
         // Usable text area per shape: a diamond only has room around its middle,
