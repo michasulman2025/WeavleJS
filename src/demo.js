@@ -239,7 +239,7 @@ function renderShapeButtons() {
   const makeButton = type => {
     const def = currentDiagramDefinition.nodeTypes[type];
     const btn = document.createElement("button");
-    btn.textContent = def?.defaultLabel || type;
+    btn.textContent = def?.title || def?.defaultLabel || type;
     btn.addEventListener("click", () => addNode(type));
     return btn;
   };

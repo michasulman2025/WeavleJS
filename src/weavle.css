@@ -206,6 +206,14 @@
     color: var(--weavle-ui-muted);
 }
 
+.weavle-tool-submenu-heading {
+    margin-top: 4px;
+    padding: 4px 8px 2px;
+    font-size: 11px;
+    color: var(--weavle-ui-muted);
+    border-top: 1px solid var(--weavle-ui-border);
+}
+
 .weavle-tool-menu-item {
     display: flex;
     align-items: center;

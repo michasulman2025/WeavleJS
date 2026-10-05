@@ -13,6 +13,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the design and roadmap.
 
 - Zero runtime dependencies, plain ES modules
 - Pluggable diagram definitions — flowchart and BPMN included
+- Flowchart: all 26 standard (ISO 5807) shapes in five groups, incl. on-page / off-page connectors and comments
 - BPMN: 23 event types (start / intermediate catch & throw / end), 10 activity types, gateways, data,
   annotations, pools & lanes — with "change type" in the node tools
 - Drag, multi-select (Ctrl+click, marquee), group drag, delete, undo / redo

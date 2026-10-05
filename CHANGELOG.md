@@ -8,9 +8,19 @@
   definition's `getCanvasActions()`; option `toolbar: false` turns it off.
 
 - **Flowchart** uses the same node tools as BPMN: floating next to the node, with "Type wijzigen"
-  (all seven shapes) and "Stap toevoegen"; the canvas toolbar offers all seven shapes.
+  and one "... toevoegen" submenu per shape group.
+- **All standard flowchart shapes** (ISO 5807), 26 in five groups: Basis (terminator, process, decision,
+  subprocess, preparation, loop limit, delay), Invoer & uitvoer (input/output, manual input, display,
+  document, multiple documents), Opslag (database, stored data, internal storage, direct access storage),
+  Bewerkingen (manual operation, merge, extract, sort, collate, summing junction, or) and Verbinders &
+  opmerkingen (on-page connector, off-page connector, comment). Small symbols label below the shape;
+  a comment is linked with a dashed line without an arrow (edge type `comment`, flow lines are `flow`).
+- Submenus can hold section headings (`{ type: "heading", label }` children), used to group "Type wijzigen".
+- `nodeTypes[type].title`: the name in menus and the toolbar when the default label is not a good name
+  (connector "A" → "On-page verbinder"); `getTypeTitle(type)`.
 
 ### Fixed
+- Changing a node's type re-derives the type of its edges (e.g. a flow line becomes a comment line).
 - Label editing: a click anywhere on the canvas ends the edit and keeps the text; unchanged text adds no
   undo step. Typing reaches the editor right after a double-click (the focus was taken back by the canvas).
 - Placing a node (`startNodeCreation`): the ghost now follows the mouse, a click on the canvas no longer

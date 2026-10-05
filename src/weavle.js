@@ -4259,8 +4259,7 @@ export class WeavleJS {
             return this.diagram.getCanvasActions(this) || [];
         }
 
-        const label = type => this.getDefaultLabelForType(type);
-        const make  = type => ({ type: "createNode", nodeType: type, label: label(type) });
+        const make = type => ({ type: "createNode", nodeType: type, label: this.getTypeTitle(type) });
 
         return (this.diagram.palette || []).map(entry => entry.group
             ? { type: "group", label: entry.group, nodeType: entry.types[0], children: entry.types.map(make) }
@@ -4452,6 +4451,15 @@ export class WeavleJS {
         menu.appendChild(title);
 
         for (const child of action.children) {
+            // A heading child is a non-clickable section title inside the submenu.
+            if (child.type === "heading") {
+                const heading = document.createElement("div");
+                heading.className   = "weavle-tool-submenu-heading";
+                heading.textContent = child.label || "";
+                menu.appendChild(heading);
+                continue;
+            }
+
             const row = document.createElement("button");
             row.type      = "button";
             row.className = "weavle-tool-menu-item";
@@ -4684,6 +4692,14 @@ export class WeavleJS {
         // Diagram-specific actions (e.g. BPMN "add lane"): the definition changes the model and
         // returns true; the engine records the undo step and notifies.
         if (typeof this.diagram.handleAction === "function" && this.diagram.handleAction(action, node, this)) {
+            // A changed node type may change the type of its edges (e.g. flow → comment line).
+            this.model.edges
+                .filter(edge => edge.sourceNodeId === node.id || edge.targetNodeId === node.id)
+                .forEach(edge => {
+                    this.assignEdgeType(edge);
+                    this.updateEdgeRoute(edge);
+                });
+
             this.pushHistory();
             this.emit("weavle:modelchanged", { model: this.getData() });
             this.render();
@@ -5584,6 +5600,15 @@ export class WeavleJS {
     getDefaultLabelForType(nodeType) {
         const typeDef = this.diagram.nodeTypes && this.diagram.nodeTypes[nodeType];
         return typeDef ? typeDef.defaultLabel : "Node";
+    }
+
+    /**
+     * Name of a node type in menus and the toolbar: nodeTypes[type].title, else its defaultLabel
+     * (a connector's default label "A" makes a poor menu entry).
+     */
+    getTypeTitle(nodeType) {
+        const typeDef = this.diagram.nodeTypes && this.diagram.nodeTypes[nodeType];
+        return typeDef?.title || this.getDefaultLabelForType(nodeType);
     }
 
     /**

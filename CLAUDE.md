@@ -84,7 +84,11 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
 - Edge types: `edge.type` keys into the definition's `edgeTypes` (`router: "orthogonal" | "straight"`,
   `marker: "arrow" | "openArrow" | "none"`, `dash`). `getEdgeTypeForConnection({source, target})` picks the type
   when an edge is created or reconnected; `defaultEdgeType` otherwise. Untyped saved edges get a type on load.
-  BPMN: sequenceFlow, association (annotation), dataAssociation (data object/store).
+  BPMN: sequenceFlow, association (annotation), dataAssociation (data object/store). Flowchart: flow, comment
+  (to/from an annotation). Changing a node's type re-derives the type of its edges.
+- Flowchart shapes: `FLOWCHART_GROUPS` in weavle-flowchart.js (26 ISO 5807 shapes in 5 groups) drives the palette,
+  "Type wijzigen" (with `{ type: "heading" }` children) and one add-submenu per group. `nodeTypes[type].title` is
+  the menu name when the default label is not one (connectors).
 - Edge routing: orthogonal — straight or simple routes first, then A* on a grid (`findPathWithAStar`),
   tuned per definition via `getRoutingConfig`.
 - The diagram definition is the extension point for new diagram types: shapes, nodeTypes, getPorts,

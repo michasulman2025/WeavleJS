@@ -1,5 +1,29 @@
 //#region src/weavle-flowchart.js
-var e = "http://www.w3.org/2000/svg", t = {
+var e = "http://www.w3.org/2000/svg";
+function t(t, n, r) {
+	let i = document.createElementNS(e, "polygon");
+	return i.setAttribute("points", r.map(([e, t]) => `${e},${t}`).join(" ")), n.applyNodeStyle(i, t), i;
+}
+function n(t, n, r) {
+	let i = document.createElementNS(e, "path");
+	return i.setAttribute("d", r), n.applyNodeStyle(i, t), i;
+}
+function r(t, n, r, i, a, o) {
+	let s = document.createElementNS(e, "line");
+	return s.setAttribute("x1", r), s.setAttribute("y1", i), s.setAttribute("x2", a), s.setAttribute("y2", o), s.setAttribute("stroke", n.getNodeColors(t.type).stroke), s.setAttribute("stroke-width", "1.5"), s;
+}
+function i(e, t, n, r) {
+	let i = Math.min(8, r * .12);
+	return [
+		`M ${e} ${t}`,
+		`L ${e + n} ${t}`,
+		`L ${e + n} ${t + r - i}`,
+		`Q ${e + n * .75} ${t + r + i} ${e + n * .5} ${t + r - i}`,
+		`Q ${e + n * .25} ${t + r - 3 * i} ${e} ${t + r - i}`,
+		"Z"
+	].join(" ");
+}
+var a = {
 	process(t, n) {
 		let r = document.createElementNS(e, "rect");
 		return r.setAttribute("x", t.x), r.setAttribute("y", t.y), r.setAttribute("width", t.width), r.setAttribute("height", t.height), r.setAttribute("rx", 8), n.applyNodeStyle(r, t), r;
@@ -52,20 +76,200 @@ var e = "http://www.w3.org/2000/svg", t = {
 		s.setAttribute("cx", a), s.setAttribute("cy", t.y + 10), s.setAttribute("rx", i), s.setAttribute("ry", 10), n.applyNodeStyle(s, t);
 		let c = document.createElementNS(e, "ellipse");
 		return c.setAttribute("cx", a), c.setAttribute("cy", t.y + t.height - 10), c.setAttribute("rx", i), c.setAttribute("ry", 10), c.setAttribute("fill", "none"), c.setAttribute("stroke", n.getNodeColors(t.type).stroke), c.setAttribute("stroke-width", "1.5"), r.appendChild(o), r.appendChild(s), r.appendChild(c), r;
+	},
+	onPageConnector(t, n) {
+		let r = document.createElementNS(e, "circle");
+		return r.setAttribute("cx", t.x + t.width / 2), r.setAttribute("cy", t.y + t.height / 2), r.setAttribute("r", Math.min(t.width, t.height) / 2), n.applyNodeStyle(r, t), r;
+	},
+	offPageConnector(e, n) {
+		let { x: r, y: i, width: a, height: o } = e;
+		return t(e, n, [
+			[r, i],
+			[r + a, i],
+			[r + a, i + o * .6],
+			[r + a / 2, i + o],
+			[r, i + o * .6]
+		]);
+	},
+	preparation(e, n) {
+		let { x: r, y: i, width: a, height: o } = e, s = Math.min(a * .15, o / 2);
+		return t(e, n, [
+			[r + s, i],
+			[r + a - s, i],
+			[r + a, i + o / 2],
+			[r + a - s, i + o],
+			[r + s, i + o],
+			[r, i + o / 2]
+		]);
+	},
+	loopLimit(e, n) {
+		let { x: r, y: i, width: a, height: o } = e, s = Math.min(15, o * .3, a * .2);
+		return t(e, n, [
+			[r + s, i],
+			[r + a - s, i],
+			[r + a, i + s],
+			[r + a, i + o],
+			[r, i + o],
+			[r, i + s]
+		]);
+	},
+	delay(e, t) {
+		let { x: r, y: i, width: a, height: o } = e, s = Math.min(o / 2, a / 2);
+		return n(e, t, `M ${r} ${i} L ${r + a - s} ${i} A ${s} ${o / 2} 0 0 1 ${r + a - s} ${i + o} L ${r} ${i + o} Z`);
+	},
+	manualInput(e, n) {
+		let { x: r, y: i, width: a, height: o } = e;
+		return t(e, n, [
+			[r, i + o * .3],
+			[r + a, i],
+			[r + a, i + o],
+			[r, i + o]
+		]);
+	},
+	display(e, t) {
+		let { x: r, y: i, width: a, height: o } = e, s = Math.min(a * .18, o / 2), c = Math.min(a * .18, o / 2);
+		return n(e, t, `M ${r} ${i + o / 2} L ${r + c} ${i} L ${r + a - s} ${i} A ${s} ${o / 2} 0 0 1 ${r + a - s} ${i + o} L ${r + c} ${i + o} Z`);
+	},
+	multipleDocuments(t, n) {
+		let r = document.createElementNS(e, "g"), { x: a, y: o, width: s, height: c } = t, l = Math.min(8, s * .06, c * .08);
+		return [
+			[2 * l, 0],
+			[l, l],
+			[0, 2 * l]
+		].forEach(([u, d]) => {
+			let f = document.createElementNS(e, "path");
+			f.setAttribute("d", i(a + u, o + d, s - 2 * l, c - 2 * l)), n.applyNodeStyle(f, t), r.appendChild(f);
+		}), r;
+	},
+	storedData(e, t) {
+		let { x: r, y: i, width: a, height: o } = e, s = Math.min(a * .12, o / 2);
+		return n(e, t, `M ${r + s} ${i} L ${r + a} ${i} A ${s} ${o / 2} 0 0 0 ${r + a} ${i + o} L ${r + s} ${i + o} A ${s} ${o / 2} 0 0 1 ${r + s} ${i} Z`);
+	},
+	internalStorage(t, n) {
+		let r = document.createElementNS(e, "g"), { x: i, y: a, width: o, height: s } = t, c = Math.min(12, o * .15, s * .2), l = document.createElementNS(e, "rect");
+		l.setAttribute("x", i), l.setAttribute("y", a), l.setAttribute("width", o), l.setAttribute("height", s), n.applyNodeStyle(l, t), r.appendChild(l);
+		let u = n.getNodeColors(t.type).stroke, d = document.createElementNS(e, "path");
+		return d.setAttribute("d", `M ${i + c} ${a} L ${i + c} ${a + s} M ${i} ${a + c} L ${i + o} ${a + c}`), d.setAttribute("fill", "none"), d.setAttribute("stroke", u), d.setAttribute("stroke-width", "1.2"), r.appendChild(d), r;
+	},
+	directAccessStorage(t, n) {
+		let r = document.createElementNS(e, "g"), { x: i, y: a, width: o, height: s } = t, c = Math.min(o * .12, s / 2), l = document.createElementNS(e, "path");
+		l.setAttribute("d", `M ${i + c} ${a} L ${i + o - c} ${a} A ${c} ${s / 2} 0 0 1 ${i + o - c} ${a + s} L ${i + c} ${a + s} A ${c} ${s / 2} 0 0 1 ${i + c} ${a} Z`), n.applyNodeStyle(l, t), r.appendChild(l);
+		let u = document.createElementNS(e, "ellipse");
+		return u.setAttribute("cx", i + o - c), u.setAttribute("cy", a + s / 2), u.setAttribute("rx", c), u.setAttribute("ry", s / 2), u.setAttribute("fill", "none"), u.setAttribute("stroke", n.getNodeColors(t.type).stroke), u.setAttribute("stroke-width", "1.5"), r.appendChild(u), r;
+	},
+	manualOperation(e, n) {
+		let { x: r, y: i, width: a, height: o } = e, s = Math.min(a * .15, o);
+		return t(e, n, [
+			[r, i],
+			[r + a, i],
+			[r + a - s, i + o],
+			[r + s, i + o]
+		]);
+	},
+	merge(e, n) {
+		let { x: r, y: i, width: a, height: o } = e;
+		return t(e, n, [
+			[r, i],
+			[r + a, i],
+			[r + a / 2, i + o]
+		]);
+	},
+	extract(e, n) {
+		let { x: r, y: i, width: a, height: o } = e;
+		return t(e, n, [
+			[r + a / 2, i],
+			[r + a, i + o],
+			[r, i + o]
+		]);
+	},
+	sort(n, i) {
+		let a = document.createElementNS(e, "g"), { x: o, y: s, width: c, height: l } = n;
+		return a.appendChild(t(n, i, [
+			[o + c / 2, s],
+			[o + c, s + l / 2],
+			[o + c / 2, s + l],
+			[o, s + l / 2]
+		])), a.appendChild(r(n, i, o, s + l / 2, o + c, s + l / 2)), a;
+	},
+	collate(e, n) {
+		let { x: r, y: i, width: a, height: o } = e;
+		return t(e, n, [
+			[r, i],
+			[r + a, i],
+			[r, i + o],
+			[r + a, i + o]
+		]);
+	},
+	summingJunction(t, n) {
+		let i = document.createElementNS(e, "g"), a = Math.min(t.width, t.height) / 2, o = t.x + t.width / 2, s = t.y + t.height / 2, c = a * Math.SQRT1_2, l = document.createElementNS(e, "circle");
+		return l.setAttribute("cx", o), l.setAttribute("cy", s), l.setAttribute("r", a), n.applyNodeStyle(l, t), i.appendChild(l), i.appendChild(r(t, n, o - c, s - c, o + c, s + c)), i.appendChild(r(t, n, o + c, s - c, o - c, s + c)), i;
+	},
+	or(t, n) {
+		let i = document.createElementNS(e, "g"), a = Math.min(t.width, t.height) / 2, o = t.x + t.width / 2, s = t.y + t.height / 2, c = document.createElementNS(e, "circle");
+		return c.setAttribute("cx", o), c.setAttribute("cy", s), c.setAttribute("r", a), n.applyNodeStyle(c, t), i.appendChild(c), i.appendChild(r(t, n, o - a, s, o + a, s)), i.appendChild(r(t, n, o, s - a, o, s + a)), i;
+	},
+	annotation(t, n) {
+		let { x: r, y: i, height: a } = t, o = document.createElementNS(e, "path");
+		return o.setAttribute("d", `M ${r + 12} ${i} L ${r} ${i} L ${r} ${i + a} L ${r + 12} ${i + a}`), n.applyNodeStyle(o, t), o.setAttribute("fill", "none"), o;
 	}
-}, n = [
-	"process",
-	"decision",
-	"terminator",
-	"inputOutput",
-	"document",
-	"subProcess",
-	"database"
+}, o = [
+	{
+		group: "Basis",
+		types: [
+			"terminator",
+			"process",
+			"decision",
+			"subProcess",
+			"preparation",
+			"loopLimit",
+			"delay"
+		]
+	},
+	{
+		group: "Invoer & uitvoer",
+		types: [
+			"inputOutput",
+			"manualInput",
+			"display",
+			"document",
+			"multipleDocuments"
+		]
+	},
+	{
+		group: "Opslag",
+		types: [
+			"database",
+			"storedData",
+			"internalStorage",
+			"directAccessStorage"
+		]
+	},
+	{
+		group: "Bewerkingen",
+		types: [
+			"manualOperation",
+			"merge",
+			"extract",
+			"sort",
+			"collate",
+			"summingJunction",
+			"or"
+		]
+	},
+	{
+		group: "Verbinders & opmerkingen",
+		types: [
+			"onPageConnector",
+			"offPageConnector",
+			"annotation"
+		]
+	}
 ];
-function r() {
+o.flatMap((e) => e.types);
+function s() {
 	return {
 		id: "flowchart",
-		shapes: t,
+		shapes: a,
 		nodeTypes: {
 			process: {
 				defaultLabel: "Processtap",
@@ -122,10 +326,254 @@ function r() {
 					stroke: "#1B5278"
 				},
 				shape: "database"
+			},
+			preparation: {
+				defaultLabel: "Voorbereiding",
+				colors: {
+					fill: "#E8F3EC",
+					stroke: "#1B5278"
+				},
+				shape: "preparation"
+			},
+			loopLimit: {
+				defaultLabel: "Herhaal",
+				colors: {
+					fill: "#E8F3EC",
+					stroke: "#1B5278"
+				},
+				shape: "loopLimit"
+			},
+			delay: {
+				defaultLabel: "Wachten",
+				colors: {
+					fill: "#FFF4E8",
+					stroke: "#B07A00"
+				},
+				shape: "delay"
+			},
+			manualInput: {
+				defaultLabel: "Handmatige invoer",
+				colors: {
+					fill: "#F6D6B4",
+					stroke: "#4A8DB5"
+				},
+				shape: "manualInput"
+			},
+			display: {
+				defaultLabel: "Weergave",
+				colors: {
+					fill: "#F6D6B4",
+					stroke: "#4A8DB5"
+				},
+				shape: "display"
+			},
+			multipleDocuments: {
+				defaultLabel: "Documenten",
+				colors: {
+					fill: "#FFF4E8",
+					stroke: "#4A8DB5"
+				},
+				shape: "multipleDocuments"
+			},
+			storedData: {
+				defaultLabel: "Opgeslagen gegevens",
+				colors: {
+					fill: "#EAF4FB",
+					stroke: "#1B5278"
+				},
+				shape: "storedData"
+			},
+			internalStorage: {
+				defaultLabel: "Intern geheugen",
+				colors: {
+					fill: "#EAF4FB",
+					stroke: "#1B5278"
+				},
+				shape: "internalStorage"
+			},
+			directAccessStorage: {
+				defaultLabel: "Directe opslag",
+				colors: {
+					fill: "#EAF4FB",
+					stroke: "#1B5278"
+				},
+				shape: "directAccessStorage"
+			},
+			manualOperation: {
+				defaultLabel: "Handmatige handeling",
+				colors: {
+					fill: "#F6D6B4",
+					stroke: "#0d2d44"
+				},
+				shape: "manualOperation"
+			},
+			merge: {
+				defaultLabel: "Samenvoegen",
+				colors: {
+					fill: "#FFFFFF",
+					stroke: "#0d2d44"
+				},
+				shape: "merge"
+			},
+			extract: {
+				defaultLabel: "Uitsplitsen",
+				colors: {
+					fill: "#FFFFFF",
+					stroke: "#0d2d44"
+				},
+				shape: "extract"
+			},
+			sort: {
+				defaultLabel: "Sorteren",
+				colors: {
+					fill: "#FFFFFF",
+					stroke: "#0d2d44"
+				},
+				shape: "sort"
+			},
+			collate: {
+				defaultLabel: "Collatie",
+				colors: {
+					fill: "#FFFFFF",
+					stroke: "#0d2d44"
+				},
+				shape: "collate"
+			},
+			summingJunction: {
+				defaultLabel: "Sommatie",
+				colors: {
+					fill: "#FFFFFF",
+					stroke: "#0d2d44"
+				},
+				shape: "summingJunction"
+			},
+			or: {
+				defaultLabel: "Of",
+				colors: {
+					fill: "#FFFFFF",
+					stroke: "#0d2d44"
+				},
+				shape: "or"
+			},
+			onPageConnector: {
+				defaultLabel: "A",
+				title: "On-page verbinder",
+				colors: {
+					fill: "#FFFFFF",
+					stroke: "#1B5278"
+				},
+				shape: "onPageConnector"
+			},
+			offPageConnector: {
+				defaultLabel: "Pagina 2",
+				title: "Off-page verbinder",
+				colors: {
+					fill: "#FFFFFF",
+					stroke: "#1B5278"
+				},
+				shape: "offPageConnector"
+			},
+			annotation: {
+				defaultLabel: "Opmerking",
+				colors: {
+					fill: "none",
+					stroke: "#64748B"
+				},
+				shape: "annotation"
 			}
 		},
-		palette: n.map((e) => ({ type: e })),
+		palette: o,
+		defaultEdgeType: "flow",
+		edgeTypes: {
+			flow: {
+				router: "orthogonal",
+				marker: "arrow"
+			},
+			comment: {
+				router: "straight",
+				marker: "none",
+				dash: "3,4"
+			}
+		},
+		getEdgeTypeForConnection({ source: e, target: t }) {
+			return e?.type === "annotation" || t?.type === "annotation" ? "comment" : "flow";
+		},
 		getPorts(e) {
+			let { x: t, y: n, width: r, height: i } = e;
+			switch (e.type) {
+				case "merge": return {
+					top: {
+						x: t + r / 2,
+						y: n
+					},
+					right: {
+						x: t + r * .75,
+						y: n + i / 2
+					},
+					bottom: {
+						x: t + r / 2,
+						y: n + i
+					},
+					left: {
+						x: t + r * .25,
+						y: n + i / 2
+					}
+				};
+				case "extract": return {
+					top: {
+						x: t + r / 2,
+						y: n
+					},
+					right: {
+						x: t + r * .75,
+						y: n + i / 2
+					},
+					bottom: {
+						x: t + r / 2,
+						y: n + i
+					},
+					left: {
+						x: t + r * .25,
+						y: n + i / 2
+					}
+				};
+				case "collate": return {
+					top: {
+						x: t + r / 2,
+						y: n
+					},
+					right: {
+						x: t + r * .75,
+						y: n + i * .25
+					},
+					bottom: {
+						x: t + r / 2,
+						y: n + i
+					},
+					left: {
+						x: t + r * .25,
+						y: n + i * .25
+					}
+				};
+				case "manualInput": return {
+					top: {
+						x: t + r / 2,
+						y: n + i * .15
+					},
+					right: {
+						x: t + r,
+						y: n + i / 2
+					},
+					bottom: {
+						x: t + r / 2,
+						y: n + i
+					},
+					left: {
+						x: t,
+						y: n + i * .65
+					}
+				};
+			}
 			return {
 				top: {
 					x: e.x + e.width / 2,
@@ -149,29 +597,32 @@ function r() {
 			return a.buildRoutedEdgePoints(e, t, n, r, i);
 		},
 		getContextActions(e) {
-			let t = (e) => this.nodeTypes[e].defaultLabel;
+			let t = (e) => this.nodeTypes[e].title || this.nodeTypes[e].defaultLabel;
 			return [
 				{
 					type: "group",
 					label: "Type wijzigen",
 					icon: "wrench",
-					children: n.map((n) => ({
+					children: o.flatMap((n) => [{
+						type: "heading",
+						label: n.group
+					}, ...n.types.map((n) => ({
 						type: "changeType",
 						nodeType: n,
 						label: t(n),
 						active: n === e.type
-					}))
+					}))])
 				},
-				{
+				...o.map((e) => ({
 					type: "group",
-					label: "Stap toevoegen",
-					nodeType: "process",
-					children: n.map((e) => ({
+					label: e.group + " toevoegen",
+					nodeType: e.types[0],
+					children: e.types.map((e) => ({
 						type: "addConnectedNode",
 						nodeType: e,
 						label: t(e)
 					}))
-				},
+				})),
 				{
 					type: "deleteNode",
 					label: "Verwijderen"
@@ -212,6 +663,82 @@ function r() {
 				database: {
 					width: 120,
 					height: 80
+				},
+				preparation: {
+					width: 140,
+					height: 70
+				},
+				loopLimit: {
+					width: 140,
+					height: 60
+				},
+				delay: {
+					width: 120,
+					height: 60
+				},
+				manualInput: {
+					width: 140,
+					height: 70
+				},
+				display: {
+					width: 140,
+					height: 70
+				},
+				multipleDocuments: {
+					width: 150,
+					height: 90
+				},
+				storedData: {
+					width: 140,
+					height: 70
+				},
+				internalStorage: {
+					width: 120,
+					height: 80
+				},
+				directAccessStorage: {
+					width: 160,
+					height: 70
+				},
+				manualOperation: {
+					width: 140,
+					height: 70
+				},
+				merge: {
+					width: 60,
+					height: 50
+				},
+				extract: {
+					width: 60,
+					height: 50
+				},
+				sort: {
+					width: 60,
+					height: 60
+				},
+				collate: {
+					width: 50,
+					height: 60
+				},
+				summingJunction: {
+					width: 40,
+					height: 40
+				},
+				or: {
+					width: 40,
+					height: 40
+				},
+				onPageConnector: {
+					width: 40,
+					height: 40
+				},
+				offPageConnector: {
+					width: 60,
+					height: 60
+				},
+				annotation: {
+					width: 140,
+					height: 60
 				}
 			}[e] || {
 				width: 140,
@@ -232,6 +759,52 @@ function r() {
 				case "inputOutput": return { paddingX: 22 };
 				case "database": return { paddingY: 14 };
 				case "subProcess": return { paddingX: 16 };
+				case "preparation":
+				case "manualOperation": return { paddingX: 22 };
+				case "loopLimit": return { paddingY: 8 };
+				case "delay":
+				case "display": return { paddingX: 18 };
+				case "manualInput": return { paddingY: 10 };
+				case "multipleDocuments": return {
+					paddingX: 12,
+					paddingY: 12
+				};
+				case "storedData": return { paddingX: 20 };
+				case "directAccessStorage": return { paddingX: 2 * Math.min(e.width * .12, e.height / 2) + 4 };
+				case "internalStorage": return {
+					paddingX: 16,
+					paddingY: 10
+				};
+				case "document": return { paddingY: 6 };
+				case "merge":
+				case "extract":
+				case "sort":
+				case "collate":
+				case "summingJunction":
+				case "or": return {
+					placement: "below",
+					fontSize: 12,
+					belowWidth: 110
+				};
+				case "onPageConnector": return {
+					fontSize: 12,
+					paddingX: 2,
+					paddingY: 2,
+					maxLines: 1
+				};
+				case "offPageConnector": return {
+					fontSize: 11,
+					paddingX: 3,
+					paddingY: 2,
+					heightFactor: .6,
+					maxLines: 2
+				};
+				case "annotation": return {
+					placement: "inside",
+					paddingX: 10,
+					paddingY: 6,
+					fontSize: 13
+				};
 				default: return {};
 			}
 		},
@@ -244,6 +817,30 @@ function r() {
 				case "database": return {
 					minWidth: 60,
 					minHeight: 50
+				};
+				case "onPageConnector":
+				case "summingJunction":
+				case "or": return {
+					keepAspectRatio: !0,
+					minWidth: 30,
+					minHeight: 30,
+					maxWidth: 120,
+					maxHeight: 120
+				};
+				case "offPageConnector": return {
+					minWidth: 40,
+					minHeight: 40
+				};
+				case "merge":
+				case "extract":
+				case "sort":
+				case "collate": return {
+					minWidth: 40,
+					minHeight: 40
+				};
+				case "annotation": return {
+					minWidth: 60,
+					minHeight: 30
 				};
 				default: return {
 					minWidth: 80,
@@ -275,7 +872,7 @@ function r() {
 }
 //#endregion
 //#region src/weavle-bpmn.js
-var i = "http://www.w3.org/2000/svg", a = 30, o = 60, s = 10, c = {
+var c = "http://www.w3.org/2000/svg", l = 30, u = 60, d = 10, f = {
 	startEvent: {
 		kind: "start",
 		trigger: "none",
@@ -434,7 +1031,7 @@ var i = "http://www.w3.org/2000/svg", a = 30, o = 60, s = 10, c = {
 		label: "Compensation",
 		alwaysInterrupting: !0
 	}
-}, l = {
+}, p = {
 	start: {
 		fill: "#ffffff",
 		stroke: "#1B5278"
@@ -451,7 +1048,7 @@ var i = "http://www.w3.org/2000/svg", a = 30, o = 60, s = 10, c = {
 		fill: "#ffffff",
 		stroke: "#4A8DB5"
 	}
-}, u = [
+}, m = [
 	"task",
 	"userTask",
 	"serviceTask",
@@ -462,18 +1059,18 @@ var i = "http://www.w3.org/2000/svg", a = 30, o = 60, s = 10, c = {
 	"businessRuleTask",
 	"callActivity",
 	"subProcess"
-], d = [
+], h = [
 	"exclusiveGateway",
 	"parallelGateway",
 	"inclusiveGateway",
 	"gateway"
 ];
-function f(e, t, n) {
-	let r = document.createElementNS(i, t);
+function g(e, t, n) {
+	let r = document.createElementNS(c, t);
 	for (let [e, t] of Object.entries(n)) r.setAttribute(e, t);
 	return e.appendChild(r), r;
 }
-function p(e, t, n, r, i, a, o) {
+function _(e, t, n, r, i, a, o) {
 	let s = i * .52, c = {
 		stroke: a,
 		"stroke-width": 1.4,
@@ -483,13 +1080,13 @@ function p(e, t, n, r, i, a, o) {
 	switch (t) {
 		case "message": {
 			let t = s * 1.5, i = s * 1.05, l = n - t / 2, u = r - i / 2;
-			f(e, "rect", {
+			g(e, "rect", {
 				...c,
 				x: l,
 				y: u,
 				width: t,
 				height: i
-			}), f(e, "polyline", {
+			}), g(e, "polyline", {
 				points: `${l},${u} ${n},${r + i * .1} ${l + t},${u}`,
 				fill: "none",
 				stroke: o ? "#ffffff" : a,
@@ -498,7 +1095,7 @@ function p(e, t, n, r, i, a, o) {
 			break;
 		}
 		case "timer":
-			f(e, "circle", {
+			g(e, "circle", {
 				...c,
 				fill: "#ffffff",
 				cx: n,
@@ -507,7 +1104,7 @@ function p(e, t, n, r, i, a, o) {
 			});
 			for (let t = 0; t < 12; t++) {
 				let i = t / 12 * Math.PI * 2;
-				f(e, "line", {
+				g(e, "line", {
 					x1: n + Math.cos(i) * s * .72,
 					y1: r + Math.sin(i) * s * .72,
 					x2: n + Math.cos(i) * s * .9,
@@ -516,7 +1113,7 @@ function p(e, t, n, r, i, a, o) {
 					"stroke-width": .8
 				});
 			}
-			f(e, "polyline", {
+			g(e, "polyline", {
 				points: `${n},${r - s * .6} ${n},${r} ${n + s * .45},${r}`,
 				fill: "none",
 				stroke: a,
@@ -526,7 +1123,7 @@ function p(e, t, n, r, i, a, o) {
 			break;
 		case "conditional": {
 			let t = s * 1.15, i = s * 1.45, o = n - t / 2, l = r - i / 2;
-			f(e, "rect", {
+			g(e, "rect", {
 				...c,
 				fill: "#ffffff",
 				x: o,
@@ -538,7 +1135,7 @@ function p(e, t, n, r, i, a, o) {
 				.42,
 				.62,
 				.82
-			].forEach((n) => f(e, "line", {
+			].forEach((n) => g(e, "line", {
 				x1: o + t * .2,
 				y1: l + i * n,
 				x2: o + t * .8,
@@ -549,7 +1146,7 @@ function p(e, t, n, r, i, a, o) {
 			break;
 		}
 		case "signal":
-			f(e, "polygon", {
+			g(e, "polygon", {
 				...c,
 				points: l([
 					[0, -1],
@@ -559,7 +1156,7 @@ function p(e, t, n, r, i, a, o) {
 			});
 			break;
 		case "escalation":
-			f(e, "polygon", {
+			g(e, "polygon", {
 				...c,
 				points: l([
 					[0, -1],
@@ -570,7 +1167,7 @@ function p(e, t, n, r, i, a, o) {
 			});
 			break;
 		case "error":
-			f(e, "polygon", {
+			g(e, "polygon", {
 				...c,
 				points: l([
 					[-.75, .8],
@@ -583,14 +1180,14 @@ function p(e, t, n, r, i, a, o) {
 			});
 			break;
 		case "compensation":
-			f(e, "polygon", {
+			g(e, "polygon", {
 				...c,
 				points: l([
 					[-1, 0],
 					[-.05, -.62],
 					[-.05, .62]
 				])
-			}), f(e, "polygon", {
+			}), g(e, "polygon", {
 				...c,
 				points: l([
 					[-.05, 0],
@@ -600,7 +1197,7 @@ function p(e, t, n, r, i, a, o) {
 			});
 			break;
 		case "link":
-			f(e, "polygon", {
+			g(e, "polygon", {
 				...c,
 				points: l([
 					[-.8, -.3],
@@ -613,7 +1210,7 @@ function p(e, t, n, r, i, a, o) {
 				])
 			});
 			break;
-		case "terminate": f(e, "circle", {
+		case "terminate": g(e, "circle", {
 			cx: n,
 			cy: r,
 			r: s * .9,
@@ -622,7 +1219,7 @@ function p(e, t, n, r, i, a, o) {
 		});
 	}
 }
-function m(e, t, n, r) {
+function v(e, t, n, r) {
 	let i = n.getAttachedNodes(e), a = (e, t) => i.some((n) => Math.abs(n.x + n.width / 2 - e) < 30 && Math.abs(n.y + n.height / 2 - t) < 30), o = null;
 	for (let t of [e.y + e.height, e.y]) {
 		for (let n = e.x + 26; n <= e.x + e.width - 18; n += 60) if (!a(n, t)) {
@@ -649,87 +1246,87 @@ function m(e, t, n, r) {
 		...e.parentId ? { parentId: e.parentId } : {}
 	}), !0;
 }
-var h = {
+var y = {
 	event(e, t) {
-		let n = c[e.type] || c.startEvent, r = document.createElementNS(i, "g"), a = Math.min(e.width, e.height) / 2, o = e.x + e.width / 2, s = e.y + e.height / 2, l = t.getNodeColors(e.type).stroke, u = f(r, "circle", {
-			cx: o,
-			cy: s,
-			r: a
+		let n = f[e.type] || f.startEvent, r = document.createElementNS(c, "g"), i = Math.min(e.width, e.height) / 2, a = e.x + e.width / 2, o = e.y + e.height / 2, s = t.getNodeColors(e.type).stroke, l = g(r, "circle", {
+			cx: a,
+			cy: o,
+			r: i
 		});
-		if (t.applyNodeStyle(u, e), n.kind === "end" && u.setAttribute("stroke-width", t.isNodeSelected(e.id) ? "3.5" : "3"), n.kind === "intermediate" || n.kind === "boundary") {
-			let t = f(r, "circle", {
-				cx: o,
-				cy: s,
-				r: Math.max(2, a - Math.max(3, a * .15)),
+		if (t.applyNodeStyle(l, e), n.kind === "end" && l.setAttribute("stroke-width", t.isNodeSelected(e.id) ? "3.5" : "3"), n.kind === "intermediate" || n.kind === "boundary") {
+			let t = g(r, "circle", {
+				cx: a,
+				cy: o,
+				r: Math.max(2, i - Math.max(3, i * .15)),
 				fill: "none",
-				stroke: l,
+				stroke: s,
 				"stroke-width": 1.2
 			});
-			n.kind === "boundary" && e.interrupting === !1 && !n.alwaysInterrupting && (u.setAttribute("stroke-dasharray", "4 2.5"), t.setAttribute("stroke-dasharray", "4 2.5"));
+			n.kind === "boundary" && e.interrupting === !1 && !n.alwaysInterrupting && (l.setAttribute("stroke-dasharray", "4 2.5"), t.setAttribute("stroke-dasharray", "4 2.5"));
 		}
-		return n.trigger !== "none" && p(r, n.trigger, o, s, a, l, n.kind === "end" || !!n.throw), r;
+		return n.trigger !== "none" && _(r, n.trigger, a, o, i, s, n.kind === "end" || !!n.throw), r;
 	},
 	task(e, t) {
-		let n = document.createElementNS(i, "rect");
+		let n = document.createElementNS(c, "rect");
 		return n.setAttribute("x", e.x), n.setAttribute("y", e.y), n.setAttribute("width", e.width), n.setAttribute("height", e.height), n.setAttribute("rx", 10), t.applyNodeStyle(n, e), n;
 	},
 	userTask(e, t) {
-		let n = document.createElementNS(i, "g"), r = document.createElementNS(i, "rect");
+		let n = document.createElementNS(c, "g"), r = document.createElementNS(c, "rect");
 		r.setAttribute("x", e.x), r.setAttribute("y", e.y), r.setAttribute("width", e.width), r.setAttribute("height", e.height), r.setAttribute("rx", 10), t.applyNodeStyle(r, e);
-		let a = t.getNodeColors(e.type), o = e.x + 8, s = e.y + 6, c = document.createElementNS(i, "circle");
-		c.setAttribute("cx", o + 7), c.setAttribute("cy", s + 4), c.setAttribute("r", "4"), c.setAttribute("fill", "none"), c.setAttribute("stroke", a.stroke), c.setAttribute("stroke-width", "1.5");
-		let l = document.createElementNS(i, "path");
-		return l.setAttribute("d", `M ${o + 2} ${s + 14} Q ${o + 7} ${s + 8} ${o + 14 - 2} ${s + 14}`), l.setAttribute("fill", "none"), l.setAttribute("stroke", a.stroke), l.setAttribute("stroke-width", "1.5"), n.appendChild(r), n.appendChild(c), n.appendChild(l), n;
+		let i = t.getNodeColors(e.type), a = e.x + 8, o = e.y + 6, s = document.createElementNS(c, "circle");
+		s.setAttribute("cx", a + 7), s.setAttribute("cy", o + 4), s.setAttribute("r", "4"), s.setAttribute("fill", "none"), s.setAttribute("stroke", i.stroke), s.setAttribute("stroke-width", "1.5");
+		let l = document.createElementNS(c, "path");
+		return l.setAttribute("d", `M ${a + 2} ${o + 14} Q ${a + 7} ${o + 8} ${a + 14 - 2} ${o + 14}`), l.setAttribute("fill", "none"), l.setAttribute("stroke", i.stroke), l.setAttribute("stroke-width", "1.5"), n.appendChild(r), n.appendChild(s), n.appendChild(l), n;
 	},
 	serviceTask(e, t) {
-		let n = document.createElementNS(i, "g"), r = document.createElementNS(i, "rect");
+		let n = document.createElementNS(c, "g"), r = document.createElementNS(c, "rect");
 		r.setAttribute("x", e.x), r.setAttribute("y", e.y), r.setAttribute("width", e.width), r.setAttribute("height", e.height), r.setAttribute("rx", 10), t.applyNodeStyle(r, e);
-		let a = t.getNodeColors(e.type), o = e.x + 8 + 7, s = e.y + 6 + 7, c = 4.5, l = "";
+		let i = t.getNodeColors(e.type), a = e.x + 8 + 7, o = e.y + 6 + 7, s = 4.5, l = "";
 		for (let e = 0; e < 8; e++) {
 			let t = e / 8 * Math.PI * 2 - Math.PI / 8 / 2, n = t + Math.PI / 8 / 2, r = n + Math.PI / 8 / 2;
-			e === 0 && (l += `M ${o + Math.cos(t) * c} ${s + Math.sin(t) * c} `), l += `L ${o + Math.cos(n) * 7} ${s + Math.sin(n) * 7} `, l += `L ${o + Math.cos(r) * c} ${s + Math.sin(r) * c} `;
+			e === 0 && (l += `M ${a + Math.cos(t) * s} ${o + Math.sin(t) * s} `), l += `L ${a + Math.cos(n) * 7} ${o + Math.sin(n) * 7} `, l += `L ${a + Math.cos(r) * s} ${o + Math.sin(r) * s} `;
 		}
 		l += "Z";
-		let u = document.createElementNS(i, "path");
-		u.setAttribute("d", l), u.setAttribute("fill", "none"), u.setAttribute("stroke", a.stroke), u.setAttribute("stroke-width", "1.5"), u.setAttribute("stroke-linejoin", "round");
-		let d = document.createElementNS(i, "circle");
-		return d.setAttribute("cx", o), d.setAttribute("cy", s), d.setAttribute("r", "2.5"), d.setAttribute("fill", "none"), d.setAttribute("stroke", a.stroke), d.setAttribute("stroke-width", "1.5"), n.appendChild(r), n.appendChild(u), n.appendChild(d), n;
+		let u = document.createElementNS(c, "path");
+		u.setAttribute("d", l), u.setAttribute("fill", "none"), u.setAttribute("stroke", i.stroke), u.setAttribute("stroke-width", "1.5"), u.setAttribute("stroke-linejoin", "round");
+		let d = document.createElementNS(c, "circle");
+		return d.setAttribute("cx", a), d.setAttribute("cy", o), d.setAttribute("r", "2.5"), d.setAttribute("fill", "none"), d.setAttribute("stroke", i.stroke), d.setAttribute("stroke-width", "1.5"), n.appendChild(r), n.appendChild(u), n.appendChild(d), n;
 	},
 	sendTask(e, t) {
-		let n = document.createElementNS(i, "g"), r = document.createElementNS(i, "rect");
+		let n = document.createElementNS(c, "g"), r = document.createElementNS(c, "rect");
 		r.setAttribute("x", e.x), r.setAttribute("y", e.y), r.setAttribute("width", e.width), r.setAttribute("height", e.height), r.setAttribute("rx", 10), t.applyNodeStyle(r, e);
-		let a = t.getNodeColors(e.type), o = e.x + 7, s = e.y + 7, c = document.createElementNS(i, "rect");
-		c.setAttribute("x", o), c.setAttribute("y", s), c.setAttribute("width", 14), c.setAttribute("height", 10), c.setAttribute("fill", a.stroke), c.setAttribute("stroke", a.stroke), c.setAttribute("stroke-width", "1");
-		let l = document.createElementNS(i, "polyline");
-		return l.setAttribute("points", `${o},${s} ${o + 7},${s + 6} ${o + 14},${s}`), l.setAttribute("fill", "none"), l.setAttribute("stroke", a.fill), l.setAttribute("stroke-width", "1.5"), n.appendChild(r), n.appendChild(c), n.appendChild(l), n;
+		let i = t.getNodeColors(e.type), a = e.x + 7, o = e.y + 7, s = document.createElementNS(c, "rect");
+		s.setAttribute("x", a), s.setAttribute("y", o), s.setAttribute("width", 14), s.setAttribute("height", 10), s.setAttribute("fill", i.stroke), s.setAttribute("stroke", i.stroke), s.setAttribute("stroke-width", "1");
+		let l = document.createElementNS(c, "polyline");
+		return l.setAttribute("points", `${a},${o} ${a + 7},${o + 6} ${a + 14},${o}`), l.setAttribute("fill", "none"), l.setAttribute("stroke", i.fill), l.setAttribute("stroke-width", "1.5"), n.appendChild(r), n.appendChild(s), n.appendChild(l), n;
 	},
 	receiveTask(e, t) {
-		let n = document.createElementNS(i, "g"), r = document.createElementNS(i, "rect");
+		let n = document.createElementNS(c, "g"), r = document.createElementNS(c, "rect");
 		r.setAttribute("x", e.x), r.setAttribute("y", e.y), r.setAttribute("width", e.width), r.setAttribute("height", e.height), r.setAttribute("rx", 10), t.applyNodeStyle(r, e);
-		let a = t.getNodeColors(e.type), o = e.x + 7, s = e.y + 7, c = document.createElementNS(i, "rect");
-		c.setAttribute("x", o), c.setAttribute("y", s), c.setAttribute("width", 14), c.setAttribute("height", 10), c.setAttribute("fill", "none"), c.setAttribute("stroke", a.stroke), c.setAttribute("stroke-width", "1.5");
-		let l = document.createElementNS(i, "polyline");
-		return l.setAttribute("points", `${o},${s} ${o + 7},${s + 6} ${o + 14},${s}`), l.setAttribute("fill", "none"), l.setAttribute("stroke", a.stroke), l.setAttribute("stroke-width", "1.5"), n.appendChild(r), n.appendChild(c), n.appendChild(l), n;
+		let i = t.getNodeColors(e.type), a = e.x + 7, o = e.y + 7, s = document.createElementNS(c, "rect");
+		s.setAttribute("x", a), s.setAttribute("y", o), s.setAttribute("width", 14), s.setAttribute("height", 10), s.setAttribute("fill", "none"), s.setAttribute("stroke", i.stroke), s.setAttribute("stroke-width", "1.5");
+		let l = document.createElementNS(c, "polyline");
+		return l.setAttribute("points", `${a},${o} ${a + 7},${o + 6} ${a + 14},${o}`), l.setAttribute("fill", "none"), l.setAttribute("stroke", i.stroke), l.setAttribute("stroke-width", "1.5"), n.appendChild(r), n.appendChild(s), n.appendChild(l), n;
 	},
 	scriptTask(e, t) {
-		let n = document.createElementNS(i, "g"), r = document.createElementNS(i, "rect");
+		let n = document.createElementNS(c, "g"), r = document.createElementNS(c, "rect");
 		r.setAttribute("x", e.x), r.setAttribute("y", e.y), r.setAttribute("width", e.width), r.setAttribute("height", e.height), r.setAttribute("rx", 10), t.applyNodeStyle(r, e);
-		let a = t.getNodeColors(e.type), o = e.x + 8, s = e.y + 6, c = document.createElementNS(i, "path");
-		return c.setAttribute("d", `M ${o + 3} ${s} Q ${o} ${s} ${o} ${s + 3} L ${o} ${s + 16 - 3} Q ${o} ${s + 16} ${o + 3} ${s + 16} L ${o + 12} ${s + 16} Q ${o + 12 + 3} ${s + 16} ${o + 12 + 3} ${s + 16 - 3} Q ${o + 12 + 3} ${s + 16 - 6} ${o + 12} ${s + 16 - 6} L ${o + 12} ${s + 3} Q ${o + 12} ${s} ${o + 12 - 3} ${s} Z`), c.setAttribute("fill", "none"), c.setAttribute("stroke", a.stroke), c.setAttribute("stroke-width", "1.5"), [
-			s + 6,
-			s + 9,
-			s + 12
+		let i = t.getNodeColors(e.type), a = e.x + 8, o = e.y + 6, s = document.createElementNS(c, "path");
+		return s.setAttribute("d", `M ${a + 3} ${o} Q ${a} ${o} ${a} ${o + 3} L ${a} ${o + 16 - 3} Q ${a} ${o + 16} ${a + 3} ${o + 16} L ${a + 12} ${o + 16} Q ${a + 12 + 3} ${o + 16} ${a + 12 + 3} ${o + 16 - 3} Q ${a + 12 + 3} ${o + 16 - 6} ${a + 12} ${o + 16 - 6} L ${a + 12} ${o + 3} Q ${a + 12} ${o} ${a + 12 - 3} ${o} Z`), s.setAttribute("fill", "none"), s.setAttribute("stroke", i.stroke), s.setAttribute("stroke-width", "1.5"), [
+			o + 6,
+			o + 9,
+			o + 12
 		].forEach((e) => {
-			let t = document.createElementNS(i, "line");
-			t.setAttribute("x1", o + 3), t.setAttribute("y1", e), t.setAttribute("x2", o + 12 - 3), t.setAttribute("y2", e), t.setAttribute("stroke", a.stroke), t.setAttribute("stroke-width", "1"), n.appendChild(t);
-		}), n.appendChild(r), n.appendChild(c), n;
+			let t = document.createElementNS(c, "line");
+			t.setAttribute("x1", a + 3), t.setAttribute("y1", e), t.setAttribute("x2", a + 12 - 3), t.setAttribute("y2", e), t.setAttribute("stroke", i.stroke), t.setAttribute("stroke-width", "1"), n.appendChild(t);
+		}), n.appendChild(r), n.appendChild(s), n;
 	},
 	callActivity(e, t) {
-		let n = document.createElementNS(i, "rect");
+		let n = document.createElementNS(c, "rect");
 		return n.setAttribute("x", e.x), n.setAttribute("y", e.y), n.setAttribute("width", e.width), n.setAttribute("height", e.height), n.setAttribute("rx", 10), t.applyNodeStyle(n, e), n.setAttribute("stroke-width", e.id === t.state.selectedNodeId ? "4" : "3"), n;
 	},
 	manualTask(e, t) {
-		let n = document.createElementNS(i, "g"), r = f(n, "rect", {
+		let n = document.createElementNS(c, "g"), r = g(n, "rect", {
 			x: e.x,
 			y: e.y,
 			width: e.width,
@@ -737,18 +1334,18 @@ var h = {
 			rx: 10
 		});
 		t.applyNodeStyle(r, e);
-		let a = t.getNodeColors(e.type).stroke, o = e.x + 8, s = e.y + 7;
-		return f(n, "path", {
-			d: `M ${o} ${s + 6} L ${o} ${s + 12} Q ${o} ${s + 14} ${o + 2} ${s + 14} L ${o + 11} ${s + 14} M ${o + 4} ${s + 8.5} L ${o + 13} ${s + 8.5} M ${o + 4} ${s + 11} L ${o + 12} ${s + 11} M ${o} ${s + 6} L ${o + 3} ${s + 6} L ${o + 5} ${s + 2} L ${o + 12} ${s + 2} M ${o + 4} ${s + 6} L ${o + 14} ${s + 6}`,
+		let i = t.getNodeColors(e.type).stroke, a = e.x + 8, o = e.y + 7;
+		return g(n, "path", {
+			d: `M ${a} ${o + 6} L ${a} ${o + 12} Q ${a} ${o + 14} ${a + 2} ${o + 14} L ${a + 11} ${o + 14} M ${a + 4} ${o + 8.5} L ${a + 13} ${o + 8.5} M ${a + 4} ${o + 11} L ${a + 12} ${o + 11} M ${a} ${o + 6} L ${a + 3} ${o + 6} L ${a + 5} ${o + 2} L ${a + 12} ${o + 2} M ${a + 4} ${o + 6} L ${a + 14} ${o + 6}`,
 			fill: "none",
-			stroke: a,
+			stroke: i,
 			"stroke-width": 1.2,
 			"stroke-linecap": "round",
 			"stroke-linejoin": "round"
 		}), n;
 	},
 	businessRuleTask(e, t) {
-		let n = document.createElementNS(i, "g"), r = f(n, "rect", {
+		let n = document.createElementNS(c, "g"), r = g(n, "rect", {
 			x: e.x,
 			y: e.y,
 			width: e.width,
@@ -756,159 +1353,159 @@ var h = {
 			rx: 10
 		});
 		t.applyNodeStyle(r, e);
-		let a = t.getNodeColors(e.type).stroke, o = e.x + 8, s = e.y + 7;
-		return f(n, "rect", {
-			x: o,
-			y: s,
+		let i = t.getNodeColors(e.type).stroke, a = e.x + 8, o = e.y + 7;
+		return g(n, "rect", {
+			x: a,
+			y: o,
 			width: 16,
 			height: 12,
 			fill: "#ffffff",
-			stroke: a,
+			stroke: i,
 			"stroke-width": 1.2
-		}), f(n, "rect", {
-			x: o,
-			y: s,
+		}), g(n, "rect", {
+			x: a,
+			y: o,
 			width: 16,
 			height: 3.5,
-			fill: a,
-			stroke: a,
+			fill: i,
+			stroke: i,
 			"stroke-width": 1.2
-		}), f(n, "line", {
-			x1: o,
-			y1: s + 7.8,
-			x2: o + 16,
-			y2: s + 7.8,
-			stroke: a,
+		}), g(n, "line", {
+			x1: a,
+			y1: o + 7.8,
+			x2: a + 16,
+			y2: o + 7.8,
+			stroke: i,
 			"stroke-width": 1
-		}), f(n, "line", {
-			x1: o + 5,
-			y1: s + 3.5,
-			x2: o + 5,
-			y2: s + 12,
-			stroke: a,
+		}), g(n, "line", {
+			x1: a + 5,
+			y1: o + 3.5,
+			x2: a + 5,
+			y2: o + 12,
+			stroke: i,
 			"stroke-width": 1
 		}), n;
 	},
 	subProcess(e, t) {
-		let n = document.createElementNS(i, "g"), r = document.createElementNS(i, "rect");
+		let n = document.createElementNS(c, "g"), r = document.createElementNS(c, "rect");
 		r.setAttribute("x", e.x), r.setAttribute("y", e.y), r.setAttribute("width", e.width), r.setAttribute("height", e.height), r.setAttribute("rx", 10), t.applyNodeStyle(r, e);
-		let a = t.getNodeColors(e.type), o = e.x + e.width / 2, s = e.y + e.height - 14, c = document.createElementNS(i, "rect");
-		c.setAttribute("x", o - 4), c.setAttribute("y", s - 4), c.setAttribute("width", 8), c.setAttribute("height", 8), c.setAttribute("rx", "2"), c.setAttribute("fill", a.fill), c.setAttribute("stroke", a.stroke), c.setAttribute("stroke-width", "1.5");
-		let l = document.createElementNS(i, "line");
-		l.setAttribute("x1", o - 4 + 2), l.setAttribute("y1", s), l.setAttribute("x2", o + 4 - 2), l.setAttribute("y2", s), l.setAttribute("stroke", a.stroke), l.setAttribute("stroke-width", "1.5");
-		let u = document.createElementNS(i, "line");
-		return u.setAttribute("x1", o), u.setAttribute("y1", s - 4 + 2), u.setAttribute("x2", o), u.setAttribute("y2", s + 4 - 2), u.setAttribute("stroke", a.stroke), u.setAttribute("stroke-width", "1.5"), n.appendChild(r), n.appendChild(c), n.appendChild(l), n.appendChild(u), n;
+		let i = t.getNodeColors(e.type), a = e.x + e.width / 2, o = e.y + e.height - 14, s = document.createElementNS(c, "rect");
+		s.setAttribute("x", a - 4), s.setAttribute("y", o - 4), s.setAttribute("width", 8), s.setAttribute("height", 8), s.setAttribute("rx", "2"), s.setAttribute("fill", i.fill), s.setAttribute("stroke", i.stroke), s.setAttribute("stroke-width", "1.5");
+		let l = document.createElementNS(c, "line");
+		l.setAttribute("x1", a - 4 + 2), l.setAttribute("y1", o), l.setAttribute("x2", a + 4 - 2), l.setAttribute("y2", o), l.setAttribute("stroke", i.stroke), l.setAttribute("stroke-width", "1.5");
+		let u = document.createElementNS(c, "line");
+		return u.setAttribute("x1", a), u.setAttribute("y1", o - 4 + 2), u.setAttribute("x2", a), u.setAttribute("y2", o + 4 - 2), u.setAttribute("stroke", i.stroke), u.setAttribute("stroke-width", "1.5"), n.appendChild(r), n.appendChild(s), n.appendChild(l), n.appendChild(u), n;
 	},
 	gateway(e, t) {
-		let n = document.createElementNS(i, "polygon"), r = e.x + e.width / 2, a = e.y + e.height / 2;
-		return n.setAttribute("points", `${r},${e.y} ${e.x + e.width},${a} ${r},${e.y + e.height} ${e.x},${a}`), t.applyNodeStyle(n, e), n;
+		let n = document.createElementNS(c, "polygon"), r = e.x + e.width / 2, i = e.y + e.height / 2;
+		return n.setAttribute("points", `${r},${e.y} ${e.x + e.width},${i} ${r},${e.y + e.height} ${e.x},${i}`), t.applyNodeStyle(n, e), n;
 	},
 	exclusiveGateway(e, t) {
-		let n = document.createElementNS(i, "g"), r = e.x + e.width / 2, a = e.y + e.height / 2, o = document.createElementNS(i, "polygon");
-		o.setAttribute("points", `${r},${e.y} ${e.x + e.width},${a} ${r},${e.y + e.height} ${e.x},${a}`), t.applyNodeStyle(o, e);
-		let s = t.getNodeColors(e.type), c = Math.min(e.width, e.height) * .2;
+		let n = document.createElementNS(c, "g"), r = e.x + e.width / 2, i = e.y + e.height / 2, a = document.createElementNS(c, "polygon");
+		a.setAttribute("points", `${r},${e.y} ${e.x + e.width},${i} ${r},${e.y + e.height} ${e.x},${i}`), t.applyNodeStyle(a, e);
+		let o = t.getNodeColors(e.type), s = Math.min(e.width, e.height) * .2;
 		return [[
-			r - c,
-			a - c,
-			r + c,
-			a + c
+			r - s,
+			i - s,
+			r + s,
+			i + s
 		], [
-			r + c,
-			a - c,
-			r - c,
-			a + c
-		]].forEach(([e, t, r, a]) => {
-			let o = document.createElementNS(i, "line");
-			o.setAttribute("x1", e), o.setAttribute("y1", t), o.setAttribute("x2", r), o.setAttribute("y2", a), o.setAttribute("stroke", s.stroke), o.setAttribute("stroke-width", "2.5"), o.setAttribute("stroke-linecap", "round"), n.appendChild(o);
-		}), n.insertBefore(o, n.firstChild), n;
+			r + s,
+			i - s,
+			r - s,
+			i + s
+		]].forEach(([e, t, r, i]) => {
+			let a = document.createElementNS(c, "line");
+			a.setAttribute("x1", e), a.setAttribute("y1", t), a.setAttribute("x2", r), a.setAttribute("y2", i), a.setAttribute("stroke", o.stroke), a.setAttribute("stroke-width", "2.5"), a.setAttribute("stroke-linecap", "round"), n.appendChild(a);
+		}), n.insertBefore(a, n.firstChild), n;
 	},
 	parallelGateway(e, t) {
-		let n = document.createElementNS(i, "g"), r = e.x + e.width / 2, a = e.y + e.height / 2, o = document.createElementNS(i, "polygon");
-		o.setAttribute("points", `${r},${e.y} ${e.x + e.width},${a} ${r},${e.y + e.height} ${e.x},${a}`), t.applyNodeStyle(o, e);
-		let s = t.getNodeColors(e.type), c = Math.min(e.width, e.height) * .2;
+		let n = document.createElementNS(c, "g"), r = e.x + e.width / 2, i = e.y + e.height / 2, a = document.createElementNS(c, "polygon");
+		a.setAttribute("points", `${r},${e.y} ${e.x + e.width},${i} ${r},${e.y + e.height} ${e.x},${i}`), t.applyNodeStyle(a, e);
+		let o = t.getNodeColors(e.type), s = Math.min(e.width, e.height) * .2;
 		return [[
-			r - c,
-			a,
-			r + c,
-			a
+			r - s,
+			i,
+			r + s,
+			i
 		], [
 			r,
-			a - c,
+			i - s,
 			r,
-			a + c
-		]].forEach(([e, t, r, a]) => {
-			let o = document.createElementNS(i, "line");
-			o.setAttribute("x1", e), o.setAttribute("y1", t), o.setAttribute("x2", r), o.setAttribute("y2", a), o.setAttribute("stroke", s.stroke), o.setAttribute("stroke-width", "2.5"), o.setAttribute("stroke-linecap", "round"), n.appendChild(o);
-		}), n.insertBefore(o, n.firstChild), n;
+			i + s
+		]].forEach(([e, t, r, i]) => {
+			let a = document.createElementNS(c, "line");
+			a.setAttribute("x1", e), a.setAttribute("y1", t), a.setAttribute("x2", r), a.setAttribute("y2", i), a.setAttribute("stroke", o.stroke), a.setAttribute("stroke-width", "2.5"), a.setAttribute("stroke-linecap", "round"), n.appendChild(a);
+		}), n.insertBefore(a, n.firstChild), n;
 	},
 	inclusiveGateway(e, t) {
-		let n = document.createElementNS(i, "g"), r = e.x + e.width / 2, a = e.y + e.height / 2, o = document.createElementNS(i, "polygon");
-		o.setAttribute("points", `${r},${e.y} ${e.x + e.width},${a} ${r},${e.y + e.height} ${e.x},${a}`), t.applyNodeStyle(o, e);
-		let s = t.getNodeColors(e.type), c = document.createElementNS(i, "circle");
-		return c.setAttribute("cx", r), c.setAttribute("cy", a), c.setAttribute("r", Math.min(e.width, e.height) * .18), c.setAttribute("fill", "none"), c.setAttribute("stroke", s.stroke), c.setAttribute("stroke-width", "2.5"), n.appendChild(o), n.appendChild(c), n;
+		let n = document.createElementNS(c, "g"), r = e.x + e.width / 2, i = e.y + e.height / 2, a = document.createElementNS(c, "polygon");
+		a.setAttribute("points", `${r},${e.y} ${e.x + e.width},${i} ${r},${e.y + e.height} ${e.x},${i}`), t.applyNodeStyle(a, e);
+		let o = t.getNodeColors(e.type), s = document.createElementNS(c, "circle");
+		return s.setAttribute("cx", r), s.setAttribute("cy", i), s.setAttribute("r", Math.min(e.width, e.height) * .18), s.setAttribute("fill", "none"), s.setAttribute("stroke", o.stroke), s.setAttribute("stroke-width", "2.5"), n.appendChild(a), n.appendChild(s), n;
 	},
 	dataObject(e, t) {
-		let n = e.x, r = e.y, a = e.width, o = e.height, s = document.createElementNS(i, "path");
-		s.setAttribute("d", `M ${n} ${r} L ${n + a - 14} ${r} L ${n + a} ${r + 14} L ${n + a} ${r + o} L ${n} ${r + o} Z`), t.applyNodeStyle(s, e);
-		let c = t.getNodeColors(e.type), l = document.createElementNS(i, "path");
-		l.setAttribute("d", `M ${n + a - 14} ${r} L ${n + a - 14} ${r + 14} L ${n + a} ${r + 14}`), l.setAttribute("fill", "none"), l.setAttribute("stroke", c.stroke), l.setAttribute("stroke-width", "1.5");
-		let u = document.createElementNS(i, "g");
-		return u.appendChild(s), u.appendChild(l), u;
+		let n = e.x, r = e.y, i = e.width, a = e.height, o = document.createElementNS(c, "path");
+		o.setAttribute("d", `M ${n} ${r} L ${n + i - 14} ${r} L ${n + i} ${r + 14} L ${n + i} ${r + a} L ${n} ${r + a} Z`), t.applyNodeStyle(o, e);
+		let s = t.getNodeColors(e.type), l = document.createElementNS(c, "path");
+		l.setAttribute("d", `M ${n + i - 14} ${r} L ${n + i - 14} ${r + 14} L ${n + i} ${r + 14}`), l.setAttribute("fill", "none"), l.setAttribute("stroke", s.stroke), l.setAttribute("stroke-width", "1.5");
+		let u = document.createElementNS(c, "g");
+		return u.appendChild(o), u.appendChild(l), u;
 	},
 	dataStore(e, t) {
-		let n = document.createElementNS(i, "g"), r = e.width / 2, a = e.x + e.width / 2, o = document.createElementNS(i, "rect");
-		o.setAttribute("x", e.x), o.setAttribute("y", e.y + 8), o.setAttribute("width", e.width), o.setAttribute("height", e.height - 16), t.applyNodeStyle(o, e);
-		let s = document.createElementNS(i, "ellipse");
-		s.setAttribute("cx", a), s.setAttribute("cy", e.y + 8), s.setAttribute("rx", r), s.setAttribute("ry", 8), t.applyNodeStyle(s, e);
-		let c = t.getNodeColors(e.type), l = document.createElementNS(i, "ellipse");
-		l.setAttribute("cx", a), l.setAttribute("cy", e.y + e.height - 8), l.setAttribute("rx", r), l.setAttribute("ry", 8), l.setAttribute("fill", "none"), l.setAttribute("stroke", c.stroke), l.setAttribute("stroke-width", "1.5");
-		let u = document.createElementNS(i, "ellipse");
-		return u.setAttribute("cx", a), u.setAttribute("cy", e.y + 24), u.setAttribute("rx", r), u.setAttribute("ry", 8), u.setAttribute("fill", "none"), u.setAttribute("stroke", c.stroke), u.setAttribute("stroke-width", "1"), n.appendChild(o), n.appendChild(s), n.appendChild(l), n.appendChild(u), n;
+		let n = document.createElementNS(c, "g"), r = e.width / 2, i = e.x + e.width / 2, a = document.createElementNS(c, "rect");
+		a.setAttribute("x", e.x), a.setAttribute("y", e.y + 8), a.setAttribute("width", e.width), a.setAttribute("height", e.height - 16), t.applyNodeStyle(a, e);
+		let o = document.createElementNS(c, "ellipse");
+		o.setAttribute("cx", i), o.setAttribute("cy", e.y + 8), o.setAttribute("rx", r), o.setAttribute("ry", 8), t.applyNodeStyle(o, e);
+		let s = t.getNodeColors(e.type), l = document.createElementNS(c, "ellipse");
+		l.setAttribute("cx", i), l.setAttribute("cy", e.y + e.height - 8), l.setAttribute("rx", r), l.setAttribute("ry", 8), l.setAttribute("fill", "none"), l.setAttribute("stroke", s.stroke), l.setAttribute("stroke-width", "1.5");
+		let u = document.createElementNS(c, "ellipse");
+		return u.setAttribute("cx", i), u.setAttribute("cy", e.y + 24), u.setAttribute("rx", r), u.setAttribute("ry", 8), u.setAttribute("fill", "none"), u.setAttribute("stroke", s.stroke), u.setAttribute("stroke-width", "1"), n.appendChild(a), n.appendChild(o), n.appendChild(l), n.appendChild(u), n;
 	},
 	annotation(e, t) {
-		let n = document.createElementNS(i, "g"), r = t.getNodeColors(e.type), a = document.createElementNS(i, "rect");
-		a.setAttribute("x", e.x), a.setAttribute("y", e.y), a.setAttribute("width", e.width), a.setAttribute("height", e.height), a.setAttribute("fill", r.fill), a.setAttribute("stroke", "none");
-		let o = document.createElementNS(i, "path");
-		return o.setAttribute("d", `M ${e.x + 12} ${e.y} L ${e.x} ${e.y} L ${e.x} ${e.y + e.height} L ${e.x + 12} ${e.y + e.height}`), o.setAttribute("fill", "none"), o.setAttribute("stroke", r.stroke), o.setAttribute("stroke-width", "2"), o.setAttribute("stroke-linecap", "round"), n.appendChild(a), n.appendChild(o), n;
+		let n = document.createElementNS(c, "g"), r = t.getNodeColors(e.type), i = document.createElementNS(c, "rect");
+		i.setAttribute("x", e.x), i.setAttribute("y", e.y), i.setAttribute("width", e.width), i.setAttribute("height", e.height), i.setAttribute("fill", r.fill), i.setAttribute("stroke", "none");
+		let a = document.createElementNS(c, "path");
+		return a.setAttribute("d", `M ${e.x + 12} ${e.y} L ${e.x} ${e.y} L ${e.x} ${e.y + e.height} L ${e.x + 12} ${e.y + e.height}`), a.setAttribute("fill", "none"), a.setAttribute("stroke", r.stroke), a.setAttribute("stroke-width", "2"), a.setAttribute("stroke-linecap", "round"), n.appendChild(i), n.appendChild(a), n;
 	},
 	swimlane(e, t) {
-		let n = document.createElementNS(i, "g"), r = t.getNodeColors(e.type), o = e.data && e.data.orientation || "horizontal", s = a, c = document.createElementNS(i, "rect");
-		if (c.setAttribute("x", e.x), c.setAttribute("y", e.y), c.setAttribute("width", e.width), c.setAttribute("height", e.height), c.setAttribute("rx", "6"), c.setAttribute("fill", r.fill), c.setAttribute("stroke", r.stroke), c.setAttribute("stroke-width", e.id === t.state.selectedNodeId ? "2" : "1.5"), n.appendChild(c), o === "horizontal") {
-			let t = document.createElementNS(i, "rect");
-			t.setAttribute("x", e.x), t.setAttribute("y", e.y), t.setAttribute("width", s), t.setAttribute("height", e.height), t.setAttribute("rx", "6"), t.setAttribute("fill", r.stroke), n.appendChild(t);
-			let a = document.createElementNS(i, "rect");
-			a.setAttribute("x", e.x + s - 6), a.setAttribute("y", e.y), a.setAttribute("width", "6"), a.setAttribute("height", e.height), a.setAttribute("fill", r.stroke), n.appendChild(a);
-			let o = document.createElementNS(i, "line");
-			o.setAttribute("x1", e.x + s), o.setAttribute("y1", e.y), o.setAttribute("x2", e.x + s), o.setAttribute("y2", e.y + e.height), o.setAttribute("stroke", r.stroke), o.setAttribute("stroke-width", "1.5"), n.appendChild(o);
+		let n = document.createElementNS(c, "g"), r = t.getNodeColors(e.type), i = e.data && e.data.orientation || "horizontal", a = l, o = document.createElementNS(c, "rect");
+		if (o.setAttribute("x", e.x), o.setAttribute("y", e.y), o.setAttribute("width", e.width), o.setAttribute("height", e.height), o.setAttribute("rx", "6"), o.setAttribute("fill", r.fill), o.setAttribute("stroke", r.stroke), o.setAttribute("stroke-width", e.id === t.state.selectedNodeId ? "2" : "1.5"), n.appendChild(o), i === "horizontal") {
+			let t = document.createElementNS(c, "rect");
+			t.setAttribute("x", e.x), t.setAttribute("y", e.y), t.setAttribute("width", a), t.setAttribute("height", e.height), t.setAttribute("rx", "6"), t.setAttribute("fill", r.stroke), n.appendChild(t);
+			let i = document.createElementNS(c, "rect");
+			i.setAttribute("x", e.x + a - 6), i.setAttribute("y", e.y), i.setAttribute("width", "6"), i.setAttribute("height", e.height), i.setAttribute("fill", r.stroke), n.appendChild(i);
+			let o = document.createElementNS(c, "line");
+			o.setAttribute("x1", e.x + a), o.setAttribute("y1", e.y), o.setAttribute("x2", e.x + a), o.setAttribute("y2", e.y + e.height), o.setAttribute("stroke", r.stroke), o.setAttribute("stroke-width", "1.5"), n.appendChild(o);
 		} else {
-			let t = document.createElementNS(i, "rect");
-			t.setAttribute("x", e.x), t.setAttribute("y", e.y), t.setAttribute("width", e.width), t.setAttribute("height", s), t.setAttribute("rx", "6"), t.setAttribute("fill", r.stroke), n.appendChild(t);
-			let a = document.createElementNS(i, "rect");
-			a.setAttribute("x", e.x), a.setAttribute("y", e.y + s - 6), a.setAttribute("width", e.width), a.setAttribute("height", "6"), a.setAttribute("fill", r.stroke), n.appendChild(a);
-			let o = document.createElementNS(i, "line");
-			o.setAttribute("x1", e.x), o.setAttribute("y1", e.y + s), o.setAttribute("x2", e.x + e.width), o.setAttribute("y2", e.y + s), o.setAttribute("stroke", r.stroke), o.setAttribute("stroke-width", "1.5"), n.appendChild(o);
+			let t = document.createElementNS(c, "rect");
+			t.setAttribute("x", e.x), t.setAttribute("y", e.y), t.setAttribute("width", e.width), t.setAttribute("height", a), t.setAttribute("rx", "6"), t.setAttribute("fill", r.stroke), n.appendChild(t);
+			let i = document.createElementNS(c, "rect");
+			i.setAttribute("x", e.x), i.setAttribute("y", e.y + a - 6), i.setAttribute("width", e.width), i.setAttribute("height", "6"), i.setAttribute("fill", r.stroke), n.appendChild(i);
+			let o = document.createElementNS(c, "line");
+			o.setAttribute("x1", e.x), o.setAttribute("y1", e.y + a), o.setAttribute("x2", e.x + e.width), o.setAttribute("y2", e.y + a), o.setAttribute("stroke", r.stroke), o.setAttribute("stroke-width", "1.5"), n.appendChild(o);
 		}
 		return n;
 	},
 	pool(e, t) {
-		let n = document.createElementNS(i, "g"), r = t.getNodeColors(e.type), o = a, s = document.createElementNS(i, "rect");
-		s.setAttribute("x", e.x), s.setAttribute("y", e.y), s.setAttribute("width", e.width), s.setAttribute("height", e.height), s.setAttribute("rx", "8"), s.setAttribute("fill", "none"), s.setAttribute("stroke", r.stroke), s.setAttribute("stroke-width", e.id === t.state.selectedNodeId ? "2.5" : "2"), n.appendChild(s);
-		let c = document.createElementNS(i, "rect");
-		c.setAttribute("x", e.x), c.setAttribute("y", e.y), c.setAttribute("width", o), c.setAttribute("height", e.height), c.setAttribute("rx", "8"), c.setAttribute("fill", r.stroke), n.appendChild(c);
-		let l = document.createElementNS(i, "rect");
-		l.setAttribute("x", e.x + o - 8), l.setAttribute("y", e.y), l.setAttribute("width", "8"), l.setAttribute("height", e.height), l.setAttribute("fill", r.stroke), n.appendChild(l);
-		let u = document.createElementNS(i, "line");
-		return u.setAttribute("x1", e.x + o), u.setAttribute("y1", e.y), u.setAttribute("x2", e.x + o), u.setAttribute("y2", e.y + e.height), u.setAttribute("stroke", r.stroke), u.setAttribute("stroke-width", "2"), n.appendChild(u), n;
+		let n = document.createElementNS(c, "g"), r = t.getNodeColors(e.type), i = l, a = document.createElementNS(c, "rect");
+		a.setAttribute("x", e.x), a.setAttribute("y", e.y), a.setAttribute("width", e.width), a.setAttribute("height", e.height), a.setAttribute("rx", "8"), a.setAttribute("fill", "none"), a.setAttribute("stroke", r.stroke), a.setAttribute("stroke-width", e.id === t.state.selectedNodeId ? "2.5" : "2"), n.appendChild(a);
+		let o = document.createElementNS(c, "rect");
+		o.setAttribute("x", e.x), o.setAttribute("y", e.y), o.setAttribute("width", i), o.setAttribute("height", e.height), o.setAttribute("rx", "8"), o.setAttribute("fill", r.stroke), n.appendChild(o);
+		let s = document.createElementNS(c, "rect");
+		s.setAttribute("x", e.x + i - 8), s.setAttribute("y", e.y), s.setAttribute("width", "8"), s.setAttribute("height", e.height), s.setAttribute("fill", r.stroke), n.appendChild(s);
+		let u = document.createElementNS(c, "line");
+		return u.setAttribute("x1", e.x + i), u.setAttribute("y1", e.y), u.setAttribute("x2", e.x + i), u.setAttribute("y2", e.y + e.height), u.setAttribute("stroke", r.stroke), u.setAttribute("stroke-width", "2"), n.appendChild(u), n;
 	}
 };
-function g() {
+function b() {
 	return {
 		id: "bpmn",
-		shapes: h,
+		shapes: y,
 		nodeTypes: {
-			...Object.fromEntries(Object.entries(c).map(([e, t]) => [e, {
+			...Object.fromEntries(Object.entries(f).map(([e, t]) => [e, {
 				defaultLabel: t.label,
-				colors: l[t.kind],
+				colors: p[t.kind],
 				shape: "event"
 			}])),
 			task: {
@@ -1107,11 +1704,11 @@ function g() {
 			},
 			{
 				group: "Activities",
-				types: u
+				types: m
 			},
 			{
 				group: "Gateways",
-				types: d
+				types: h
 			},
 			{
 				group: "Data & artifacts",
@@ -1127,7 +1724,7 @@ function g() {
 			}
 		],
 		getDefaultSize(e) {
-			return c[e] ? {
+			return f[e] ? {
 				width: 40,
 				height: 40
 			} : {
@@ -1199,7 +1796,7 @@ function g() {
 		getPorts(e) {
 			let t = this.nodeTypes[e.type];
 			if (t && t.isContainer) return {};
-			if (c[e.type]) {
+			if (f[e.type]) {
 				let t = Math.min(e.width, e.height) / 2, n = e.x + e.width / 2, r = e.y + e.height / 2;
 				return {
 					top: {
@@ -1310,7 +1907,7 @@ function g() {
 					active: t === e.type
 				}))
 			});
-			let o = c[e.type];
+			let o = f[e.type];
 			if (o?.kind === "boundary" && !o.alwaysInterrupting) {
 				let t = e.interrupting !== !1;
 				a.push({
@@ -1332,11 +1929,11 @@ function g() {
 					}]
 				});
 			}
-			return u.includes(e.type) && a.push({
+			return m.includes(e.type) && a.push({
 				type: "group",
 				label: "Boundary event",
 				nodeType: "timerBoundaryEvent",
-				children: Object.keys(c).filter((e) => c[e].kind === "boundary").map((e) => ({
+				children: Object.keys(f).filter((e) => f[e].kind === "boundary").map((e) => ({
 					type: "addBoundaryEvent",
 					nodeType: e,
 					label: n(e)
@@ -1345,17 +1942,17 @@ function g() {
 				type: "group",
 				label: "Activiteit toevoegen",
 				nodeType: "task",
-				children: u.map(r)
+				children: m.map(r)
 			}, {
 				type: "group",
 				label: "Gateway toevoegen",
 				nodeType: "exclusiveGateway",
-				children: d.map(r)
+				children: h.map(r)
 			}, {
 				type: "group",
 				label: "Event toevoegen",
 				nodeType: "intermediateEvent",
-				children: Object.keys(c).filter((e) => ["intermediate", "end"].includes(c[e].kind)).map(r)
+				children: Object.keys(f).filter((e) => ["intermediate", "end"].includes(f[e].kind)).map(r)
 			}, {
 				type: "group",
 				label: "Data & annotatie",
@@ -1379,10 +1976,10 @@ function g() {
 		},
 		layoutContainer(e, t, { changedNode: n, previousRect: r, reason: i } = {}) {
 			if (e.type !== "pool") return;
-			let c = (e) => e.y + e.height / 2, l = i === "move" && r && n && n.y > r.y, u = t.getChildren(e).filter((e) => e.type === "swimlane").sort((e, t) => {
-				let r = c(e) - c(t);
-				return r !== 0 || i !== "move" ? r : e === n ? l ? 1 : -1 : t === n ? l ? -1 : 1 : 0;
-			}), d = o, f = s, p = u[0], m = u[u.length - 1], h = i === "resize" && r && u.includes(n), g = i === "resize" && r && n === e, _ = (e) => e.length === 0 ? null : {
+			let a = (e) => e.y + e.height / 2, o = i === "move" && r && n && n.y > r.y, s = t.getChildren(e).filter((e) => e.type === "swimlane").sort((e, t) => {
+				let r = a(e) - a(t);
+				return r !== 0 || i !== "move" ? r : e === n ? o ? 1 : -1 : t === n ? o ? -1 : 1 : 0;
+			}), c = u, f = d, p = s[0], m = s[s.length - 1], h = i === "resize" && r && s.includes(n), g = i === "resize" && r && n === e, _ = (e) => e.length === 0 ? null : {
 				top: Math.min(...e.map((e) => e.y)),
 				bottom: Math.max(...e.map((e) => e.y + e.height)),
 				left: Math.min(...e.map((e) => e.x)),
@@ -1391,11 +1988,11 @@ function g() {
 			if (g) {
 				let n = _(t.getDescendants(e).filter((e) => e.type !== "swimlane"));
 				if (n) {
-					let t = Math.max(e.x + e.width, n.right + f), r = Math.min(e.x, n.left - f - a - (u.length ? a : 0));
+					let t = Math.max(e.x + e.width, n.right + f), r = Math.min(e.x, n.left - f - l - (s.length ? l : 0));
 					e.x = r, e.width = t - r;
 				}
 			}
-			if (u.length === 0) {
+			if (s.length === 0) {
 				let n = g && _(t.getDescendants(e));
 				if (n) {
 					let t = Math.min(e.y, n.top - f), r = Math.max(e.y + e.height, n.bottom + f);
@@ -1404,61 +2001,61 @@ function g() {
 				return;
 			}
 			if (h) {
-				let t = n, i = u.indexOf(t);
+				let t = n, i = s.indexOf(t);
 				if (t.y !== r.y) {
-					let n = t.y + t.height, r = u[i - 1], a = Math.min(t.y, n - d, v(t) - f);
-					r ? (a = Math.max(a, r.y + d, y(r) + f), r.height = a - r.y) : (e.height += e.y - a, e.y = a), t.y = a, t.height = n - a;
+					let n = t.y + t.height, r = s[i - 1], a = Math.min(t.y, n - c, v(t) - f);
+					r ? (a = Math.max(a, r.y + c, y(r) + f), r.height = a - r.y) : (e.height += e.y - a, e.y = a), t.y = a, t.height = n - a;
 				}
 				if (t.y + t.height !== r.y + r.height) {
-					let n = u[i + 1], r = Math.max(t.y + t.height, t.y + d, y(t) + f);
+					let n = s[i + 1], r = Math.max(t.y + t.height, t.y + c, y(t) + f);
 					if (n) {
 						let e = n.y + n.height;
-						r = Math.min(r, e - d, v(n) - f), n.y = r, n.height = e - r;
+						r = Math.min(r, e - c, v(n) - f), n.y = r, n.height = e - r;
 					} else e.height = r - e.y;
 					t.height = r - t.y;
 				}
 			} else if (g) {
-				let n = u.length, i = e.y !== r.y, a = e.y + e.height !== r.y + r.height, o = e.y, s = e.y + e.height;
+				let n = s.length, i = e.y !== r.y, a = e.y + e.height !== r.y + r.height, o = e.y, l = e.y + e.height;
 				if (i) {
-					let e = a ? Infinity : s;
-					for (let t = n - 1; t >= 0; t--) e = Math.min(e - d, v(u[t]) - f);
+					let e = a ? Infinity : l;
+					for (let t = n - 1; t >= 0; t--) e = Math.min(e - c, v(s[t]) - f);
 					o = Math.min(o, e);
 				}
 				if (a) {
 					let e = o;
-					for (let t = 0; t < n; t++) e = Math.max(e + d, y(u[t]) + f);
-					s = Math.max(s, e);
+					for (let t = 0; t < n; t++) e = Math.max(e + c, y(s[t]) + f);
+					l = Math.max(l, e);
 				}
-				let c = p.y, l = m.y + m.height - p.y, h = (s - o) / l, g = u.map((e) => e.height), _ = (e) => h >= 1 ? Math.max(d, g[e]) : d, b = t.options.snapToGrid ? t.options.gridSize || 20 : 1, x = (e) => Math.round(e / b) * b, S = u.map((e) => x(o + (e.y - c) * h));
-				S[0] = o, S.push(s);
+				let u = p.y, d = m.y + m.height - p.y, h = (l - o) / d, g = s.map((e) => e.height), _ = (e) => h >= 1 ? Math.max(c, g[e]) : c, b = t.options.snapToGrid ? t.options.gridSize || 20 : 1, x = (e) => Math.round(e / b) * b, S = s.map((e) => x(o + (e.y - u) * h));
+				S[0] = o, S.push(l);
 				let C = [o], w = [];
-				w[n] = s;
-				for (let e = 1; e < n; e++) C[e] = Math.max(C[e - 1] + _(e - 1), y(u[e - 1]) + f);
-				for (let e = n - 1; e >= 1; e--) w[e] = Math.min(w[e + 1] - _(e), v(u[e]) - f);
+				w[n] = l;
+				for (let e = 1; e < n; e++) C[e] = Math.max(C[e - 1] + _(e - 1), y(s[e - 1]) + f);
+				for (let e = n - 1; e >= 1; e--) w[e] = Math.min(w[e + 1] - _(e), v(s[e]) - f);
 				for (let e = 1; e < n; e++) S[e] = Math.max(C[e], Math.min(S[e], w[e])), S[e] = Math.max(S[e], S[e - 1] + _(e - 1));
-				u.forEach((e, t) => {
+				s.forEach((e, t) => {
 					e.y = S[t], e.height = S[t + 1] - S[t];
-				}), e.y = o, e.height = s - o;
+				}), e.y = o, e.height = l - o;
 			} else {
 				let n = e.y;
-				for (let r of u) t.translateNodes([r, ...t.getDescendants(r)], e.x + a - r.x, n - r.y), n += r.height;
+				for (let r of s) t.translateNodes([r, ...t.getDescendants(r)], e.x + l - r.x, n - r.y), n += r.height;
 				e.height = n - e.y;
 			}
-			for (let t of u) t.x = e.x + a, t.width = e.width - a;
+			for (let t of s) t.x = e.x + l, t.width = e.width - l;
 		},
 		getDragTarget(e, t, n) {
 			if (e.type !== "swimlane") return null;
 			let r = t.getNode(e.parentId);
-			return !r || r.type !== "pool" ? null : n && n.x <= e.x + a ? e : r;
+			return !r || r.type !== "pool" ? null : n && n.x <= e.x + l ? e : r;
 		},
 		constrainNodePosition(e, { x: t, y: n }, r) {
 			if (e.type !== "swimlane") return null;
 			let i = r.getNode(e.parentId);
 			if (!i || i.type !== "pool") return null;
-			let o = i.y - e.height / 2, s = i.y + i.height - e.height / 2;
+			let a = i.y - e.height / 2, o = i.y + i.height - e.height / 2;
 			return {
-				x: i.x + a,
-				y: Math.min(s, Math.max(o, n))
+				x: i.x + l,
+				y: Math.min(o, Math.max(a, n))
 			};
 		},
 		onNodeCreated(e, t) {
@@ -1468,9 +2065,9 @@ function g() {
 				t.model.nodes.push({
 					id: crypto.randomUUID(),
 					type: "swimlane",
-					x: e.x + a,
+					x: e.x + l,
 					y: e.y + r * n,
-					width: e.width - a,
+					width: e.width - l,
 					height: r === 0 ? n : e.height - n,
 					label: `${this.nodeTypes.swimlane.defaultLabel} ${r + 1}`,
 					parentId: e.id
@@ -1478,32 +2075,32 @@ function g() {
 			});
 		},
 		getTypeFamily(e) {
-			let t = c[e];
-			return t ? Object.keys(c).filter((e) => c[e].kind === t.kind) : u.includes(e) ? u : d.includes(e) ? d : null;
+			let t = f[e];
+			return t ? Object.keys(f).filter((e) => f[e].kind === t.kind) : m.includes(e) ? m : h.includes(e) ? h : null;
 		},
 		handleAction(e, t, n) {
 			if (e.type === "changeType") {
 				if (!e.nodeType || e.nodeType === t.type) return !1;
 				let n = this.nodeTypes[t.type]?.defaultLabel;
-				return t.type = e.nodeType, (!t.label || t.label === n) && (t.label = this.nodeTypes[t.type].defaultLabel), c[t.type]?.alwaysInterrupting && delete t.interrupting, !0;
+				return t.type = e.nodeType, (!t.label || t.label === n) && (t.label = this.nodeTypes[t.type].defaultLabel), f[t.type]?.alwaysInterrupting && delete t.interrupting, !0;
 			}
 			if (e.type === "setInterrupting") return e.value ? delete t.interrupting : t.interrupting = !1, !0;
-			if (e.type === "addBoundaryEvent") return m(t, e.nodeType, n, this);
+			if (e.type === "addBoundaryEvent") return v(t, e.nodeType, n, this);
 			if (e.type !== "addLane" || t.type !== "pool") return !1;
-			let r = n.getChildren(t).filter((e) => e.type === "swimlane"), i = r.length === 0, o = {
+			let r = n.getChildren(t).filter((e) => e.type === "swimlane"), i = r.length === 0, a = {
 				id: crypto.randomUUID(),
 				type: "swimlane",
-				x: t.x + a,
+				x: t.x + l,
 				y: i ? t.y : Math.max(...r.map((e) => e.y + e.height)),
-				width: t.width - a,
+				width: t.width - l,
 				height: i ? t.height : 120,
 				label: this.nodeTypes.swimlane.defaultLabel,
 				parentId: t.id
 			};
 			return i && n.getChildren(t).forEach((e) => {
-				e.parentId = o.id;
-			}), n.model.nodes.push(o), n.layoutContainers([t.id], {
-				changedNode: o,
+				e.parentId = a.id;
+			}), n.model.nodes.push(a), n.layoutContainers([t.id], {
+				changedNode: a,
 				reason: "add"
 			}), !0;
 		},
@@ -1533,11 +2130,11 @@ function g() {
 				minHeight: 30
 			} : t === "swimlane" ? {
 				minWidth: 300,
-				minHeight: o,
+				minHeight: u,
 				handles: ["n", "s"]
 			} : t === "pool" ? {
 				minWidth: 300,
-				minHeight: o,
+				minHeight: u,
 				handles: [
 					"nw",
 					"ne",
@@ -1557,11 +2154,11 @@ function g() {
 			let t = e.type || "";
 			return t === "pool" || t === "swimlane" ? {
 				placement: "header-left",
-				headerSize: a,
+				headerSize: l,
 				fontSize: 13,
 				color: "#ffffff",
 				paddingX: 8
-			} : c[t]?.kind === "boundary" ? {
+			} : f[t]?.kind === "boundary" ? {
 				placement: "below-right",
 				fontSize: 11,
 				belowWidth: 56,
@@ -1630,7 +2227,7 @@ function g() {
 }
 //#endregion
 //#region src/weavle.js
-var _ = class {
+var x = class {
 	constructor(e, t = {}, n = null) {
 		this.container = typeof e == "string" ? document.querySelector(e) : e, this.options = Object.assign({
 			width: 1200,
@@ -1649,7 +2246,7 @@ var _ = class {
 			debugRoutePoints: !1,
 			toolSurfaceDockHost: null,
 			toolbar: !0
-		}, t), this.diagram = n || r(), this.model = {
+		}, t), this.diagram = n || s(), this.model = {
 			nodes: [],
 			edges: []
 		}, this.state = {
@@ -3456,17 +4053,17 @@ var _ = class {
 	}
 	getCanvasActions() {
 		if (typeof this.diagram.getCanvasActions == "function") return this.diagram.getCanvasActions(this) || [];
-		let e = (e) => this.getDefaultLabelForType(e), t = (t) => ({
+		let e = (e) => ({
 			type: "createNode",
-			nodeType: t,
-			label: e(t)
+			nodeType: e,
+			label: this.getTypeTitle(e)
 		});
-		return (this.diagram.palette || []).map((e) => e.group ? {
+		return (this.diagram.palette || []).map((t) => t.group ? {
 			type: "group",
-			label: e.group,
-			nodeType: e.types[0],
-			children: e.types.map(t)
-		} : t(e.type));
+			label: t.group,
+			nodeType: t.types[0],
+			children: t.types.map(e)
+		} : e(t.type));
 	}
 	createCanvasToolbar() {
 		if (this.options.toolbar === !1) return;
@@ -3538,6 +4135,11 @@ var _ = class {
 		let c = document.createElement("div");
 		c.className = "weavle-tool-submenu-title", c.textContent = r.label || "", s.appendChild(c);
 		for (let e of r.children) {
+			if (e.type === "heading") {
+				let t = document.createElement("div");
+				t.className = "weavle-tool-submenu-heading", t.textContent = e.label || "", s.appendChild(t);
+				continue;
+			}
 			let t = document.createElement("button");
 			t.type = "button", t.className = "weavle-tool-menu-item", t.setAttribute("role", "menuitem"), e.active && t.classList.add("is-active");
 			let n = document.createElement("span");
@@ -3650,7 +4252,9 @@ var _ = class {
 				this.removeNodesWithContents([t.id]), this.clearSelection(), this.clearNodeToolSurface(), this.pushHistory(), this.emitSelectionChanged(), this.emit("weavle:modelchanged", { model: this.getData() }), this.render();
 				return;
 			}
-			typeof this.diagram.handleAction == "function" && this.diagram.handleAction(e, t, this) && (this.pushHistory(), this.emit("weavle:modelchanged", { model: this.getData() }), this.render(), this.getNode(t.id) && this.isNodeSelected(t.id) && this.renderNodeToolSurface(t));
+			typeof this.diagram.handleAction == "function" && this.diagram.handleAction(e, t, this) && (this.model.edges.filter((e) => e.sourceNodeId === t.id || e.targetNodeId === t.id).forEach((e) => {
+				this.assignEdgeType(e), this.updateEdgeRoute(e);
+			}), this.pushHistory(), this.emit("weavle:modelchanged", { model: this.getData() }), this.render(), this.getNode(t.id) && this.isNodeSelected(t.id) && this.renderNodeToolSurface(t));
 		}
 	}
 	startInlineLabelEdit(e, t) {
@@ -4001,6 +4605,9 @@ var _ = class {
 	getDefaultLabelForType(e) {
 		let t = this.diagram.nodeTypes && this.diagram.nodeTypes[e];
 		return t ? t.defaultLabel : "Node";
+	}
+	getTypeTitle(e) {
+		return (this.diagram.nodeTypes && this.diagram.nodeTypes[e])?.title || this.getDefaultLabelForType(e);
 	}
 	getNodeColors(e) {
 		let t = this.diagram.nodeTypes && this.diagram.nodeTypes[e];
@@ -4406,32 +5013,32 @@ var _ = class {
 			e.label = t, this.selectSingleNode(e.id), this.state.selectedEdgeId = null, this.emit("weavle:modelchanged", { model: this.getData() }), this.render();
 		}
 	}
-}, v = {
-	bpmn: g,
-	flowchart: r
-}, y = {
+}, S = {
+	bpmn: b,
+	flowchart: s
+}, C = {
 	nodes: [],
 	edges: []
 };
-function b(e, t) {
-	v[e] = t;
+function w(e, t) {
+	S[e] = t;
 }
-function x() {
-	return Object.keys(v);
+function T() {
+	return Object.keys(S);
 }
-function S(e) {
-	return w(e)?._weavle || null;
+function E(e) {
+	return O(e)?._weavle || null;
 }
-function C(e, t = {}) {
-	let n = w(e);
+function D(e, t = {}) {
+	let n = O(e);
 	if (!n) throw Error(`Weavle.mount: container "${e}" not found`);
 	n._weavle?.destroy();
-	let r = typeof t.diagramType == "function" ? t.diagramType : v[t.diagramType || "bpmn"];
-	if (!r) throw Error(`Weavle.mount: unknown diagram type "${t.diagramType}" (known: ${x().join(", ")})`);
-	let i = new _(n, T(t.options) || {}, r()), a = null, o = {
+	let r = typeof t.diagramType == "function" ? t.diagramType : S[t.diagramType || "bpmn"];
+	if (!r) throw Error(`Weavle.mount: unknown diagram type "${t.diagramType}" (known: ${T().join(", ")})`);
+	let i = new x(n, k(t.options) || {}, r()), a = null, o = {
 		"weavle:modelchanged": (e) => {
 			let n = JSON.stringify(e.detail.model);
-			a = E(e.detail.model), t.onModelChanged?.(n);
+			a = A(e.detail.model), t.onModelChanged?.(n);
 		},
 		"weavle:selectionchanged": (e) => {
 			t.onSelectionChanged?.(e.detail.primarySelectedNodeId || "", e.detail.selectedEdgeId || "", JSON.stringify(e.detail.selectedNodeIds || []));
@@ -4443,7 +5050,7 @@ function C(e, t = {}) {
 	let s = () => i.emit("weavle:modelchanged", { model: i.getData() }), c = {
 		editor: i,
 		setModel(e) {
-			let t = (typeof e == "string" ? T(e) : e) || y, n = E(t);
+			let t = (typeof e == "string" ? k(e) : e) || C, n = A(t);
 			return n !== a && (a = n, i.load(JSON.parse(JSON.stringify(t))), !0);
 		},
 		getModel() {
@@ -4482,21 +5089,21 @@ function C(e, t = {}) {
 			i.destroy(), n._weavle === c && delete n._weavle;
 		}
 	};
-	return n._weavle = c, c.setModel(t.model ?? y), c;
+	return n._weavle = c, c.setModel(t.model ?? C), c;
 }
-function w(e) {
+function O(e) {
 	return e ? typeof e == "string" ? document.getElementById(e) || document.querySelector(e) : e : null;
 }
-function T(e) {
+function k(e) {
 	return typeof e == "string" ? e.trim() ? JSON.parse(e) : null : e ?? null;
 }
-function E(e) {
+function A(e) {
 	return JSON.stringify(e, (e, t) => t && typeof t == "object" && !Array.isArray(t) ? Object.fromEntries(Object.keys(t).sort().map((e) => [e, t[e]])) : t);
 }
 //#endregion
 //#region src/index.js
-var D = "0.9.0";
+var j = "0.9.0";
 //#endregion
-export { _ as WeavleJS, g as createBpmnDefinition, r as createFlowchartDefinition, x as getDiagramTypes, S as getInstance, C as mount, b as registerDiagramType, D as version };
+export { x as WeavleJS, b as createBpmnDefinition, s as createFlowchartDefinition, T as getDiagramTypes, E as getInstance, D as mount, w as registerDiagramType, j as version };
 
 //# sourceMappingURL=weavle.es.js.map
