@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Added
+- **OutSystems: self-describing models.** The JSON from `onModelChanged` / `getModel()` now carries
+  `diagramType`; `setModel()` with a model of another type rebuilds the editor for that type in the same
+  container (callbacks and options kept), so one block can show BPMN and flowchart records. Models without
+  `diagramType` use the mount type. New controller methods `getDiagramType()`, `setDiagramType(type, model?)`;
+  `controller.editor` is now a getter (follows the rebuilt editor). `example.html` has buttons to load a
+  flowchart / BPMN record.
 - **Flow optimaliseren** (toolbar button, `optimizeLayout({ nodeIds? })`, OutSystems
   `controller.optimizeLayout(nodeIdsJson)`): layered layout (new `src/weavle-layout.js`, no dependencies) —
   loops left out, longest-path layers, barycenter crossing reduction, straight main lines (branches

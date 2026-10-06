@@ -24,6 +24,8 @@
     <button id="btnRedo">Redo</button>
     <label><input type="checkbox" id="chkReadOnly" /> ReadOnly</label>
     <button id="btnReload">Reload "from database"</button>
+    <button id="btnFlowchart">Load a flowchart record</button>
+    <button id="btnBpmn">Load a BPMN record</button>
   </header>
 
   <!-- In OutSystems: a Container widget named WeavleHost inside the block -->
@@ -33,7 +35,8 @@
 
   <script>
     // ── Screen state, as an OutSystems screen would keep it ────────────────
-    let ModelJson = JSON.stringify({
+    const BpmnRecord = {
+      diagramType: "bpmn",
       nodes: [
         { id: "s", type: "startEvent", x: 130, y: 130, width: 60,  height: 60, label: "Start" },
         { id: "t", type: "userTask",   x: 290, y: 120, width: 140, height: 80, label: "Aanvraag beoordelen" },
@@ -43,7 +46,23 @@
         { id: "1", sourceNodeId: "s", targetNodeId: "t", sourceHandle: "right", targetHandle: "left" },
         { id: "2", sourceNodeId: "t", targetNodeId: "e", sourceHandle: "right", targetHandle: "left" }
       ]
-    });
+    };
+
+    // Another record, of another diagram type: setModel switches the editor to it.
+    const FlowchartRecord = {
+      diagramType: "flowchart",
+      nodes: [
+        { id: "a", type: "terminator", x: 120, y: 120, width: 140, height: 60, label: "Start" },
+        { id: "b", type: "process",    x: 320, y: 115, width: 140, height: 70, label: "Verwerken" },
+        { id: "c", type: "decision",   x: 520, y: 105, width: 120, height: 90, label: "Klaar?" }
+      ],
+      edges: [
+        { id: "1", sourceNodeId: "a", targetNodeId: "b", sourceHandle: "right", targetHandle: "left" },
+        { id: "2", sourceNodeId: "b", targetNodeId: "c", sourceHandle: "right", targetHandle: "left" }
+      ]
+    };
+
+    let ModelJson = JSON.stringify(BpmnRecord);
     let ReadOnly = false;
     let reloads  = 0;
 
@@ -77,13 +96,17 @@
       weavle.setReadOnly(ReadOnly);
       if (reloaded) reloads++;
 
-      status(`Model ${ModelJson.length} chars · reloads after mount: ${reloads} · undo steps: ${weavle.editor.historyIndex}`);
+      status(`${weavle.getDiagramType()} · model ${ModelJson.length} chars · reloads after mount: ${reloads} · undo steps: ${weavle.editor.historyIndex}`);
     }
 
     // ── Block client actions (JavaScript nodes) ────────────────────────────
     document.getElementById("btnUndo").onclick = () => Weavle.getInstance("WeavleHost").undo();
     document.getElementById("btnRedo").onclick = () => Weavle.getInstance("WeavleHost").redo();
     document.getElementById("chkReadOnly").onchange = e => { ReadOnly = e.target.checked; Block_OnParametersChanged(); };
+
+    // Loading another record — of another diagram type — is just a new ModelJson input.
+    document.getElementById("btnFlowchart").onclick = () => { ModelJson = JSON.stringify(FlowchartRecord); Block_OnParametersChanged(); };
+    document.getElementById("btnBpmn").onclick      = () => { ModelJson = JSON.stringify(BpmnRecord);      Block_OnParametersChanged(); };
 
     // Simulates reading the model back from an entity, re-serialised with another key order:
     // still the same model, so the editor must not reload (undo history stays).

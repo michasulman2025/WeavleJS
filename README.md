@@ -108,6 +108,8 @@ Then open http://localhost:5173.
 ## Model Schema
 
 The model is plain JSON: `{ nodes: [...], edges: [...] }`. `getData()` returns it, `load()` takes it.
+The OutSystems adapter adds `diagramType` (`{ diagramType: "bpmn", nodes, edges }`), so a stored model knows its
+type and `setModel()` can switch the editor to it.
 
 ### Node
 

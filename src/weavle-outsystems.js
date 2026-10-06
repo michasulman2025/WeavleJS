@@ -13,12 +13,17 @@
       });
 
       Weavle.getInstance("WeavleHost").setModel(modelJson);   // e.g. in OnParametersChanged
+                                                              // (a model of another diagramType switches type)
+      Weavle.getInstance("WeavleHost").setDiagramType("flowchart");  // start an empty diagram of another type
       Weavle.getInstance("WeavleHost").destroy();             // in OnDestroy
 
   Echo protection: when the editor reports a change, the host app typically stores the JSON and
   hands it straight back as an input parameter. setModel() recognises its own model (also when the
   host re-serialised it with another key order) and skips the reload, so undo history and the
   selection survive.
+
+  Models describe themselves: the reported JSON is { diagramType, nodes, edges }. Models without
+  diagramType (older data) use the type given to mount().
 */
 
 import { WeavleJS } from "./weavle.js";
@@ -53,12 +58,16 @@ export function getInstance(container) {
  *
  * config:
  *   diagramType         "bpmn" | "flowchart" | a registered name | a definition factory function
- *   model               JSON text or { nodes, edges } (default: empty)
+ *                       (the type for models without their own diagramType)
+ *   model               JSON text or { diagramType?, nodes, edges } (default: empty)
  *   options             editor options, object or JSON text (snapToGrid, readOnly, gridType, ...)
  *   onModelChanged      (modelJson) => void       — after every change (add, move, connect, undo, ...)
  *   onSelectionChanged  (nodeId, edgeId, selectedNodeIdsJson) => void — ids are "" when nothing is selected
  *   onNodeMoved         (nodeJson) => void
  *   onNodeResized       (nodeJson) => void
+ *
+ * Models describe themselves: the JSON the editor reports carries "diagramType", and setModel() with a
+ * model of another type rebuilds the editor for that type (same container, callbacks and options).
  */
 export function mount(container, config = {}) {
     const host = resolveContainer(container);
@@ -66,24 +75,36 @@ export function mount(container, config = {}) {
 
     host._weavle?.destroy();
 
-    const createDefinition = typeof config.diagramType === "function"
-        ? config.diagramType
-        : DIAGRAM_TYPES[config.diagramType || "bpmn"];
+    // A factory function passed directly has no registered name: models then carry "custom".
+    const defaultType = typeof config.diagramType === "function" ? "custom" : (config.diagramType || "bpmn");
 
-    if (!createDefinition) {
-        throw new Error(`Weavle.mount: unknown diagram type "${config.diagramType}" (known: ${getDiagramTypes().join(", ")})`);
-    }
+    const resolveType = (type) => {
+        const create = type === "custom" && typeof config.diagramType === "function"
+            ? config.diagramType
+            : DIAGRAM_TYPES[type];
+        if (!create) {
+            throw new Error(`Weavle: unknown diagram type "${type}" (known: ${getDiagramTypes().join(", ")})`);
+        }
+        return create;
+    };
 
-    const editor = new WeavleJS(host, parseJson(config.options) || {}, createDefinition());
+    // Kept across rebuilds; setReadOnly / setLayoutDirection update it too.
+    const editorOptions = { ...(parseJson(config.options) || {}) };
+
+    let diagramType = defaultType;
+    let editor = new WeavleJS(host, { ...editorOptions }, resolveType(diagramType)());
 
     // Canonical JSON of the model the editor and the host app last agreed on (see setModel).
     let lastModel = null;
 
+    // The model as the host sees it: the editor's data with its diagram type.
+    const typed = (data) => ({ diagramType, ...data });
+
     const listeners = {
         "weavle:modelchanged": e => {
-            const json = JSON.stringify(e.detail.model);
-            lastModel  = canonical(e.detail.model);
-            config.onModelChanged?.(json);
+            const model = typed(e.detail.model);
+            lastModel = canonical(model);
+            config.onModelChanged?.(JSON.stringify(model));
         },
         "weavle:selectionchanged": e => {
             config.onSelectionChanged?.(
@@ -96,32 +117,74 @@ export function mount(container, config = {}) {
         "weavle:noderesized": e => config.onNodeResized?.(JSON.stringify(e.detail.node))
     };
 
+    // On the container, so they keep working when the editor is rebuilt for another type.
     for (const [name, fn] of Object.entries(listeners)) host.addEventListener(name, fn);
 
     const emitChange = () => editor.emit("weavle:modelchanged", { model: editor.getData() });
 
+    /** Replaces the editor by one for another diagram type (empty; the selection is gone). */
+    const rebuild = (type) => {
+        const create = resolveType(type);   // throws before anything is torn down
+        editor.destroy();
+        diagramType = type;
+        editor = new WeavleJS(host, { ...editorOptions }, create());
+        config.onSelectionChanged?.("", "", "[]");
+    };
+
+    /** Loads plain { nodes, edges } into the editor (the diagramType field stays with the adapter). */
+    const load = (data) => {
+        const { diagramType: _type, ...plain } = data;
+        editor.load(JSON.parse(JSON.stringify({ ...EMPTY_MODEL, ...plain })));
+    };
+
     const controller = {
         /** The underlying WeavleJS instance, for anything the controller doesn't cover. */
-        editor,
+        get editor() { return editor; },
 
         /**
-         * Loads a model (JSON text or object). Returns false and does nothing when it is the model
-         * the editor itself last reported — the usual "event → store → parameter" round trip.
+         * Loads a model (JSON text or object). A model with another diagramType rebuilds the editor
+         * for that type; a model without one uses the type given to mount(). Returns false and does
+         * nothing when it is the model the editor itself last reported — the usual
+         * "event → store → parameter" round trip.
          */
         setModel(model) {
             const data = (typeof model === "string" ? parseJson(model) : model) || EMPTY_MODEL;
-            const key  = canonical(data);
+            const type = data.diagramType || defaultType;
+            const key  = canonical({ ...data, diagramType: type });
 
             if (key === lastModel) return false;
 
+            if (type !== diagramType) rebuild(type);
+
             lastModel = key;
-            editor.load(JSON.parse(JSON.stringify(data)));
+            load(data);
             return true;
         },
 
-        /** The current model as JSON text. */
+        /** The current model as JSON text (with its diagramType). */
         getModel() {
-            return JSON.stringify(editor.getData());
+            return JSON.stringify(typed(editor.getData()));
+        },
+
+        /** The current diagram type name ("bpmn", "flowchart", ...). */
+        getDiagramType() {
+            return diagramType;
+        },
+
+        /**
+         * Switches to another diagram type with an empty model (or the given one) and reports the
+         * new model through onModelChanged. Returns false if it already is that type and no model
+         * was given.
+         */
+        setDiagramType(type, model) {
+            if (type === diagramType && model == null) return false;
+
+            const data = (typeof model === "string" ? parseJson(model) : model) || EMPTY_MODEL;
+            if (type !== diagramType) rebuild(type);
+
+            load(data);
+            emitChange();
+            return true;
         },
 
         undo()  { editor.undo(); },
@@ -130,21 +193,23 @@ export function mount(container, config = {}) {
 
         /** Re-picks ports and re-routes edges; nodeIdsJson (optional) = JSON array limiting it to those nodes. */
         optimizeEdges(nodeIdsJson) {
-            const nodeIds = nodeIdsJson ? (typeof nodeIdsJson === "string" ? JSON.parse(nodeIdsJson) : nodeIdsJson) : null;
-            return editor.optimizeEdges({ nodeIds: nodeIds && nodeIds.length ? nodeIds : null });
+            return editor.optimizeEdges({ nodeIds: parseIds(nodeIdsJson) });
         },
 
         /** Lays out the flow in layers and re-routes the edges; nodeIdsJson (optional) limits it to those nodes. */
         optimizeLayout(nodeIdsJson) {
-            const nodeIds = nodeIdsJson ? (typeof nodeIdsJson === "string" ? JSON.parse(nodeIdsJson) : nodeIdsJson) : null;
-            return editor.optimizeLayout({ nodeIds: nodeIds && nodeIds.length ? nodeIds : null });
+            return editor.optimizeLayout({ nodeIds: parseIds(nodeIdsJson) });
         },
 
         /** "LR" or "TB": flow direction for the tidy-up functions. */
-        setLayoutDirection(direction) { editor.setLayoutDirection(direction); },
+        setLayoutDirection(direction) {
+            editor.setLayoutDirection(direction);
+            editorOptions.layoutDirection = editor.options.layoutDirection;
+        },
 
         setReadOnly(readOnly) {
             const value = !!readOnly;
+            editorOptions.readOnly = value;
             if (editor.options.readOnly === value) return;
 
             editor.options.readOnly = value;
@@ -196,6 +261,12 @@ export function mount(container, config = {}) {
     controller.setModel(config.model ?? EMPTY_MODEL);
 
     return controller;
+}
+
+/** A JSON array of ids (text or array) → array, or null when empty. */
+function parseIds(value) {
+    const ids = value ? (typeof value === "string" ? JSON.parse(value) : value) : null;
+    return ids && ids.length ? ids : null;
 }
 
 function resolveContainer(container) {

@@ -33,7 +33,7 @@ In the block, add the script under **Required Scripts** (O11) / **Scripts** (ODC
 
 | Name | Type | Default | |
 |---|---|---|---|
-| `DiagramType` | Text | `"bpmn"` | `"bpmn"` or `"flowchart"` |
+| `DiagramType` | Text | `"bpmn"` | `"bpmn"` or `"flowchart"` — the type for models that don’t carry their own `diagramType` |
 | `ModelJson` | Text | `""` | The model; empty = empty diagram |
 | `ReadOnly` | Boolean | `False` | |
 | `OptionsJson` | Text | `""` | Optional editor options, e.g. `{"snapToGrid":true,"gridType":"dots"}` |
@@ -103,7 +103,16 @@ var weavle = Weavle.getInstance($parameters.ContainerId);
 if (weavle) weavle.destroy();
 ```
 
-> Changing `DiagramType` at runtime: call `Weavle.mount(...)` again (as in OnReady) — it replaces the editor.
+### Switching diagram type
+
+Models describe themselves: the JSON in `OnModelChanged` is `{ "diagramType": "bpmn", "nodes": [...], "edges": [...] }`.
+When `setModel` gets a model with **another** `diagramType`, the block rebuilds the editor for that type (same
+container, callbacks and options) and loads it — so loading a flowchart record into a block that shows BPMN just
+works with the OnParametersChanged code above. Undo history and selection start fresh (`OnSelectionChanged`
+fires with empty ids). Models without `diagramType` (older data) use the block’s `DiagramType` input.
+
+To start an empty diagram of another type from a client action: `setDiagramType("flowchart")` (reports the new
+empty model through `OnModelChanged`).
 
 ---
 
@@ -120,6 +129,9 @@ Each is a client action of the block with one JavaScript node (input `ContainerI
 | `SetNodeLabel` (in: `NodeId`, `Label`) | `Weavle.getInstance($parameters.ContainerId).setNodeLabel($parameters.NodeId, $parameters.Label);` |
 | `SelectNode` (in: `NodeId`) | `Weavle.getInstance($parameters.ContainerId).selectNode($parameters.NodeId);` |
 | `GetModel` (out: `ModelJson`) | `$parameters.ModelJson = Weavle.getInstance($parameters.ContainerId).getModel();` |
+| `SetDiagramType` (in: `DiagramType`) | `Weavle.getInstance($parameters.ContainerId).setDiagramType($parameters.DiagramType);` |
+| `OptimizeLayout` (in: `NodeIdsJson`, optional) | `Weavle.getInstance($parameters.ContainerId).optimizeLayout($parameters.NodeIdsJson);` |
+| `OptimizeEdges` (in: `NodeIdsJson`, optional) | `Weavle.getInstance($parameters.ContainerId).optimizeEdges($parameters.NodeIdsJson);` |
 
 ---
 
@@ -149,8 +161,13 @@ model (e.g. another record loaded) is loaded normally.
 
 | Member | |
 |---|---|
-| `setModel(jsonOrObject)` | Load a model; returns `false` when it was the editor's own model (echo) |
-| `getModel()` | Current model as JSON text |
+| `setModel(jsonOrObject)` | Load a model; returns `false` when it was the editor's own model (echo). Another `diagramType` switches the editor to that type |
+| `getModel()` | Current model as JSON text, with `diagramType` |
+| `getDiagramType()` | `"bpmn"`, `"flowchart"`, ... |
+| `setDiagramType(type, model?)` | Switch type with an empty (or the given) model; reported via `onModelChanged` |
+| `optimizeLayout(nodeIdsJson?)` | "Flow optimaliseren": layered layout + tidy edges; one undo step |
+| `optimizeEdges(nodeIdsJson?)` | "Lijnen optimaliseren": better ports and routes, nodes stay put |
+| `setLayoutDirection("LR" | "TB")` | Flow direction for the two functions above |
 | `undo()`, `redo()`, `clear()` | |
 | `setReadOnly(bool)` | Switch without rebuilding |
 | `addNode(type, label?)` | Adds a node on a free spot in view; returns its id |

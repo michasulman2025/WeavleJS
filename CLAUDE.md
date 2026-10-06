@@ -25,6 +25,8 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
 - `src/weavle-layout.js` — `computeLayeredLayout(graph, options)`, the layered layout behind "Flow optimaliseren".
 - `src/weavle-outsystems.js` — host adapter: `mount(container, config)` → controller, `getInstance`,
   `registerDiagramType`; JSON in / out and echo protection (`setModel` skips the model the editor reported).
+  Models carry `diagramType`: `setModel` with another type rebuilds the editor (`rebuild`) in the same container;
+  `setDiagramType(type, model?)`, `getDiagramType()`; `controller.editor` is a getter.
 - `src/index.js` — library entry (exports everything, imports weavle.css). `wrappers/outsystems/` — block guide
   and `example.html` simulation.
 - `src/samples/bpmn-order-process.js` — complex BPMN sample (3 pools, lanes, message flows), button

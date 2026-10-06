@@ -5783,18 +5783,23 @@ function F() {
 	return Object.keys(M);
 }
 function I(e) {
-	return R(e)?._weavle || null;
+	return z(e)?._weavle || null;
 }
 function L(e, t = {}) {
-	let n = R(e);
+	let n = z(e);
 	if (!n) throw Error(`Weavle.mount: container "${e}" not found`);
 	n._weavle?.destroy();
-	let r = typeof t.diagramType == "function" ? t.diagramType : M[t.diagramType || "bpmn"];
-	if (!r) throw Error(`Weavle.mount: unknown diagram type "${t.diagramType}" (known: ${F().join(", ")})`);
-	let i = new j(n, z(t.options) || {}, r()), a = null, o = {
+	let r = typeof t.diagramType == "function" ? "custom" : t.diagramType || "bpmn", i = (e) => {
+		let n = e === "custom" && typeof t.diagramType == "function" ? t.diagramType : M[e];
+		if (!n) throw Error(`Weavle: unknown diagram type "${e}" (known: ${F().join(", ")})`);
+		return n;
+	}, a = { ...B(t.options) || {} }, o = r, s = new j(n, { ...a }, i(o)()), c = null, l = (e) => ({
+		diagramType: o,
+		...e
+	}), u = {
 		"weavle:modelchanged": (e) => {
-			let n = JSON.stringify(e.detail.model);
-			a = B(e.detail.model), t.onModelChanged?.(n);
+			let n = l(e.detail.model);
+			c = V(n), t.onModelChanged?.(JSON.stringify(n));
 		},
 		"weavle:selectionchanged": (e) => {
 			t.onSelectionChanged?.(e.detail.primarySelectedNodeId || "", e.detail.selectedEdgeId || "", JSON.stringify(e.detail.selectedNodeIds || []));
@@ -5802,75 +5807,99 @@ function L(e, t = {}) {
 		"weavle:nodemoved": (e) => t.onNodeMoved?.(JSON.stringify(e.detail.node)),
 		"weavle:noderesized": (e) => t.onNodeResized?.(JSON.stringify(e.detail.node))
 	};
-	for (let [e, t] of Object.entries(o)) n.addEventListener(e, t);
-	let s = () => i.emit("weavle:modelchanged", { model: i.getData() }), c = {
-		editor: i,
+	for (let [e, t] of Object.entries(u)) n.addEventListener(e, t);
+	let d = () => s.emit("weavle:modelchanged", { model: s.getData() }), f = (e) => {
+		let r = i(e);
+		s.destroy(), o = e, s = new j(n, { ...a }, r()), t.onSelectionChanged?.("", "", "[]");
+	}, p = (e) => {
+		let { diagramType: t, ...n } = e;
+		s.load(JSON.parse(JSON.stringify({
+			...N,
+			...n
+		})));
+	}, m = {
+		get editor() {
+			return s;
+		},
 		setModel(e) {
-			let t = (typeof e == "string" ? z(e) : e) || N, n = B(t);
-			return n !== a && (a = n, i.load(JSON.parse(JSON.stringify(t))), !0);
+			let t = (typeof e == "string" ? B(e) : e) || N, n = t.diagramType || r, i = V({
+				...t,
+				diagramType: n
+			});
+			return i !== c && (n !== o && f(n), c = i, p(t), !0);
 		},
 		getModel() {
-			return JSON.stringify(i.getData());
+			return JSON.stringify(l(s.getData()));
+		},
+		getDiagramType() {
+			return o;
+		},
+		setDiagramType(e, t) {
+			if (e === o && t == null) return !1;
+			let n = (typeof t == "string" ? B(t) : t) || N;
+			return e !== o && f(e), p(n), d(), !0;
 		},
 		undo() {
-			i.undo();
+			s.undo();
 		},
 		redo() {
-			i.redo();
+			s.redo();
 		},
 		clear() {
-			i.clear();
+			s.clear();
 		},
 		optimizeEdges(e) {
-			let t = e ? typeof e == "string" ? JSON.parse(e) : e : null;
-			return i.optimizeEdges({ nodeIds: t && t.length ? t : null });
+			return s.optimizeEdges({ nodeIds: R(e) });
 		},
 		optimizeLayout(e) {
-			let t = e ? typeof e == "string" ? JSON.parse(e) : e : null;
-			return i.optimizeLayout({ nodeIds: t && t.length ? t : null });
+			return s.optimizeLayout({ nodeIds: R(e) });
 		},
 		setLayoutDirection(e) {
-			i.setLayoutDirection(e);
+			s.setLayoutDirection(e), a.layoutDirection = s.options.layoutDirection;
 		},
 		setReadOnly(e) {
 			let t = !!e;
-			i.options.readOnly !== t && (i.options.readOnly = t, i.clearSelection?.(), i.clearNodeToolSurface(), i.render());
+			a.readOnly = t, s.options.readOnly !== t && (s.options.readOnly = t, s.clearSelection?.(), s.clearNodeToolSurface(), s.render());
 		},
 		addNode(e, t) {
 			let n = `node_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
-			return i.addNode({
+			return s.addNode({
 				id: n,
 				type: e,
-				label: t ?? i.getDefaultLabelForType(e)
+				label: t ?? s.getDefaultLabelForType(e)
 			}), n;
 		},
 		setNodeLabel(e, t) {
-			let n = i.getNode(e);
-			return !n || n.label === t ? !1 : (n.label = t, i.pushHistory(), i.render(), s(), !0);
+			let n = s.getNode(e);
+			return !n || n.label === t ? !1 : (n.label = t, s.pushHistory(), s.render(), d(), !0);
 		},
 		selectNode(e) {
-			e && i.getNode(e) ? (i.selectSingleNode(e), i.renderNodeToolSurface(i.getNode(e))) : (i.clearSelection?.(), i.clearNodeToolSurface()), i.render(), i.emitSelectionChanged();
+			e && s.getNode(e) ? (s.selectSingleNode(e), s.renderNodeToolSurface(s.getNode(e))) : (s.clearSelection?.(), s.clearNodeToolSurface()), s.render(), s.emitSelectionChanged();
 		},
 		destroy() {
-			for (let [e, t] of Object.entries(o)) n.removeEventListener(e, t);
-			i.destroy(), n._weavle === c && delete n._weavle;
+			for (let [e, t] of Object.entries(u)) n.removeEventListener(e, t);
+			s.destroy(), n._weavle === m && delete n._weavle;
 		}
 	};
-	return n._weavle = c, c.setModel(t.model ?? N), c;
+	return n._weavle = m, m.setModel(t.model ?? N), m;
 }
 function R(e) {
-	return e ? typeof e == "string" ? document.getElementById(e) || document.querySelector(e) : e : null;
+	let t = e ? typeof e == "string" ? JSON.parse(e) : e : null;
+	return t && t.length ? t : null;
 }
 function z(e) {
-	return typeof e == "string" ? e.trim() ? JSON.parse(e) : null : e ?? null;
+	return e ? typeof e == "string" ? document.getElementById(e) || document.querySelector(e) : e : null;
 }
 function B(e) {
+	return typeof e == "string" ? e.trim() ? JSON.parse(e) : null : e ?? null;
+}
+function V(e) {
 	return JSON.stringify(e, (e, t) => t && typeof t == "object" && !Array.isArray(t) ? Object.fromEntries(Object.keys(t).sort().map((e) => [e, t[e]])) : t);
 }
 //#endregion
 //#region src/index.js
-var V = "0.9.0";
+var H = "0.9.0";
 //#endregion
-export { j as WeavleJS, b as createBpmnDefinition, s as createFlowchartDefinition, F as getDiagramTypes, I as getInstance, L as mount, P as registerDiagramType, V as version };
+export { j as WeavleJS, b as createBpmnDefinition, s as createFlowchartDefinition, F as getDiagramTypes, I as getInstance, L as mount, P as registerDiagramType, H as version };
 
 //# sourceMappingURL=weavle.es.js.map
