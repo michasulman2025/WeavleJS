@@ -1990,7 +1990,14 @@ function b() {
 			return {
 				direction: "LR",
 				isFlowEdge: (e) => (e.type || "sequenceFlow") === "sequenceFlow",
-				getSatelliteSide: (e) => e.type === "annotation" ? "before" : "after"
+				getSatelliteSide: (e) => e.type === "annotation" ? "before" : "after",
+				getContainerPadding: () => ({
+					left: 60,
+					top: 30,
+					right: 40,
+					bottom: 40
+				}),
+				poolGap: 40
 			};
 		},
 		getNodeInteractionMode(e) {
@@ -2261,8 +2268,8 @@ function x(e, t = {}) {
 		componentGap: 80,
 		...t
 	}, r = n.direction !== "TB", i = (e) => r ? e.width : e.height, a = (e) => r ? e.height : e.width, o = (e) => r ? e.y : e.x, s = /* @__PURE__ */ new Map(), c = 0;
-	for (let t of S(e)) {
-		let e = C(t, n, i, a, o), l = Infinity, u = -Infinity;
+	for (let t of C(e)) {
+		let e = w(t, n, i, a, o), l = Infinity, u = -Infinity;
 		for (let [n, r] of e.positions) {
 			let e = a(t.nodeById.get(n)) / 2;
 			l = Math.min(l, r.across - e), u = Math.max(u, r.across + e);
@@ -2287,7 +2294,40 @@ function x(e, t = {}) {
 	for (let e of s.values()) e.x -= l, e.y -= u;
 	return s;
 }
-function S(e) {
+function S(e, t = {}) {
+	let n = {
+		direction: "LR",
+		layerGap: 80,
+		nodeGap: 50,
+		...t
+	}, r = n.direction !== "TB", i = (e) => r ? e.width : e.height, a = (e) => r ? e.height : e.width, o = (e) => r ? e.y : e.x, s = e.nodes, c = new Map(s.map((e) => [e.id, e])), l = T(s, e.edges.filter((e) => c.has(e.source) && c.has(e.target) && e.source !== e.target), o), u = E(s, l), d = D(s, l, u, n.groupOf), f = O(d, u, c, o, (e) => d.sortGroup(e)), p = f.map((e) => Math.max(0, ...e.map((e) => d.isDummy(e) ? 0 : i(c.get(e))))), m = [], h = 0;
+	p.forEach((e, t) => {
+		m[t] = h + e / 2, h += e + n.layerGap;
+	});
+	let g = /* @__PURE__ */ new Map(), _ = [];
+	for (let e = 0; e < n.groupCount; e++) {
+		let t = (t) => d.group(t) === e, r = f.map((e) => e.filter(t)), i = A(r, {
+			...d,
+			up: new Map([...d.up].map(([e, n]) => [e, n.filter(t)])),
+			down: new Map([...d.down].map(([e, n]) => [e, n.filter(t)]))
+		}, c, a, n.nodeGap), o = Infinity, s = -Infinity;
+		r.forEach((e) => e.forEach((e) => {
+			if (d.isDummy(e)) return;
+			let t = a(c.get(e)) / 2;
+			o = Math.min(o, i.get(e) - t), s = Math.max(s, i.get(e) + t);
+		})), _[e] = s > o ? s - o : 0, r.forEach((e, t) => e.forEach((e) => {
+			d.isDummy(e) || g.set(e, {
+				along: m[t],
+				across: i.get(e) - o
+			});
+		}));
+	}
+	return {
+		positions: g,
+		groupSizes: _
+	};
+}
+function C(e) {
 	let t = new Map(e.nodes.map((e) => [e.id, e])), n = new Map(e.nodes.map((e) => [e.id, []])), r = e.edges.filter((e) => t.has(e.source) && t.has(e.target) && e.source !== e.target);
 	r.forEach((e) => {
 		n.get(e.source).push(e.target), n.get(e.target).push(e.source);
@@ -2310,12 +2350,12 @@ function S(e) {
 	}
 	return a;
 }
-function C(e, t, n, r, i) {
-	let { nodes: a, edges: o, nodeById: s } = e, c = w(a, o, i), l = T(a, c), u = E(a, c, l), d = D(u, l, s, i), f = d.map((e) => Math.max(0, ...e.map((e) => u.isDummy(e) ? 0 : n(s.get(e))))), p = [], m = 0;
+function w(e, t, n, r, i) {
+	let { nodes: a, edges: o, nodeById: s } = e, c = T(a, o, i), l = E(a, c), u = D(a, c, l), d = O(u, l, s, i), f = d.map((e) => Math.max(0, ...e.map((e) => u.isDummy(e) ? 0 : n(s.get(e))))), p = [], m = 0;
 	f.forEach((e, n) => {
 		p[n] = m + e / 2, m += e + t.layerGap;
 	});
-	let h = k(d, u, s, r, t.nodeGap), g = /* @__PURE__ */ new Map();
+	let h = A(d, u, s, r, t.nodeGap), g = /* @__PURE__ */ new Map();
 	return d.forEach((e, t) => e.forEach((e) => {
 		u.isDummy(e) || g.set(e, {
 			along: p[t],
@@ -2323,7 +2363,7 @@ function C(e, t, n, r, i) {
 		});
 	})), { positions: g };
 }
-function w(e, t, n) {
+function T(e, t, n) {
 	let r = new Map(e.map((e) => [e.id, []])), i = new Map(e.map((e) => [e.id, 0]));
 	t.forEach((e) => {
 		r.get(e.source).push(e), i.set(e.target, i.get(e.target) + 1);
@@ -2344,7 +2384,7 @@ function w(e, t, n) {
 		secondary: !!e.secondary
 	}));
 }
-function T(e, t) {
+function E(e, t) {
 	let n = new Map(e.map((e) => [e.id, []])), r = new Map(e.map((e) => [e.id, []]));
 	t.forEach((e) => {
 		n.get(e.target).push(e.source), r.get(e.source).push(e.target);
@@ -2359,57 +2399,63 @@ function T(e, t) {
 		!n.get(e.id).length && r.get(e.id).length && i.set(e.id, Math.max(0, Math.min(...r.get(e.id).map((e) => i.get(e))) - 1));
 	}), i;
 }
-function E(e, t, n) {
-	let r = /* @__PURE__ */ new Set(), i = /* @__PURE__ */ new Set(), a = new Map(e.map((e) => [e.id, []])), o = new Map(e.map((e) => [e.id, []])), s = 0, c = (e, t) => {
-		o.get(e).push(t), a.get(t).push(e);
+function D(e, t, n, r = null) {
+	let i = /* @__PURE__ */ new Set(), a = /* @__PURE__ */ new Set(), o = new Map(r ? e.map((e) => [e.id, r(e.id)]) : []), s = new Map(o), c = new Map(e.map((e) => [e.id, []])), l = new Map(e.map((e) => [e.id, []])), u = 0, d = (e, t) => {
+		l.get(e).push(t), c.get(t).push(e);
 	};
 	return t.forEach((e) => {
 		let t = e.source;
-		for (let l = n.get(e.source) + 1; l < n.get(e.target); l++) {
-			let u = `__dummy_${s++}`;
-			r.add(u), e.secondary && i.add(u), n.set(u, l), a.set(u, []), o.set(u, []), c(t, u), t = u;
+		for (let f = n.get(e.source) + 1; f < n.get(e.target); f++) {
+			let p = `__dummy_${u++}`;
+			if (i.add(p), e.secondary && a.add(p), r) {
+				let t = o.get(e.source) === o.get(e.target);
+				o.set(p, t ? o.get(e.source) : null), s.set(p, o.get(e.source));
+			}
+			n.set(p, f), c.set(p, []), l.set(p, []), d(t, p), t = p;
 		}
-		c(t, e.target);
+		d(t, e.target);
 	}), e.forEach((e) => {
 		let n = t.filter((t) => t.target === e.id);
-		n.length && n.every((e) => e.secondary) && i.add(e.id);
+		n.length && n.every((e) => e.secondary) && a.add(e.id);
 	}), {
-		up: a,
-		down: o,
+		up: c,
+		down: l,
 		layer: n,
-		isDummy: (e) => r.has(e),
-		isSecondary: (e) => i.has(e)
+		isDummy: (e) => i.has(e),
+		isSecondary: (e) => a.has(e),
+		group: (e) => o.get(e) ?? null,
+		sortGroup: (e) => s.get(e) ?? 0
 	};
 }
-function D(e, t, n, r) {
-	let i = Math.max(...t.values()) + 1, a = Array.from({ length: i }, () => []);
-	for (let [e, n] of t) a[n].push(e);
-	let o = /* @__PURE__ */ new Map(), s = (t) => {
-		if (o.has(t)) return o.get(t);
-		let i = e.isSecondary(t) ? Infinity : e.isDummy(t) ? s(e.up.get(t)[0]) : r(n.get(t));
-		return o.set(t, i), i;
+function O(e, t, n, r, i = () => 0) {
+	let a = Math.max(...t.values()) + 1, o = Array.from({ length: a }, () => []);
+	for (let [e, n] of t) o[n].push(e);
+	let s = /* @__PURE__ */ new Map(), c = (t) => {
+		if (s.has(t)) return s.get(t);
+		let i = e.isSecondary(t) ? Infinity : e.isDummy(t) ? c(e.up.get(t)[0]) : r(n.get(t));
+		return s.set(t, i), i;
 	};
-	a.forEach((e) => e.sort((e, t) => s(e) === s(t) ? 0 : s(e) - s(t)));
-	let c = /* @__PURE__ */ new Map(), l = () => a.forEach((e) => e.forEach((e, t) => c.set(e, t)));
-	l();
-	let u = a.map((e) => [...e]), d = O(a, e, c);
-	for (let t = 0; t < 12 && d > 0; t++) {
-		let n = t % 2 == 0, r = n ? [...Array(i).keys()].slice(1) : [...Array(i).keys()].reverse().slice(1);
+	o.forEach((e) => e.sort((e, t) => i(e) - i(t) || (c(e) === c(t) ? 0 : c(e) - c(t))));
+	let l = /* @__PURE__ */ new Map(), u = () => o.forEach((e) => e.forEach((e, t) => l.set(e, t)));
+	u();
+	let d = o.map((e) => [...e]), f = k(o, e, l);
+	for (let t = 0; t < 12 && f > 0; t++) {
+		let n = t % 2 == 0, r = n ? [...Array(a).keys()].slice(1) : [...Array(a).keys()].reverse().slice(1);
 		for (let t of r) {
-			let r = n ? e.up : e.down, i = /* @__PURE__ */ new Map();
-			a[t].forEach((e) => {
+			let r = n ? e.up : e.down, a = /* @__PURE__ */ new Map();
+			o[t].forEach((e) => {
 				let t = r.get(e);
-				i.set(e, t.length ? t.reduce((e, t) => e + c.get(t), 0) / t.length : c.get(e));
-			}), a[t].sort((e, t) => i.get(e) - i.get(t) || c.get(e) - c.get(t)), a[t].forEach((e, t) => c.set(e, t));
+				a.set(e, t.length ? t.reduce((e, t) => e + l.get(t), 0) / t.length : l.get(e));
+			}), o[t].sort((e, t) => i(e) - i(t) || a.get(e) - a.get(t) || l.get(e) - l.get(t)), o[t].forEach((e, t) => l.set(e, t));
 		}
-		let o = O(a, e, c);
-		o < d && (d = o, u = a.map((e) => [...e]));
+		let s = k(o, e, l);
+		s < f && (f = s, d = o.map((e) => [...e]));
 	}
-	return u.forEach((e, t) => {
-		a[t] = e;
-	}), l(), a;
+	return d.forEach((e, t) => {
+		o[t] = e;
+	}), u(), o;
 }
-function O(e, t, n) {
+function k(e, t, n) {
 	let r = 0;
 	for (let i = 0; i < e.length - 1; i++) {
 		let a = [];
@@ -2421,7 +2467,7 @@ function O(e, t, n) {
 	}
 	return r;
 }
-function k(e, t, n, r, i) {
+function A(e, t, n, r, i) {
 	let a = (e) => t.isDummy(e) ? 0 : r(n.get(e)), o = /* @__PURE__ */ new Map();
 	e.forEach((e) => {
 		let t = 0;
@@ -2434,7 +2480,7 @@ function k(e, t, n, r, i) {
 		e.forEach((t, n) => {
 			n > 0 && (s += (a(e[n - 1]) + a(t)) / 2 + i), r.push(s);
 		});
-		let c = A(e.map((e, n) => t.get(e) - r[n]), e.map(n));
+		let c = j(e.map((e, n) => t.get(e) - r[n]), e.map(n));
 		e.forEach((e, t) => o.set(e, c[t] + r[t]));
 	}, c = (e) => t.isSecondary(e) ? .05 : t.isDummy(e) ? 4 : 1, l = (e) => {
 		let t = e.map((e) => o.get(e)).sort((e, t) => e - t), n = Math.floor(t.length / 2);
@@ -2452,7 +2498,7 @@ function k(e, t, n, r, i) {
 	}
 	return o;
 }
-function A(e, t) {
+function j(e, t) {
 	let n = [];
 	e.forEach((e, r) => {
 		for (n.push({
@@ -2475,7 +2521,7 @@ function A(e, t) {
 }
 //#endregion
 //#region src/weavle.js
-var j = class {
+var M = class {
 	constructor(e, t = {}, n = null) {
 		this.container = typeof e == "string" ? document.querySelector(e) : e, this.options = Object.assign({
 			width: 1200,
@@ -4927,86 +4973,212 @@ var j = class {
 		};
 	}
 	optimizeLayout({ nodeIds: e = null } = {}) {
-		let t = this.getLayoutSettings(), n = this.options.gridSize || 20, r = this.model.nodes.filter((t) => !this.isContainer(t) && !t.parentId && !t.attachedToId && (!e || e.includes(t.id))), i = new Set(r.map((e) => e.id)), a = (e) => {
-			let t = this.getNode(e);
-			return t?.attachedToId && i.has(t.attachedToId) ? t.attachedToId : e;
-		}, o = [];
-		this.model.edges.forEach((e) => {
-			if (!t.isFlowEdge(e)) return;
-			let n = a(e.sourceNodeId), r = a(e.targetNodeId), s = n !== e.sourceNodeId;
-			n !== r && i.has(n) && i.has(r) && o.push({
-				source: n,
-				target: r,
-				secondary: s
-			});
-		});
-		let s = new Set(o.flatMap((e) => [e.source, e.target]));
-		if (!s.size) return !1;
-		let c = r.filter((e) => s.has(e.id)), l = () => JSON.stringify([this.model.nodes.map((e) => [e.x, e.y]), this.model.edges.map((e) => [
+		let t = this.getLayoutSettings(), n = () => JSON.stringify([this.model.nodes.map((e) => [
+			e.x,
+			e.y,
+			e.width,
+			e.height
+		]), this.model.edges.map((e) => [
 			e.sourceHandle,
 			e.targetHandle,
 			e.routePoints
-		])]), u = l(), d = [], f = [];
-		r.filter((e) => !s.has(e.id)).forEach((t) => {
-			let n = /* @__PURE__ */ new Set();
-			this.model.edges.forEach((e) => {
-				let r = e.sourceNodeId === t.id ? e.targetNodeId : e.targetNodeId === t.id ? e.sourceNodeId : null;
-				r && s.has(a(r)) && n.add(a(r));
-			}), n.size ? d.push({
-				node: t,
-				anchors: [...n].map((e) => this.getNode(e))
-			}) : e || f.push(t);
+		])]), r = n(), i = this.layoutFreeFlow(t, e), a = this.model.nodes.filter((t) => this.isContainer(t) && !t.parentId && (!e || e.includes(t.id))), o = a.filter((e) => this.layoutPoolFlow(e, t));
+		if (o.length && !e && this.stackPools(a, t), !i && !o.length) return !1;
+		let s = e ? [...i?.ids || [], ...o.flatMap((e) => this.getDescendants(e).map((e) => e.id))] : null;
+		this.optimizeEdges({
+			nodeIds: s,
+			record: !1
 		});
-		let p = Math.min(...c.map((e) => e.x)), m = Math.min(...c.map((e) => e.y)), h = x({
-			nodes: c.map((e) => ({
+		let c = n() !== r;
+		return c && (this.pushHistory(), this.emit("weavle:modelchanged", { model: this.getData() })), this.render(), c;
+	}
+	collectFlow(e, t) {
+		let n = new Set(e.map((e) => e.id)), r = (e) => {
+			let t = this.getNode(e);
+			return t?.attachedToId && n.has(t.attachedToId) ? t.attachedToId : e;
+		}, i = [];
+		this.model.edges.forEach((e) => {
+			if (!t.isFlowEdge(e)) return;
+			let a = r(e.sourceNodeId), o = r(e.targetNodeId), s = a !== e.sourceNodeId;
+			a !== o && n.has(a) && n.has(o) && i.push({
+				source: a,
+				target: o,
+				secondary: s
+			});
+		});
+		let a = new Set(i.flatMap((e) => [e.source, e.target])), o = e.filter((e) => a.has(e.id)), s = [], c = [];
+		return e.filter((e) => !a.has(e.id)).forEach((e) => {
+			let t = /* @__PURE__ */ new Set();
+			this.model.edges.forEach((n) => {
+				let i = n.sourceNodeId === e.id ? n.targetNodeId : n.targetNodeId === e.id ? n.sourceNodeId : null;
+				i && a.has(r(i)) && t.add(r(i));
+			}), t.size ? s.push({
+				node: e,
+				anchors: [...t].map((e) => this.getNode(e))
+			}) : c.push(e);
+		}), {
+			ids: n,
+			flowLinks: i,
+			flowNodes: o,
+			satellites: s,
+			loose: c
+		};
+	}
+	moveLayoutNode(e, t, n) {
+		let r = this.options.snapToGrid ? this.snapNodePosition(e, t, n) : {
+			x: t,
+			y: n
+		}, i = r.x - e.x, a = r.y - e.y;
+		e.x = r.x, e.y = r.y, this.getAttachedNodes(e).forEach((e) => {
+			e.x += i, e.y += a;
+		}), this.reattachNodes(e);
+	}
+	layoutFreeFlow(e, t) {
+		let n = this.options.gridSize || 20, r = this.model.nodes.filter((e) => !this.isContainer(e) && !e.parentId && !e.attachedToId && (!t || t.includes(e.id))), { ids: i, flowLinks: a, flowNodes: o, satellites: s, loose: c } = this.collectFlow(r, e);
+		if (!o.length) return null;
+		let l = t ? [] : c, u = (e, t, n) => this.moveLayoutNode(e, t, n), d = Math.min(...o.map((e) => e.x)), f = Math.min(...o.map((e) => e.y)), p = x({
+			nodes: o.map((e) => ({
 				id: e.id,
 				width: e.width,
 				height: e.height,
 				x: e.x + e.width / 2,
 				y: e.y + e.height / 2
 			})),
-			edges: o
+			edges: a
+		}, {
+			direction: e.direction,
+			layerGap: e.layerGap,
+			nodeGap: e.nodeGap
+		});
+		if (o.forEach((e) => {
+			let t = p.get(e.id);
+			u(e, d + t.x - e.width / 2, f + t.y - e.height / 2);
+		}), this.placeSatellites(s, o, e, u), l.length) {
+			let t = e.direction !== "TB", n = [...o, ...s.map((e) => e.node)], r = t ? d : f, i = t ? Math.max(...n.map((e) => e.y + e.height)) + e.layerGap : Math.max(...n.map((e) => e.x + e.width)) + e.layerGap;
+			l.forEach((n) => {
+				t ? u(n, r, i) : u(n, i, r), r += (t ? n.width : n.height) + e.nodeGap;
+			});
+		}
+		let m = [
+			...o,
+			...s.map((e) => e.node),
+			...l
+		];
+		m.push(...m.flatMap((e) => this.getAttachedNodes(e)));
+		let h = Math.max(0, n - Math.min(...m.map((e) => e.x))), g = Math.max(0, n - Math.min(...m.map((e) => e.y)));
+		if (h || g) {
+			let e = (e) => Math.ceil(e / n) * n;
+			m.forEach((t) => {
+				t.x += e(h), t.y += e(g);
+			});
+		}
+		return { ids: [...i] };
+	}
+	layoutPoolFlow(e, t) {
+		let n = t.direction !== "TB", r = this.options.gridSize || 20, i = (e) => Math.ceil(e / r) * r, a = n ? {
+			pos: "x",
+			size: "width"
+		} : {
+			pos: "y",
+			size: "height"
+		}, o = n ? {
+			pos: "y",
+			size: "height"
+		} : {
+			pos: "x",
+			size: "width"
+		}, s = (e) => {
+			let r = {
+				left: 40,
+				top: 30,
+				right: 40,
+				bottom: 30,
+				...t.getContainerPadding?.(e) || {}
+			};
+			return n ? {
+				alongStart: r.left,
+				alongEnd: r.right,
+				acrossStart: r.top,
+				acrossEnd: r.bottom
+			} : {
+				alongStart: r.top,
+				alongEnd: r.bottom,
+				acrossStart: r.left,
+				acrossEnd: r.right
+			};
+		}, c = this.getChildren(e).filter((e) => this.isContainer(e)).sort((e, t) => e[o.pos] - t[o.pos]), l = c.length ? c : [e], u = this.getDescendants(e).filter((e) => !this.isContainer(e) && !e.attachedToId);
+		if (!u.length) return !1;
+		let d = (e) => Math.max(0, l.indexOf(this.getNode(e.parentId))), { flowLinks: f, flowNodes: p, satellites: m, loose: h } = this.collectFlow(u, t), g = new Map(u.map((e) => [e, d(e)]));
+		m.forEach((e) => g.set(e.node, d(e.anchors[0])));
+		let _ = (e) => g.get(e) ?? d(e), v = [...p, ...h], { positions: y, groupSizes: b } = S({
+			nodes: v.map((e) => ({
+				id: e.id,
+				width: e.width,
+				height: e.height,
+				x: e.x + e.width / 2,
+				y: e.y + e.height / 2
+			})),
+			edges: f
 		}, {
 			direction: t.direction,
 			layerGap: t.layerGap,
-			nodeGap: t.nodeGap
-		}), g = (e, t, n) => {
-			let r = this.options.snapToGrid ? this.snapNodePosition(e, t, n) : {
-				x: t,
-				y: n
-			}, i = r.x - e.x, a = r.y - e.y;
-			e.x = r.x, e.y = r.y, this.getAttachedNodes(e).forEach((e) => {
-				e.x += i, e.y += a;
-			}), this.reattachNodes(e);
-		};
-		if (c.forEach((e) => {
-			let t = h.get(e.id);
-			g(e, p + t.x - e.width / 2, m + t.y - e.height / 2);
-		}), this.placeSatellites(d, c, t, g), f.length) {
-			let e = t.direction !== "TB", n = [...c, ...d.map((e) => e.node)], r = e ? p : m, i = e ? Math.max(...n.map((e) => e.y + e.height)) + t.layerGap : Math.max(...n.map((e) => e.x + e.width)) + t.layerGap;
-			f.forEach((n) => {
-				e ? g(n, r, i) : g(n, i, r), r += (e ? n.width : n.height) + t.nodeGap;
-			});
-		}
-		let _ = [
-			...c,
-			...d.map((e) => e.node),
-			...f
-		];
-		_.push(..._.flatMap((e) => this.getAttachedNodes(e)));
-		let v = Math.max(0, n - Math.min(..._.map((e) => e.x))), y = Math.max(0, n - Math.min(..._.map((e) => e.y)));
-		if (v || y) {
-			let e = (e) => Math.ceil(e / n) * n;
-			_.forEach((t) => {
-				t.x += e(v), t.y += e(y);
-			});
-		}
-		this.optimizeEdges({
-			nodeIds: e ? [...i] : null,
-			record: !1
+			nodeGap: t.nodeGap,
+			groupOf: (e) => _(this.getNode(e)),
+			groupCount: l.length
+		}), x = l.map(s), C = (e) => this.getResizeRules(e)?.[n ? "minHeight" : "minWidth"] || 60, w = l.map((e, t) => i(Math.max(C(e), b[t] + x[t].acrossStart + x[t].acrossEnd))), T = [], E = e[o.pos];
+		l.forEach((e, t) => {
+			T[t] = E, E += w[t];
 		});
-		let b = l() !== u;
-		return b && (this.pushHistory(), this.emit("weavle:modelchanged", { model: this.getData() })), this.render(), b;
+		let D = Math.max(...l.map((e, t) => e[a.pos] + x[t].alongStart));
+		v.forEach((e) => {
+			let t = y.get(e.id), r = _(e), i = w[r] - x[r].acrossStart - x[r].acrossEnd - b[r], s = D + t.along - e[a.size] / 2, c = T[r] + x[r].acrossStart + i / 2 + t.across - e[o.size] / 2;
+			this.moveLayoutNode(e, n ? s : c, n ? c : s);
+		}), this.placeSatellites(m, p, t, (e, t, n) => this.moveLayoutNode(e, t, n)), c.length && m.forEach((e) => {
+			e.node.parentId = l[_(e.node)].id;
+		}), l.forEach((e, t) => {
+			let r = u.filter((e) => _(e) === t);
+			if (!r.length) return;
+			let a = [...r, ...r.flatMap((e) => this.getAttachedNodes(e))], s = Math.min(...a.map((e) => e[o.pos])) - x[t].acrossStart;
+			if (s < T[t]) {
+				let e = i(T[t] - s);
+				this.translateNodes(a, n ? 0 : e, n ? e : 0);
+			}
+			let c = Math.max(...a.map((e) => e[o.pos] + e[o.size])) + x[t].acrossEnd, d = i(c - (T[t] + w[t]));
+			if (d > 0) {
+				w[t] += d;
+				for (let e = t + 1; e < l.length; e++) {
+					T[e] += d;
+					let t = u.filter((t) => _(t) === e), r = [...t, ...t.flatMap((e) => this.getAttachedNodes(e))];
+					this.translateNodes(r, n ? 0 : d, n ? d : 0);
+				}
+			}
+		});
+		let O = i(Math.max(...u.flatMap((e) => [e, ...this.getAttachedNodes(e)]).map((e) => e[a.pos] + e[a.size])) + Math.max(...x.map((e) => e.alongEnd)));
+		return e[a.size] = Math.max(this.getResizeRules(e)?.[n ? "minWidth" : "minHeight"] || 0, O - e[a.pos]), l.forEach((t, n) => {
+			t !== e && (t[o.pos] = T[n], t[o.size] = w[n], t[a.size] = e[a.pos] + e[a.size] - t[a.pos]);
+		}), e[o.size] = T[l.length - 1] + w[l.length - 1] - e[o.pos], !0;
+	}
+	stackPools(e, t) {
+		if (e.length < 2) return;
+		let n = t.direction !== "TB", r = n ? {
+			pos: "x",
+			size: "width"
+		} : {
+			pos: "y",
+			size: "height"
+		}, i = n ? {
+			pos: "y",
+			size: "height"
+		} : {
+			pos: "x",
+			size: "width"
+		}, a = t.poolGap ?? 40, o = [...e].sort((e, t) => e[i.pos] - t[i.pos]), s = Math.min(...o.map((e) => e[r.pos])), c = Math.max(...o.map((e) => e[r.pos] + e[r.size])), l = o[0][i.pos];
+		o.forEach((e) => {
+			let t = s - e[r.pos], o = l - e[i.pos];
+			this.translateNodes([e, ...this.getDescendants(e)], n ? t : o, n ? o : t), e[r.size] = c - s, this.getChildren(e).filter((e) => this.isContainer(e)).forEach((t) => {
+				t[r.size] = e[r.pos] + e[r.size] - t[r.pos];
+			}), l += e[i.size] + a;
+		});
 	}
 	placeSatellites(e, t, n, r) {
 		if (!e.length) return;
@@ -5809,37 +5981,37 @@ var j = class {
 			e.label = t, this.selectSingleNode(e.id), this.state.selectedEdgeId = null, this.emit("weavle:modelchanged", { model: this.getData() }), this.render();
 		}
 	}
-}, M = {
+}, N = {
 	bpmn: b,
 	flowchart: s
-}, N = {
+}, P = {
 	nodes: [],
 	edges: []
 };
-function P(e, t) {
-	M[e] = t;
+function F(e, t) {
+	N[e] = t;
 }
-function F() {
-	return Object.keys(M);
+function I() {
+	return Object.keys(N);
 }
-function I(e) {
-	return z(e)?._weavle || null;
+function L(e) {
+	return B(e)?._weavle || null;
 }
-function L(e, t = {}) {
-	let n = z(e);
+function R(e, t = {}) {
+	let n = B(e);
 	if (!n) throw Error(`Weavle.mount: container "${e}" not found`);
 	n._weavle?.destroy();
 	let r = typeof t.diagramType == "function" ? "custom" : t.diagramType || "bpmn", i = (e) => {
-		let n = e === "custom" && typeof t.diagramType == "function" ? t.diagramType : M[e];
-		if (!n) throw Error(`Weavle: unknown diagram type "${e}" (known: ${F().join(", ")})`);
+		let n = e === "custom" && typeof t.diagramType == "function" ? t.diagramType : N[e];
+		if (!n) throw Error(`Weavle: unknown diagram type "${e}" (known: ${I().join(", ")})`);
 		return n;
-	}, a = { ...B(t.options) || {} }, o = r, s = new j(n, { ...a }, i(o)()), c = null, l = (e) => ({
+	}, a = { ...V(t.options) || {} }, o = r, s = new M(n, { ...a }, i(o)()), c = null, l = (e) => ({
 		diagramType: o,
 		...e
 	}), u = {
 		"weavle:modelchanged": (e) => {
 			let n = l(e.detail.model);
-			c = V(n), t.onModelChanged?.(JSON.stringify(n));
+			c = H(n), t.onModelChanged?.(JSON.stringify(n));
 		},
 		"weavle:selectionchanged": (e) => {
 			t.onSelectionChanged?.(e.detail.primarySelectedNodeId || "", e.detail.selectedEdgeId || "", JSON.stringify(e.detail.selectedNodeIds || []));
@@ -5856,11 +6028,11 @@ function L(e, t = {}) {
 	for (let [e, t] of Object.entries(u)) n.addEventListener(e, t);
 	let d = () => s.emit("weavle:modelchanged", { model: s.getData() }), f = (e) => {
 		let r = i(e);
-		s.destroy(), o = e, s = new j(n, { ...a }, r()), t.onSelectionChanged?.("", "", "[]");
+		s.destroy(), o = e, s = new M(n, { ...a }, r()), t.onSelectionChanged?.("", "", "[]");
 	}, p = (e) => {
 		let { diagramType: t, ...n } = e;
 		s.load(JSON.parse(JSON.stringify({
-			...N,
+			...P,
 			...n
 		})));
 	}, m = {
@@ -5868,7 +6040,7 @@ function L(e, t = {}) {
 			return s;
 		},
 		setModel(e) {
-			let t = (typeof e == "string" ? B(e) : e) || N, n = t.diagramType || r, i = V({
+			let t = (typeof e == "string" ? V(e) : e) || P, n = t.diagramType || r, i = H({
 				...t,
 				diagramType: n
 			});
@@ -5882,7 +6054,7 @@ function L(e, t = {}) {
 		},
 		setDiagramType(e, t) {
 			if (e === o && t == null) return !1;
-			let n = (typeof t == "string" ? B(t) : t) || N;
+			let n = (typeof t == "string" ? V(t) : t) || P;
 			return e !== o && f(e), p(n), d(), !0;
 		},
 		undo() {
@@ -5895,10 +6067,10 @@ function L(e, t = {}) {
 			s.clear();
 		},
 		optimizeEdges(e) {
-			return s.optimizeEdges({ nodeIds: R(e) });
+			return s.optimizeEdges({ nodeIds: z(e) });
 		},
 		optimizeLayout(e) {
-			return s.optimizeLayout({ nodeIds: R(e) });
+			return s.optimizeLayout({ nodeIds: z(e) });
 		},
 		setLayoutDirection(e) {
 			s.setLayoutDirection(e), a.layoutDirection = s.options.layoutDirection;
@@ -5930,25 +6102,25 @@ function L(e, t = {}) {
 			s.destroy(), n._weavle === m && delete n._weavle;
 		}
 	};
-	return n._weavle = m, m.setModel(t.model ?? N), m;
+	return n._weavle = m, m.setModel(t.model ?? P), m;
 }
-function R(e) {
+function z(e) {
 	let t = e ? typeof e == "string" ? JSON.parse(e) : e : null;
 	return t && t.length ? t : null;
 }
-function z(e) {
+function B(e) {
 	return e ? typeof e == "string" ? document.getElementById(e) || document.querySelector(e) : e : null;
 }
-function B(e) {
+function V(e) {
 	return typeof e == "string" ? e.trim() ? JSON.parse(e) : null : e ?? null;
 }
-function V(e) {
+function H(e) {
 	return JSON.stringify(e, (e, t) => t && typeof t == "object" && !Array.isArray(t) ? Object.fromEntries(Object.keys(t).sort().map((e) => [e, t[e]])) : t);
 }
 //#endregion
 //#region src/index.js
-var H = "0.9.0";
+var U = "0.9.0";
 //#endregion
-export { j as WeavleJS, b as createBpmnDefinition, s as createFlowchartDefinition, F as getDiagramTypes, I as getInstance, L as mount, P as registerDiagramType, H as version };
+export { M as WeavleJS, b as createBpmnDefinition, s as createFlowchartDefinition, I as getDiagramTypes, L as getInstance, R as mount, F as registerDiagramType, U as version };
 
 //# sourceMappingURL=weavle.es.js.map

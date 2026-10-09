@@ -16,6 +16,7 @@
     5. coordinates      — layers along the flow axis; across it every node is pulled towards its
                           neighbours with order and spacing kept (isotonic regression), so chains run straight
   Separate components are laid out one by one and stacked across the flow.
+  computeGroupedLayout() keeps nodes in bands (BPMN lanes) while the layers run through all of them.
 */
 
 /**
@@ -74,6 +75,83 @@ export function computeLayeredLayout(graph, options = {}) {
         p.y -= minY;
     }
     return result;
+}
+
+/**
+ * Layered layout with groups (e.g. BPMN lanes): layers run through all groups, but every node stays
+ * in its own group, a band across the flow. Within a band nodes line up with their neighbours in
+ * the same band; edges between bands just connect. Unlike computeLayeredLayout the graph is not
+ * split into components (they share the bands).
+ *
+ * @param {object}   graph            as for computeLayeredLayout
+ * @param {object}   options          as for computeLayeredLayout, plus:
+ * @param {(id: string) => number} options.groupOf  band index of a node (0 = first band)
+ * @param {number}   options.groupCount
+ * @returns {{ positions: Map<string, {along: number, across: number}>, groupSizes: number[] }}
+ *          along: centre along the flow from 0; across: centre within its band, measured from the
+ *          band's content start (0); groupSizes: content extent of each band across the flow (0 if empty)
+ */
+export function computeGroupedLayout(graph, options = {}) {
+    const opts = { direction: "LR", layerGap: 80, nodeGap: 50, ...options };
+    const horizontal = opts.direction !== "TB";
+
+    const along  = n => horizontal ? n.width  : n.height;
+    const across = n => horizontal ? n.height : n.width;
+    const posAcross = n => horizontal ? n.y : n.x;
+
+    const nodes    = graph.nodes;
+    const nodeById = new Map(nodes.map(n => [n.id, n]));
+    const edges    = graph.edges.filter(e => nodeById.has(e.source) && nodeById.has(e.target) && e.source !== e.target);
+
+    const dag    = breakCycles(nodes, edges, posAcross);
+    const layer  = assignLayers(nodes, dag);
+    const chains = insertDummies(nodes, dag, layer, opts.groupOf);
+
+    // Band first, then the usual order within the band.
+    const layers = orderLayers(chains, layer, nodeById, posAcross, id => chains.sortGroup(id));
+
+    // Along the flow: shared by all bands.
+    const depth = layers.map(ids => Math.max(0, ...ids.map(id => chains.isDummy(id) ? 0 : along(nodeById.get(id)))));
+    const layerCentre = [];
+    let cursor = 0;
+    depth.forEach((d, i) => {
+        layerCentre[i] = cursor + d / 2;
+        cursor += d + opts.layerGap;
+    });
+
+    // Across the flow: each band on its own, only looking at neighbours in the same band.
+    const positions  = new Map();
+    const groupSizes = [];
+
+    for (let g = 0; g < opts.groupCount; g++) {
+        const inGroup = id => chains.group(id) === g;
+        const sub = layers.map(ids => ids.filter(inGroup));
+
+        const view = {
+            ...chains,
+            up:   new Map([...chains.up].map(([id, ns]) => [id, ns.filter(inGroup)])),
+            down: new Map([...chains.down].map(([id, ns]) => [id, ns.filter(inGroup)]))
+        };
+        const acrossPos = assignAcross(sub, view, nodeById, across, opts.nodeGap);
+
+        // Measure the band's content and shift it to start at 0.
+        let min = Infinity;
+        let max = -Infinity;
+        sub.forEach(ids => ids.forEach(id => {
+            if (chains.isDummy(id)) return;
+            const half = across(nodeById.get(id)) / 2;
+            min = Math.min(min, acrossPos.get(id) - half);
+            max = Math.max(max, acrossPos.get(id) + half);
+        }));
+
+        groupSizes[g] = max > min ? max - min : 0;
+
+        sub.forEach((ids, i) => ids.forEach(id => {
+            if (!chains.isDummy(id)) positions.set(id, { along: layerCentre[i], across: acrossPos.get(id) - min });
+        }));
+    }
+
+    return { positions, groupSizes };
 }
 
 // ── Components ──────────────────────────────────────────────
@@ -204,9 +282,13 @@ function assignLayers(nodes, dag) {
 }
 
 /** Splits edges that span more than one layer with dummy nodes; returns adjacency between neighbouring layers. */
-function insertDummies(nodes, dag, layer) {
+function insertDummies(nodes, dag, layer, groupOf = null) {
     const dummies = new Set();
     const secondary = new Set();   // dummies on secondary edges, and nodes only reached through them
+    // Groups (bands): a real node has its own; a dummy belongs to a band only when its edge stays
+    // inside that band (an edge between bands must not take room in either). sortGroup always has one.
+    const group     = new Map(groupOf ? nodes.map(n => [n.id, groupOf(n.id)]) : []);
+    const sortGroup = new Map(group);
     const up   = new Map(nodes.map(n => [n.id, []]));   // neighbours in the previous layer
     const down = new Map(nodes.map(n => [n.id, []]));   // neighbours in the next layer
     let counter = 0;
@@ -219,6 +301,11 @@ function insertDummies(nodes, dag, layer) {
             const id = `__dummy_${counter++}`;
             dummies.add(id);
             if (e.secondary) secondary.add(id);
+            if (groupOf) {
+                const same = group.get(e.source) === group.get(e.target);
+                group.set(id, same ? group.get(e.source) : null);
+                sortGroup.set(id, group.get(e.source));
+            }
             layer.set(id, l);
             up.set(id, []);
             down.set(id, []);
@@ -233,11 +320,17 @@ function insertDummies(nodes, dag, layer) {
         if (incoming.length && incoming.every(e => e.secondary)) secondary.add(n.id);
     });
 
-    return { up, down, layer, isDummy: id => dummies.has(id), isSecondary: id => secondary.has(id) };
+    return {
+        up, down, layer,
+        isDummy:     id => dummies.has(id),
+        isSecondary: id => secondary.has(id),
+        group:       id => group.get(id) ?? null,
+        sortGroup:   id => sortGroup.get(id) ?? 0
+    };
 }
 
 /** Barycenter sweeps; the ordering with the fewest crossings wins. */
-function orderLayers(chains, layer, nodeById, posAcross) {
+function orderLayers(chains, layer, nodeById, posAcross, groupRank = () => 0) {
     const count = Math.max(...layer.values()) + 1;
     const layers = Array.from({ length: count }, () => []);
     for (const [id, l] of layer) layers[l].push(id);
@@ -253,7 +346,8 @@ function orderLayers(chains, layer, nodeById, posAcross) {
         initial.set(id, value);
         return value;
     };
-    layers.forEach(ids => ids.sort((a, b) => position(a) === position(b) ? 0 : position(a) - position(b)));
+    layers.forEach(ids => ids.sort((a, b) =>
+        groupRank(a) - groupRank(b) || (position(a) === position(b) ? 0 : position(a) - position(b))));
 
     const index = new Map();
     const reindex = () => layers.forEach(ids => ids.forEach((id, i) => index.set(id, i)));
@@ -273,7 +367,7 @@ function orderLayers(chains, layer, nodeById, posAcross) {
                 const ns = neighbours.get(id);
                 bary.set(id, ns.length ? ns.reduce((s, n) => s + index.get(n), 0) / ns.length : index.get(id));
             });
-            layers[l].sort((a, b) => bary.get(a) - bary.get(b) || index.get(a) - index.get(b));
+            layers[l].sort((a, b) => groupRank(a) - groupRank(b) || bary.get(a) - bary.get(b) || index.get(a) - index.get(b));
             layers[l].forEach((id, i) => index.set(id, i));
         }
 

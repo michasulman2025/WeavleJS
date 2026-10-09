@@ -957,7 +957,11 @@ export function createBpmnDefinition() {
                 direction: "LR",
                 isFlowEdge: edge => (edge.type || "sequenceFlow") === "sequenceFlow",
                 // Annotations above the flow, data objects and stores below it.
-                getSatelliteSide: node => node.type === "annotation" ? "before" : "after"
+                getSatelliteSide: node => node.type === "annotation" ? "before" : "after",
+                // Room inside a pool / lane: its header on the left, a margin elsewhere (a bit more below
+                // for the labels under events and gateways).
+                getContainerPadding: () => ({ left: POOL_HEADER + 30, top: 30, right: 40, bottom: 40 }),
+                poolGap: 40
             };
         },
 

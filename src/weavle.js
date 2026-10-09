@@ -6,7 +6,7 @@
 
 import { createFlowchartDefinition } from "./weavle-flowchart.js";
 import { createBpmnDefinition  } from "./weavle-bpmn.js";
-import { computeLayeredLayout } from "./weavle-layout.js";
+import { computeLayeredLayout, computeGroupedLayout } from "./weavle-layout.js";
 
 export class WeavleJS {
 
@@ -5551,7 +5551,8 @@ export class WeavleJS {
     // Optimise flow: lay the nodes out in layers along the flow direction (weavle-layout.js),
     // then optimise all edges. Which edges carry the flow and the spacing come from
     // diagram.getLayoutConfig(): { direction, layerGap, nodeGap, isFlowEdge(edge), getSatelliteSide(node) }.
-    // Not (yet) laid out: containers and their contents. Attached nodes (boundary events) follow their
+    // Containers: each pool is laid out on its own with its lanes as bands (layoutPoolFlow), then the
+    // pools are stacked (stackPools). Attached nodes (boundary events) follow their
     // host, and their outgoing flows count as the host's, so an exception path is laid out after it.
     // Satellites — nodes only linked by non-flow edges (annotations, data) — are placed beside the
     // node(s) they belong to (placeSatellites); unconnected nodes are lined up after the flow.
@@ -5578,13 +5579,45 @@ export class WeavleJS {
      */
     optimizeLayout({ nodeIds = null } = {}) {
         const settings = this.getLayoutSettings();
-        const grid = this.options.gridSize || 20;
+        const state = () => JSON.stringify([
+            this.model.nodes.map(n => [n.x, n.y, n.width, n.height]),
+            this.model.edges.map(e => [e.sourceHandle, e.targetHandle, e.routePoints])
+        ]);
+        const snapshot = state();
 
-        const candidates = this.model.nodes.filter(n =>
-            !this.isContainer(n) && !n.parentId && !n.attachedToId && (!nodeIds || nodeIds.includes(n.id)));
+        // 1. The flow outside containers.
+        const free = this.layoutFreeFlow(settings, nodeIds);
+
+        // 2. Every pool (top-level container) on its own: its lanes become bands, then the pools are
+        //    stacked. With a selection only selected pools are laid out.
+        const pools = this.model.nodes.filter(n => this.isContainer(n) && !n.parentId && (!nodeIds || nodeIds.includes(n.id)));
+        const laidOut = pools.filter(pool => this.layoutPoolFlow(pool, settings));
+        if (laidOut.length && !nodeIds) this.stackPools(pools, settings);
+
+        if (!free && !laidOut.length) return false;
+
+        const edgeNodeIds = nodeIds
+            ? [...(free?.ids || []), ...laidOut.flatMap(p => this.getDescendants(p).map(n => n.id))]
+            : null;
+        this.optimizeEdges({ nodeIds: edgeNodeIds, record: false });
+
+        const changed = state() !== snapshot;
+        if (changed) {
+            this.pushHistory();
+            this.emit("weavle:modelchanged", { model: this.getData() });
+        }
+        this.render();
+        return changed;
+    }
+
+    /**
+     * Splits candidate nodes into the flow (nodes joined by flow edges — an attached node stands in
+     * for its host, and its flows are secondary), satellites (only linked to the flow by other
+     * edges) and loose nodes (not linked to the flow at all).
+     */
+    collectFlow(candidates, settings) {
         const ids = new Set(candidates.map(n => n.id));
 
-        // An attached node (boundary event) stands in for its host.
         const layoutId = (id) => {
             const node = this.getNode(id);
             return node?.attachedToId && ids.has(node.attachedToId) ? node.attachedToId : id;
@@ -5601,13 +5634,8 @@ export class WeavleJS {
         });
 
         const inFlow = new Set(flowLinks.flatMap(l => [l.source, l.target]));
-        if (!inFlow.size) return false;
-
         const flowNodes = candidates.filter(n => inFlow.has(n.id));
-        const state = () => JSON.stringify([this.model.nodes.map(n => [n.x, n.y]), this.model.edges.map(e => [e.sourceHandle, e.targetHandle, e.routePoints])]);
-        const snapshot = state();
 
-        // Satellites: linked to the flow, but not part of it.
         const satellites = [];
         const loose = [];
         candidates.filter(n => !inFlow.has(n.id)).forEach(n => {
@@ -5618,10 +5646,40 @@ export class WeavleJS {
             });
 
             if (anchorIds.size) satellites.push({ node: n, anchors: [...anchorIds].map(id => this.getNode(id)) });
-            else if (!nodeIds) loose.push(n);
+            else loose.push(n);
         });
 
-        // Anchor the result at the flow's current top-left corner.
+        return { ids, flowLinks, flowNodes, satellites, loose };
+    }
+
+    /** Moves a node during a layout (snapped); attached nodes move along and stay on its border. */
+    moveLayoutNode(node, x, y) {
+        const target = this.options.snapToGrid ? this.snapNodePosition(node, x, y) : { x, y };
+        const dx = target.x - node.x;
+        const dy = target.y - node.y;
+        node.x = target.x;
+        node.y = target.y;
+
+        this.getAttachedNodes(node).forEach(a => { a.x += dx; a.y += dy; });
+        this.reattachNodes(node);
+    }
+
+    /**
+     * Lays out the nodes outside containers (all, or only nodeIds), anchored at the flow's current
+     * top-left corner. Returns { ids } of the nodes involved, or null if there is no flow.
+     */
+    layoutFreeFlow(settings, nodeIds) {
+        const grid = this.options.gridSize || 20;
+        const candidates = this.model.nodes.filter(n =>
+            !this.isContainer(n) && !n.parentId && !n.attachedToId && (!nodeIds || nodeIds.includes(n.id)));
+
+        const { ids, flowLinks, flowNodes, satellites, loose: allLoose } = this.collectFlow(candidates, settings);
+        if (!flowNodes.length) return null;
+
+        // With a selection, unconnected selected nodes stay where they are.
+        const loose = nodeIds ? [] : allLoose;
+        const moveNode = (node, x, y) => this.moveLayoutNode(node, x, y);
+
         const originX = Math.min(...flowNodes.map(n => n.x));
         const originY = Math.min(...flowNodes.map(n => n.y));
 
@@ -5629,18 +5687,6 @@ export class WeavleJS {
             nodes: flowNodes.map(n => ({ id: n.id, width: n.width, height: n.height, x: n.x + n.width / 2, y: n.y + n.height / 2 })),
             edges: flowLinks
         }, { direction: settings.direction, layerGap: settings.layerGap, nodeGap: settings.nodeGap });
-
-        const moveNode = (node, x, y) => {
-            const target = this.options.snapToGrid ? this.snapNodePosition(node, x, y) : { x, y };
-            const dx = target.x - node.x;
-            const dy = target.y - node.y;
-            node.x = target.x;
-            node.y = target.y;
-
-            // Attached nodes (boundary events) move along with their host, and stay on its border.
-            this.getAttachedNodes(node).forEach(a => { a.x += dx; a.y += dy; });
-            this.reattachNodes(node);
-        };
 
         flowNodes.forEach(n => {
             const p = positions.get(n.id);
@@ -5675,15 +5721,152 @@ export class WeavleJS {
             moved.forEach(n => { n.x += step(shiftX); n.y += step(shiftY); });
         }
 
-        this.optimizeEdges({ nodeIds: nodeIds ? [...ids] : null, record: false });
+        return { ids: [...ids] };
+    }
 
-        const changed = state() !== snapshot;
-        if (changed) {
-            this.pushHistory();
-            this.emit("weavle:modelchanged", { model: this.getData() });
-        }
-        this.render();
-        return changed;
+    /**
+     * Lays out the contents of one pool (top-level container). Its child containers (lanes) are bands
+     * across the flow: every node stays in its band, the layers run through all of them
+     * (computeGroupedLayout). Afterwards each band gets the size its contents need (at least its
+     * minimum size), the bands are stacked from the pool's start, and the pool fits around them.
+     * Paddings come from getLayoutConfig().getContainerPadding(container). Returns false if empty.
+     */
+    layoutPoolFlow(pool, settings) {
+        const horizontal = settings.direction !== "TB";
+        const grid = this.options.gridSize || 20;
+        const up   = v => Math.ceil(v / grid) * grid;
+
+        // Axis helpers: "along" the flow and "across" it (LR: x / y).
+        const A = horizontal ? { pos: "x", size: "width"  } : { pos: "y", size: "height" };
+        const C = horizontal ? { pos: "y", size: "height" } : { pos: "x", size: "width"  };
+        const padding = (container) => {
+            const p = { left: 40, top: 30, right: 40, bottom: 30, ...(settings.getContainerPadding?.(container) || {}) };
+            return horizontal
+                ? { alongStart: p.left, alongEnd: p.right, acrossStart: p.top, acrossEnd: p.bottom }
+                : { alongStart: p.top, alongEnd: p.bottom, acrossStart: p.left, acrossEnd: p.right };
+        };
+
+        const lanes = this.getChildren(pool).filter(c => this.isContainer(c)).sort((a, b) => a[C.pos] - b[C.pos]);
+        const bands = lanes.length ? lanes : [pool];
+
+        const members = this.getDescendants(pool).filter(n => !this.isContainer(n) && !n.attachedToId);
+        if (!members.length) return false;
+
+        const parentBand = (node) => Math.max(0, bands.indexOf(this.getNode(node.parentId)));
+        const { flowLinks, flowNodes, satellites, loose } = this.collectFlow(members, settings);
+
+        // A satellite (annotation, data) joins the band of its anchor: lanes don't own them, and
+        // beside their anchor is where they belong.
+        const band = new Map(members.map(n => [n, parentBand(n)]));
+        satellites.forEach(s => band.set(s.node, parentBand(s.anchors[0])));
+        const bandOf = (node) => band.get(node) ?? parentBand(node);
+
+        // Loose nodes join the layout as single nodes: they stay in their band, at its start.
+        const layoutNodes = [...flowNodes, ...loose];
+        const { positions, groupSizes } = computeGroupedLayout({
+            nodes: layoutNodes.map(n => ({ id: n.id, width: n.width, height: n.height, x: n.x + n.width / 2, y: n.y + n.height / 2 })),
+            edges: flowLinks
+        }, {
+            direction: settings.direction, layerGap: settings.layerGap, nodeGap: settings.nodeGap,
+            groupOf: id => bandOf(this.getNode(id)), groupCount: bands.length
+        });
+
+        const pads = bands.map(padding);
+        const minSize = band => this.getResizeRules(band)?.[horizontal ? "minHeight" : "minWidth"] || 60;
+
+        // Bands: as deep as their contents (+ padding), at least their minimum, on the grid.
+        const bandSize  = bands.map((band, g) => up(Math.max(minSize(band), groupSizes[g] + pads[g].acrossStart + pads[g].acrossEnd)));
+        const bandStart = [];
+        let cursor = pool[C.pos];
+        bands.forEach((band, g) => { bandStart[g] = cursor; cursor += bandSize[g]; });
+
+        // Along the flow every band starts at the same spot (lanes share their left edge).
+        const alongStart = Math.max(...bands.map((band, g) => band[A.pos] + pads[g].alongStart));
+
+        layoutNodes.forEach(node => {
+            const p = positions.get(node.id);
+            const g = bandOf(node);
+            // Contents smaller than the band are centred in it.
+            const free = bandSize[g] - pads[g].acrossStart - pads[g].acrossEnd - groupSizes[g];
+            const a = alongStart + p.along - node[A.size] / 2;
+            const c = bandStart[g] + pads[g].acrossStart + free / 2 + p.across - node[C.size] / 2;
+            this.moveLayoutNode(node, horizontal ? a : c, horizontal ? c : a);
+        });
+
+        this.placeSatellites(satellites, flowNodes, settings, (node, x, y) => this.moveLayoutNode(node, x, y));
+        if (lanes.length) satellites.forEach(s => { s.node.parentId = bands[bandOf(s.node)].id; });
+
+        // Satellites may stick out of their band: grow it (shifting the bands after it).
+        bands.forEach((band, g) => {
+            const own = members.filter(n => bandOf(n) === g);
+            if (!own.length) return;
+            const items = [...own, ...own.flatMap(n => this.getAttachedNodes(n))];
+
+            const lowest = Math.min(...items.map(n => n[C.pos])) - pads[g].acrossStart;
+            if (lowest < bandStart[g]) {
+                const shift = up(bandStart[g] - lowest);
+                this.translateNodes(items, horizontal ? 0 : shift, horizontal ? shift : 0);
+            }
+
+            const highest = Math.max(...items.map(n => n[C.pos] + n[C.size])) + pads[g].acrossEnd;
+            const grow = up(highest - (bandStart[g] + bandSize[g]));
+            if (grow > 0) {
+                bandSize[g] += grow;
+                for (let k = g + 1; k < bands.length; k++) {
+                    bandStart[k] += grow;
+                    const later = members.filter(n => bandOf(n) === k);
+                    const moved = [...later, ...later.flatMap(n => this.getAttachedNodes(n))];
+                    this.translateNodes(moved, horizontal ? 0 : grow, horizontal ? grow : 0);
+                }
+            }
+        });
+
+        // Along: the pool reaches to the end of its contents (+ padding).
+        const contentEnd = Math.max(...members.flatMap(n => [n, ...this.getAttachedNodes(n)]).map(n => n[A.pos] + n[A.size]));
+        const end = up(contentEnd + Math.max(...pads.map(p => p.alongEnd)));
+        pool[A.size] = Math.max(this.getResizeRules(pool)?.[horizontal ? "minWidth" : "minHeight"] || 0, end - pool[A.pos]);
+
+        // Across: bands stacked from the pool's start; the pool fits around them.
+        bands.forEach((band, g) => {
+            if (band === pool) return;
+            band[C.pos]  = bandStart[g];
+            band[C.size] = bandSize[g];
+            band[A.size] = pool[A.pos] + pool[A.size] - band[A.pos];
+        });
+        pool[C.size] = bandStart[bands.length - 1] + bandSize[bands.length - 1] - pool[C.pos];
+
+        return true;
+    }
+
+    /**
+     * Stacks pools across the flow with settings.poolGap between them, aligned at the same start
+     * and made equally long, in their current order.
+     */
+    stackPools(pools, settings) {
+        if (pools.length < 2) return;
+        const horizontal = settings.direction !== "TB";
+        const A = horizontal ? { pos: "x", size: "width"  } : { pos: "y", size: "height" };
+        const C = horizontal ? { pos: "y", size: "height" } : { pos: "x", size: "width"  };
+        const gap = settings.poolGap ?? 40;
+
+        const ordered = [...pools].sort((a, b) => a[C.pos] - b[C.pos]);
+        const start   = Math.min(...ordered.map(p => p[A.pos]));
+        const end     = Math.max(...ordered.map(p => p[A.pos] + p[A.size]));
+        let cursor    = ordered[0][C.pos];
+
+        ordered.forEach(pool => {
+            const dA = start - pool[A.pos];
+            const dC = cursor - pool[C.pos];
+            this.translateNodes([pool, ...this.getDescendants(pool)], horizontal ? dA : dC, horizontal ? dC : dA);
+
+            // Same length for all pools; their lanes follow.
+            pool[A.size] = end - start;
+            this.getChildren(pool).filter(c => this.isContainer(c)).forEach(lane => {
+                lane[A.size] = pool[A.pos] + pool[A.size] - lane[A.pos];
+            });
+
+            cursor += pool[C.size] + gap;
+        });
     }
 
     /**

@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Added
+- **Flow optimaliseren with pools and lanes**: every pool is laid out on its own; its lanes are bands —
+  the layers run through all lanes, every node stays in its lane (`computeGroupedLayout` in weavle-layout.js),
+  lanes get the height their contents need (at least their minimum), the pool fits around them, and the pools
+  are stacked with `poolGap` between them, equally long. Satellites (annotations, data) join the lane of their
+  anchor. Padding inside containers via `getLayoutConfig().getContainerPadding(container)`.
 - **Toolbar position**: `options.toolbarPosition` `"top"` (default) | `"left"` | `"right"` (vertical strip) |
   `"floating"` (dragged by a grip, kept inside the visible area; start spot `options.toolbarFloatingPosition`,
   event `weavle:toolbarmoved { x, y }`). `setToolbarPosition()` switches at runtime; submenus open beside a
@@ -19,7 +24,7 @@
   loops left out, longest-path layers, barycenter crossing reduction, straight main lines (branches
   symmetric around a split, joins back on it), components stacked; then all edges are optimised.
   Settings via `getLayoutConfig()`: `direction`, `layerGap`, `nodeGap`, `isFlowEdge(edge)` (BPMN: sequence
-  flows; flowchart: all but comment lines). Unconnected nodes are lined up after the flow. Not yet: pools and lanes.
+  flows; flowchart: all but comment lines). Unconnected nodes are lined up after the flow.
 - Flow layout places **satellites** (annotations, data objects, stores, comments) beside the node(s) they
   belong to: on the side from `getLayoutConfig().getSatelliteSide(node)` (BPMN: annotations above, data
   below; flowchart: right / below), centred between several anchors, on the cheapest free spot (other

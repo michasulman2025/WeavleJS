@@ -105,7 +105,9 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
   cycle removal, layers, dummies, barycenter ordering, isotonic-regression coordinates), applies it at the old
   top-left, places satellites (`placeSatellites`, side from `getSatelliteSide`, scored free spots), keeps attached
   nodes on their host (`reattachNodes`) — their flows are `secondary` layout edges (ordered last, low weight) —
-  lines up loose nodes, then `optimizeEdges({ record: false })`; one undo step.
+  lines up loose nodes, then `optimizeEdges({ record: false })`; one undo step. Split into `collectFlow`,
+  `layoutFreeFlow` (nodes outside containers), `layoutPoolFlow` (per pool: lanes = bands via `computeGroupedLayout`,
+  band sizes from contents + `getContainerPadding`, satellites move to their anchor's lane) and `stackPools`.
 - Optimise edges (`optimizeEdges`): per edge `getPortPairCandidates` → route each (`routeTemporaryEdge`) →
   `scoreEdgeRoute` (`countRouteConflicts`, shared ports, flow direction from `getLayoutDirection`); short edges
   first, two passes. While it runs `state.routeOccupancy` (`buildRouteOccupancy`) adds A* step costs
