@@ -65,6 +65,7 @@ export function getInstance(container) {
  *   onSelectionChanged  (nodeId, edgeId, selectedNodeIdsJson) => void — ids are "" when nothing is selected
  *   onNodeMoved         (nodeJson) => void
  *   onNodeResized       (nodeJson) => void
+ *   onToolbarMoved      (x, y) => void          — a floating toolbar was dragged (e.g. to remember the spot)
  *
  * Models describe themselves: the JSON the editor reports carries "diagramType", and setModel() with a
  * model of another type rebuilds the editor for that type (same container, callbacks and options).
@@ -114,7 +115,11 @@ export function mount(container, config = {}) {
             );
         },
         "weavle:nodemoved":   e => config.onNodeMoved?.(JSON.stringify(e.detail.node)),
-        "weavle:noderesized": e => config.onNodeResized?.(JSON.stringify(e.detail.node))
+        "weavle:noderesized": e => config.onNodeResized?.(JSON.stringify(e.detail.node)),
+        "weavle:toolbarmoved": e => {
+            editorOptions.toolbarFloatingPosition = { x: e.detail.x, y: e.detail.y };
+            config.onToolbarMoved?.(e.detail.x, e.detail.y);
+        }
     };
 
     // On the container, so they keep working when the editor is rebuilt for another type.
@@ -205,6 +210,12 @@ export function mount(container, config = {}) {
         setLayoutDirection(direction) {
             editor.setLayoutDirection(direction);
             editorOptions.layoutDirection = editor.options.layoutDirection;
+        },
+
+        /** Canvas toolbar placement: "top", "left", "right" or "floating" (draggable). */
+        setToolbarPosition(position) {
+            editorOptions.toolbarPosition = position;
+            editor.setToolbarPosition(position);
         },
 
         setReadOnly(readOnly) {

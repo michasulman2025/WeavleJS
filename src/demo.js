@@ -27,6 +27,7 @@ const lblCornerRadius = document.getElementById("lblCornerRadius");
 const selGridType = document.getElementById("selGridType");
 const clrGrid = document.getElementById("clrGrid");
 const selFlowDirection = document.getElementById("selFlowDirection");
+const selToolbarPosition = document.getElementById("selToolbarPosition");
 const chkDebugRoutePoints = document.getElementById("chkDebugRoutePoints");
 const chkDebugAStarGrid = document.getElementById("chkDebugAStarGrid");
 const nodeSurfaceEl = document.getElementById("nodeToolDock");
@@ -208,6 +209,7 @@ function createEditor() {
       edgeCornerRadius: Number(rngCornerRadius.value),
       gridType: selGridType.value,
       layoutDirection: selFlowDirection.value || null,
+      toolbarPosition: selToolbarPosition.value,
       debugRouting: chkDebugRoutePoints.checked || chkDebugAStarGrid.checked,
       debugRoutePoints: chkDebugRoutePoints.checked,
       debugAStarGrid: chkDebugAStarGrid.checked,
@@ -558,6 +560,8 @@ document.getElementById("btnClearLog").addEventListener("click", clearLog);
 chkReadonly.addEventListener("change", rebuildEditorPreserveModel);
 chkSnap.addEventListener("change", rebuildEditorPreserveModel);
 selGridType.addEventListener("change", rebuildEditorPreserveModel);
+
+selToolbarPosition.addEventListener("change", () => editor.setToolbarPosition(selToolbarPosition.value));
 
 // The flow direction only steers the tidy-up functions: no rebuild needed.
 selFlowDirection.addEventListener("change", () => {

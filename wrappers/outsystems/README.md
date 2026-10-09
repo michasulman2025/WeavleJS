@@ -36,6 +36,7 @@ In the block, add the script under **Required Scripts** (O11) / **Scripts** (ODC
 | `DiagramType` | Text | `"bpmn"` | `"bpmn"` or `"flowchart"` — the type for models that don’t carry their own `diagramType` |
 | `ModelJson` | Text | `""` | The model; empty = empty diagram |
 | `ReadOnly` | Boolean | `False` | |
+| `ToolbarPosition` | Text | `"top"` | Canvas toolbar: `"top"`, `"left"`, `"right"` or `"floating"` (draggable by its grip) |
 | `OptionsJson` | Text | `""` | Optional editor options, e.g. `{"snapToGrid":true,"gridType":"dots"}` |
 
 **Events**
@@ -66,11 +67,12 @@ To use the list in OutSystems, `JSONDeserialize` it into a *Text List*.
 
 Give each JavaScript node an input `ContainerId` = `WeavleHost.Id`, plus the inputs it uses.
 
-**OnReady** — inputs: `ContainerId`, `DiagramType`, `ModelJson`, `ReadOnly`, `OptionsJson`
+**OnReady** — inputs: `ContainerId`, `DiagramType`, `ModelJson`, `ReadOnly`, `ToolbarPosition`, `OptionsJson`
 
 ```js
 const options = $parameters.OptionsJson ? JSON.parse($parameters.OptionsJson) : {};
 options.readOnly = $parameters.ReadOnly;
+options.toolbarPosition = $parameters.ToolbarPosition || "top";
 
 Weavle.mount($parameters.ContainerId, {
     diagramType: $parameters.DiagramType || "bpmn",
@@ -85,7 +87,7 @@ Weavle.mount($parameters.ContainerId, {
 });
 ```
 
-**OnParametersChanged** — inputs: `ContainerId`, `ModelJson`, `ReadOnly`
+**OnParametersChanged** — inputs: `ContainerId`, `ModelJson`, `ReadOnly`, `ToolbarPosition`
 
 ```js
 var weavle = Weavle.getInstance($parameters.ContainerId);
@@ -93,6 +95,9 @@ var weavle = Weavle.getInstance($parameters.ContainerId);
 if (weavle) {
     weavle.setModel($parameters.ModelJson);   // skipped when it's the editor's own model (see below)
     weavle.setReadOnly($parameters.ReadOnly);
+    if (weavle.editor.options.toolbarPosition !== ($parameters.ToolbarPosition || "top")) {
+        weavle.setToolbarPosition($parameters.ToolbarPosition || "top");
+    }
 }
 ```
 
@@ -170,6 +175,7 @@ model (e.g. another record loaded) is loaded normally.
 | `setLayoutDirection("LR" | "TB")` | Flow direction for the two functions above |
 | `undo()`, `redo()`, `clear()` | |
 | `setReadOnly(bool)` | Switch without rebuilding |
+| `setToolbarPosition(position)` | `"top"`, `"left"`, `"right"` or `"floating"` |
 | `addNode(type, label?)` | Adds a node on a free spot in view; returns its id |
 | `setNodeLabel(nodeId, label)` | One undo step |
 | `selectNode(nodeId)` | Empty id clears the selection |
@@ -177,6 +183,7 @@ model (e.g. another record loaded) is loaded normally.
 | `editor` | The underlying `WeavleJS` instance |
 
 `config` callbacks: `onModelChanged(json)`, `onSelectionChanged(nodeId, edgeId, selectedNodeIdsJson)`,
-`onNodeMoved(nodeJson)`, `onNodeResized(nodeJson)`.
+`onNodeMoved(nodeJson)`, `onNodeResized(nodeJson)`, `onToolbarMoved(x, y)` (a floating toolbar was dragged —
+store it and pass it back as option `toolbarFloatingPosition: { x, y }` to keep the spot across visits).
 
 Extra diagram types: `Weavle.registerDiagramType("myType", createMyDefinition)` before mounting.

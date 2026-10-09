@@ -121,8 +121,9 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
   `src/weavle.css`; SVG colours are presentation attributes (overridable by CSS). Inline style is only for
   computed geometry (left/top/width/height/font-size of floating elements) and functional bits
   (pointer-events, touch-action, body user-select during drags).
-- Canvas toolbar (`createCanvasToolbar`): sticky zero-height strip before the SVG, shown while nothing is
-  selected; buttons from `getCanvasActions()` (default: the palette, groups → submenus). "createNode" starts
+- Canvas toolbar (`createCanvasToolbar`): sticky zero-height strip before the SVG (top-left of the visible area),
+  shown while nothing is selected; `options.toolbarPosition` top | left | right | floating (`createToolbarGrip`,
+  `weavle:toolbarmoved`), `setToolbarPosition()` rebuilds it; buttons from `getCanvasActions()` (default: the palette, groups → submenus). "createNode" starts
   `startNodeCreation` — the ghost follows the mouse, a press on the canvas arms it, the release places it.
 - Node tools are rendered generically by the engine from `getContextActions` (an action with `children` is a
   button with a submenu; icons are type previews via `appendTypePreview`). Definitions do not render tools.

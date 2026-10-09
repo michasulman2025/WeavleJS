@@ -269,10 +269,70 @@
     display: none;
 }
 
-/* Toolbar submenus drop down instead of opening to the side. */
+/* options.toolbarPosition: "left" / "right" — a vertical strip along the side of the visible area. */
+.weavle-toolbar--left,
+.weavle-toolbar--right {
+    flex-direction: column;
+    transform: none;
+}
+
+.weavle-toolbar--left {
+    left: 10px;
+}
+
+.weavle-toolbar--right {
+    left: auto;
+    right: 10px;
+}
+
+/* "floating": placed where the user dragged it (left / top set inline), moved by its grip. */
+.weavle-toolbar--floating {
+    transform: none;
+    align-items: center;
+}
+
+.weavle-toolbar--floating.is-dragging {
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18), 0 2px 6px rgba(15, 23, 42, 0.10);
+}
+
+.weavle-toolbar-grip {
+    align-self: stretch;
+    width: 10px;
+    margin-right: 2px;
+    border-radius: 4px;
+    cursor: grab;
+    /* a column of dots */
+    background-image: radial-gradient(circle, var(--weavle-ui-muted) 1.2px, transparent 1.6px);
+    background-size: 5px 6px;
+    background-position: center;
+    background-repeat: repeat-y;
+    opacity: 0.55;
+}
+
+.weavle-toolbar-grip:hover {
+    opacity: 1;
+    background-color: var(--weavle-ui-hover);
+}
+
+.weavle-toolbar.is-dragging .weavle-toolbar-grip {
+    cursor: grabbing;
+}
+
+/* Toolbar submenus drop down (top / floating) or open beside a vertical toolbar. */
 .weavle-toolbar .weavle-tool-submenu {
     top: calc(100% + 8px);
     left: -5px;
+}
+
+.weavle-toolbar--left .weavle-tool-submenu {
+    top: -5px;
+    left: calc(100% + 8px);
+}
+
+.weavle-toolbar--right .weavle-tool-submenu {
+    top: -5px;
+    left: auto;
+    right: calc(100% + 8px);
 }
 
 .weavle-canvas.is-creating {

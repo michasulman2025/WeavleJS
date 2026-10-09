@@ -53,6 +53,8 @@ export class WeavleJS {
             debugRoutePoints: false,
             toolSurfaceDockHost: null,
             toolbar: true,             // canvas toolbar (insert shapes) while nothing is selected
+            toolbarPosition: "top",    // "top" | "left" | "right" | "floating" (draggable)
+            toolbarFloatingPosition: null,  // { x, y } start spot of a floating toolbar (px in the visible area)
             tidyTools: true,           // "Lijnen optimaliseren" (and later "Flow optimaliseren") in the toolbar
             layoutDirection: null,     // "LR" | "TB" — flow direction; null = diagram.getLayoutConfig().direction
         }, options);
@@ -4324,15 +4326,26 @@ export class WeavleJS {
         const anchor = document.createElement("div");
         anchor.className = "weavle-toolbar-anchor";
 
-        // Structural: sticky, zero height (the look is in weavle.css).
+        // Structural: sticky at the top-left of the visible area, zero height (the look is in weavle.css).
         anchor.style.position = "sticky";
         anchor.style.top      = "0";
+        anchor.style.left     = "0";
         anchor.style.height   = "0";
 
+        const position = this.getToolbarPosition();
+
         const bar = document.createElement("div");
-        bar.className = "weavle-toolbar";
+        bar.className = `weavle-toolbar weavle-toolbar--${position}`;
         bar.setAttribute("role", "toolbar");
+        bar.setAttribute("aria-orientation", position === "left" || position === "right" ? "vertical" : "horizontal");
         bar.addEventListener("mousedown", e => e.stopPropagation());
+
+        if (position === "floating") {
+            bar.appendChild(this.createToolbarGrip(bar));
+            const start = this.state.toolbarFloatingPosition || this.options.toolbarFloatingPosition || { x: 10, y: 10 };
+            bar.style.left = `${start.x}px`;
+            bar.style.top  = `${start.y}px`;
+        }
 
         const run = action => this.runCanvasAction(action);
         actions.forEach(action => bar.appendChild(this.createToolButton(action, null, bar, run)));
@@ -4343,6 +4356,73 @@ export class WeavleJS {
         this.toolbarAnchor = anchor;
         this.toolbarEl     = bar;
         this.updateCanvasToolbar();
+    }
+
+    /** "top" (default, centred), "left", "right" or "floating" (draggable by its grip). */
+    getToolbarPosition() {
+        const position = this.options.toolbarPosition;
+        return ["left", "right", "floating"].includes(position) ? position : "top";
+    }
+
+    /** Moves the canvas toolbar: "top", "left", "right" or "floating". Rebuilds it in place. */
+    setToolbarPosition(position) {
+        this.options.toolbarPosition = position;
+        this.toolbarAnchor?.remove();
+        this.toolbarAnchor = null;
+        this.toolbarEl     = null;
+        this.createCanvasToolbar();
+    }
+
+    /**
+     * Drag handle of a floating toolbar. The toolbar stays inside the visible area; the new spot is
+     * kept for rebuilds and reported as weavle:toolbarmoved { x, y } (e.g. to remember it).
+     */
+    createToolbarGrip(bar) {
+        const grip = document.createElement("div");
+        grip.className = "weavle-toolbar-grip";
+        grip.title = "Verslepen";
+        grip.setAttribute("aria-hidden", "true");
+
+        grip.addEventListener("mousedown", (e) => {
+            if (e.button !== 0) return;
+            e.preventDefault();
+            this.closeToolbarSubmenus();
+
+            const startX = e.clientX;
+            const startY = e.clientY;
+            const left0  = bar.offsetLeft;
+            const top0   = bar.offsetTop;
+
+            bar.classList.add("is-dragging");
+            this.setTextSelectionEnabled(false);
+
+            const onMove = (ev) => {
+                const maxX = Math.max(0, this.container.clientWidth  - bar.offsetWidth);
+                const maxY = Math.max(0, this.container.clientHeight - bar.offsetHeight);
+                const x = Math.min(maxX, Math.max(0, left0 + ev.clientX - startX));
+                const y = Math.min(maxY, Math.max(0, top0  + ev.clientY - startY));
+
+                bar.style.left = `${x}px`;
+                bar.style.top  = `${y}px`;
+                this.state.toolbarFloatingPosition = { x, y };
+            };
+
+            const onUp = () => {
+                window.removeEventListener("mousemove", onMove);
+                window.removeEventListener("mouseup", onUp);
+                bar.classList.remove("is-dragging");
+                this.setTextSelectionEnabled(true);
+
+                if (this.state.toolbarFloatingPosition) {
+                    this.emit("weavle:toolbarmoved", { ...this.state.toolbarFloatingPosition });
+                }
+            };
+
+            window.addEventListener("mousemove", onMove);
+            window.addEventListener("mouseup", onUp);
+        });
+
+        return grip;
     }
 
     runCanvasAction(action) {

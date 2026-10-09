@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Added
+- **Toolbar position**: `options.toolbarPosition` `"top"` (default) | `"left"` | `"right"` (vertical strip) |
+  `"floating"` (dragged by a grip, kept inside the visible area; start spot `options.toolbarFloatingPosition`,
+  event `weavle:toolbarmoved { x, y }`). `setToolbarPosition()` switches at runtime; submenus open beside a
+  vertical toolbar. OutSystems: `controller.setToolbarPosition()`, callback `onToolbarMoved(x, y)`, block input
+  `ToolbarPosition` in the guide. Playground: "Toolbar" select.
 - **OutSystems: self-describing models.** The JSON from `onModelChanged` / `getModel()` now carries
   `diagramType`; `setModel()` with a model of another type rebuilds the editor for that type in the same
   container (callbacks and options kept), so one block can show BPMN and flowchart records. Models without

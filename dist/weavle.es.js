@@ -2493,6 +2493,8 @@ var j = class {
 			debugRoutePoints: !1,
 			toolSurfaceDockHost: null,
 			toolbar: !0,
+			toolbarPosition: "top",
+			toolbarFloatingPosition: null,
 			tidyTools: !0,
 			layoutDirection: null
 		}, t), this.diagram = n || s(), this.model = {
@@ -4343,11 +4345,48 @@ var j = class {
 		let e = this.getCanvasActions();
 		if (!e.length) return;
 		let t = document.createElement("div");
-		t.className = "weavle-toolbar-anchor", t.style.position = "sticky", t.style.top = "0", t.style.height = "0";
-		let n = document.createElement("div");
-		n.className = "weavle-toolbar", n.setAttribute("role", "toolbar"), n.addEventListener("mousedown", (e) => e.stopPropagation());
-		let r = (e) => this.runCanvasAction(e);
-		e.forEach((e) => n.appendChild(this.createToolButton(e, null, n, r))), t.appendChild(n), this.container.insertBefore(t, this.svg), this.toolbarAnchor = t, this.toolbarEl = n, this.updateCanvasToolbar();
+		t.className = "weavle-toolbar-anchor", t.style.position = "sticky", t.style.top = "0", t.style.left = "0", t.style.height = "0";
+		let n = this.getToolbarPosition(), r = document.createElement("div");
+		if (r.className = `weavle-toolbar weavle-toolbar--${n}`, r.setAttribute("role", "toolbar"), r.setAttribute("aria-orientation", n === "left" || n === "right" ? "vertical" : "horizontal"), r.addEventListener("mousedown", (e) => e.stopPropagation()), n === "floating") {
+			r.appendChild(this.createToolbarGrip(r));
+			let e = this.state.toolbarFloatingPosition || this.options.toolbarFloatingPosition || {
+				x: 10,
+				y: 10
+			};
+			r.style.left = `${e.x}px`, r.style.top = `${e.y}px`;
+		}
+		let i = (e) => this.runCanvasAction(e);
+		e.forEach((e) => r.appendChild(this.createToolButton(e, null, r, i))), t.appendChild(r), this.container.insertBefore(t, this.svg), this.toolbarAnchor = t, this.toolbarEl = r, this.updateCanvasToolbar();
+	}
+	getToolbarPosition() {
+		let e = this.options.toolbarPosition;
+		return [
+			"left",
+			"right",
+			"floating"
+		].includes(e) ? e : "top";
+	}
+	setToolbarPosition(e) {
+		this.options.toolbarPosition = e, this.toolbarAnchor?.remove(), this.toolbarAnchor = null, this.toolbarEl = null, this.createCanvasToolbar();
+	}
+	createToolbarGrip(e) {
+		let t = document.createElement("div");
+		return t.className = "weavle-toolbar-grip", t.title = "Verslepen", t.setAttribute("aria-hidden", "true"), t.addEventListener("mousedown", (t) => {
+			if (t.button !== 0) return;
+			t.preventDefault(), this.closeToolbarSubmenus();
+			let n = t.clientX, r = t.clientY, i = e.offsetLeft, a = e.offsetTop;
+			e.classList.add("is-dragging"), this.setTextSelectionEnabled(!1);
+			let o = (t) => {
+				let o = Math.max(0, this.container.clientWidth - e.offsetWidth), s = Math.max(0, this.container.clientHeight - e.offsetHeight), c = Math.min(o, Math.max(0, i + t.clientX - n)), l = Math.min(s, Math.max(0, a + t.clientY - r));
+				e.style.left = `${c}px`, e.style.top = `${l}px`, this.state.toolbarFloatingPosition = {
+					x: c,
+					y: l
+				};
+			}, s = () => {
+				window.removeEventListener("mousemove", o), window.removeEventListener("mouseup", s), e.classList.remove("is-dragging"), this.setTextSelectionEnabled(!0), this.state.toolbarFloatingPosition && this.emit("weavle:toolbarmoved", { ...this.state.toolbarFloatingPosition });
+			};
+			window.addEventListener("mousemove", o), window.addEventListener("mouseup", s);
+		}), t;
 	}
 	runCanvasAction(e) {
 		if (this.closeToolbarSubmenus(), e.type === "createNode") {
@@ -5805,7 +5844,13 @@ function L(e, t = {}) {
 			t.onSelectionChanged?.(e.detail.primarySelectedNodeId || "", e.detail.selectedEdgeId || "", JSON.stringify(e.detail.selectedNodeIds || []));
 		},
 		"weavle:nodemoved": (e) => t.onNodeMoved?.(JSON.stringify(e.detail.node)),
-		"weavle:noderesized": (e) => t.onNodeResized?.(JSON.stringify(e.detail.node))
+		"weavle:noderesized": (e) => t.onNodeResized?.(JSON.stringify(e.detail.node)),
+		"weavle:toolbarmoved": (e) => {
+			a.toolbarFloatingPosition = {
+				x: e.detail.x,
+				y: e.detail.y
+			}, t.onToolbarMoved?.(e.detail.x, e.detail.y);
+		}
 	};
 	for (let [e, t] of Object.entries(u)) n.addEventListener(e, t);
 	let d = () => s.emit("weavle:modelchanged", { model: s.getData() }), f = (e) => {
@@ -5856,6 +5901,9 @@ function L(e, t = {}) {
 		},
 		setLayoutDirection(e) {
 			s.setLayoutDirection(e), a.layoutDirection = s.options.layoutDirection;
+		},
+		setToolbarPosition(e) {
+			a.toolbarPosition = e, s.setToolbarPosition(e);
 		},
 		setReadOnly(e) {
 			let t = !!e;
