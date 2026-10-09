@@ -1,3 +1,9 @@
+/*!
+ * WeavleJS — https://github.com/michasulman2025/WeavleJS
+ * Copyright (c) 2026 Micha Sulman
+ * Released under the MIT License (see LICENSE).
+ */
+
 import { WeavleJS } from  "./weavle.js";
 import { createFlowchartDefinition } from "./weavle-flowchart.js";
 import { createBpmnDefinition } from "./weavle-bpmn.js";

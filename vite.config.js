@@ -1,3 +1,9 @@
+/*!
+ * WeavleJS — https://github.com/michasulman2025/WeavleJS
+ * Copyright (c) 2026 Micha Sulman
+ * Released under the MIT License (see LICENSE).
+ */
+
 import { defineConfig } from "vite";
 
 // npm run dev         → playground (index.html)
@@ -19,6 +25,10 @@ export default defineConfig(({ mode }) => {
                 formats: ["iife", "es"],
                 fileName: format => (format === "iife" ? "weavle.iife.js" : "weavle.es.js"),
                 cssFileName: "weavle"
+            },
+            // Keep the copyright notice at the top of the built files (also in the minified IIFE).
+            rollupOptions: {
+                output: { postBanner: "/*! WeavleJS | (c) 2026 Micha Sulman | MIT License */" }
             }
         }
     };

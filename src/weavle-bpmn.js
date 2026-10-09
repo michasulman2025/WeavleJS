@@ -1,3 +1,9 @@
+/*!
+ * WeavleJS — https://github.com/michasulman2025/WeavleJS
+ * Copyright (c) 2026 Micha Sulman
+ * Released under the MIT License (see LICENSE).
+ */
+
 const NS = "http://www.w3.org/2000/svg";
 
 // Width of the label strip on the left of pools and lanes (shapes, label layout and lane stacking).
