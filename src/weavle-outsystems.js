@@ -235,6 +235,23 @@ export function mount(container, config = {}) {
             editor.render();
         },
 
+        /** Resizes the canvas, e.g. to the size of its host element. */
+        setCanvasSize(width, height) {
+            editorOptions.width  = width;
+            editorOptions.height = height;
+            editor.setCanvasSize(width, height);
+        },
+
+        /** Zooms and pans so the whole diagram is in view (options: padding, maxZoom, minZoom). */
+        fitToContent(options) {
+            editor.fitToContent(parseJson(options) || {});
+        },
+
+        /** The diagram as standalone SVG text (options: padding, background). */
+        exportSvg(options) {
+            return editor.exportSvg(parseJson(options) || {});
+        },
+
         /** Adds a node of `type` on a free spot in view; returns its id. */
         addNode(type, label) {
             const id = `node_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;

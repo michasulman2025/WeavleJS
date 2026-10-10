@@ -57,6 +57,7 @@ export class WeavleJS {
             debugAStarGrid: false,
             debugRoutePoints: false,
             toolSurfaceDockHost: null,
+            keyboardScope: "focus",    // "focus": keys only while this editor has focus | "global": any key on the page
             toolbar: true,             // canvas toolbar (insert shapes) while nothing is selected
             toolbarPosition: "top",    // "top" | "left" | "right" | "floating" (draggable)
             toolbarFloatingPosition: null,  // { x, y } start spot of a floating toolbar (px in the visible area)
@@ -196,6 +197,14 @@ export class WeavleJS {
         this.uiLayer.style.pointerEvents = "none";
 
         this.container.appendChild(this.uiLayer);
+
+        // Focusable container: keyboard shortcuts belong to the editor that has focus, so several
+        // editors on one page (or an editor inside a rich-text document) don't react to each other's keys.
+        this.container.setAttribute("data-weavle-host", "");
+        if (!this.container.hasAttribute("tabindex")) {
+            this.container.setAttribute("tabindex", "0");
+            this.didSetTabIndex = true;   // undone by destroy()
+        }
 
         this.createCanvasToolbar();
 
@@ -377,10 +386,12 @@ export class WeavleJS {
         this.onMouseUpBound   = this.onMouseUp.bind(this);
         this.onKeyDownBound   = this.onKeyDown.bind(this);
         this.onWheelBound     = this.onWheel.bind(this);
+        this.onContainerPointerDownBound = this.onContainerPointerDown.bind(this);
         //this.onDoubleClickBound = this.onDoubleClick.bind(this);
 
         this.svg.addEventListener("mousedown", this.onMouseDownBound);
         this.svg.addEventListener("wheel",     this.onWheelBound, { passive: false });
+        this.container.addEventListener("mousedown", this.onContainerPointerDownBound, true);
         //this.svg.addEventListener("dblclick", this.onDoubleClickBound);
 
         window.addEventListener("mousemove", this.onMouseMoveBound);
@@ -526,6 +537,112 @@ export class WeavleJS {
      * Call this before discarding an instance (e.g. when an OutSystems screen or block is destroyed).
      * The instance cannot be used afterwards.
      */
+    /** Resizes the SVG canvas (e.g. to follow its host element) and re-renders. */
+    setCanvasSize(width, height) {
+        this.options.width  = Math.max(1, Math.round(width));
+        this.options.height = Math.max(1, Math.round(height));
+        this.svg.setAttribute("width", this.options.width);
+        this.svg.setAttribute("height", this.options.height);
+        this.render();
+    }
+
+    /**
+     * Bounding box of everything drawn (containers, edges with their labels, nodes with their labels),
+     * in model coordinates: { x, y, width, height }, or null for an empty diagram.
+     * Falls back to node / route geometry when the SVG is not laid out (e.g. display: none).
+     */
+    getContentBounds() {
+        if (!this.model.nodes.length) return null;
+
+        let box = null;
+        const add = (b) => {
+            if (!b || !(b.width || b.height)) return;
+            if (!box) { box = { x: b.x, y: b.y, x2: b.x + b.width, y2: b.y + b.height }; return; }
+            box.x  = Math.min(box.x, b.x);
+            box.y  = Math.min(box.y, b.y);
+            box.x2 = Math.max(box.x2, b.x + b.width);
+            box.y2 = Math.max(box.y2, b.y + b.height);
+        };
+
+        for (const layer of [this.layers.containers, this.layers.edges, this.layers.nodes]) {
+            try { add(layer.getBBox()); } catch (e) { /* not rendered */ }
+        }
+        if (!box) {
+            this.model.nodes.forEach(n => add({ x: n.x, y: n.y, width: n.width, height: n.height }));
+            this.model.edges.forEach(e => (e.routePoints || []).forEach(p => add({ x: p.x, y: p.y, width: 0.01, height: 0.01 })));
+        }
+        return box && { x: box.x, y: box.y, width: box.x2 - box.x, height: box.y2 - box.y };
+    }
+
+    /**
+     * Zooms and pans so the whole diagram fits the canvas, centred.
+     * options: padding (px, default 20), maxZoom (default 1: never enlarge), minZoom (default 0.1).
+     */
+    fitToContent({ padding = 20, maxZoom = 1, minZoom = 0.1 } = {}) {
+        const bounds = this.getContentBounds();
+        const width  = this.options.width;
+        const height = this.options.height;
+
+        if (!bounds) {
+            this.state.zoom = 1;
+            this.state.panX = 0;
+            this.state.panY = 0;
+        } else {
+            const zoom = Math.max(minZoom, Math.min(
+                maxZoom,
+                (width  - 2 * padding) / Math.max(bounds.width, 1),
+                (height - 2 * padding) / Math.max(bounds.height, 1)
+            ));
+            this.state.zoom = zoom;
+            this.state.panX = (width  - bounds.width  * zoom) / 2 - bounds.x * zoom;
+            this.state.panY = (height - bounds.height * zoom) / 2 - bounds.y * zoom;
+        }
+        this.clearNodeToolSurface();
+        this.render();
+    }
+
+    /**
+     * The diagram as a standalone SVG document (text): cropped to the content, without grid,
+     * selection, handles, hit areas or UI. For showing a diagram where no editor runs (documents,
+     * PDF, e-mail). Colours are presentation attributes, so it looks right without weavle.css.
+     * options: padding (px, default 16), background (fill colour, default none).
+     */
+    exportSvg({ padding = 16, background = null } = {}) {
+        const NS = "http://www.w3.org/2000/svg";
+        const bounds = this.getContentBounds() || { x: 0, y: 0, width: 0, height: 0 };
+        const width  = Math.ceil(bounds.width  + 2 * padding);
+        const height = Math.ceil(bounds.height + 2 * padding);
+
+        const svg = this.svg.cloneNode(true);
+        svg.querySelectorAll('[data-layer="grid"], [data-layer="overlay"], [data-layer="debug"]')
+            .forEach(layer => layer.replaceChildren());
+        svg.querySelectorAll('.weavle-edge-hit, .weavle-resize-handle, .weavle-port, [filter*="hover-glow"]')
+            .forEach(el => el.remove());
+        svg.querySelectorAll(".is-selected, .is-preview").forEach(el => el.classList.remove("is-selected", "is-preview"));
+
+        svg.querySelector("[data-viewport]")
+            .setAttribute("transform", `translate(${padding - bounds.x}, ${padding - bounds.y})`);
+        svg.setAttribute("xmlns", NS);
+        svg.setAttribute("width", width);
+        svg.setAttribute("height", height);
+        svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+        svg.setAttribute("class", "weavle-export");
+        svg.removeAttribute("style");
+
+        // Labels take their font from the page's CSS; carry it over so the export renders the same.
+        const label = this.svg.querySelector(".weavle-node-label");
+        svg.setAttribute("font-family", label ? getComputedStyle(label).fontFamily : "sans-serif");
+
+        if (background) {
+            const rect = document.createElementNS(NS, "rect");
+            rect.setAttribute("width", width);
+            rect.setAttribute("height", height);
+            rect.setAttribute("fill", background);
+            svg.insertBefore(rect, svg.querySelector("[data-viewport]"));
+        }
+        return new XMLSerializer().serializeToString(svg);
+    }
+
     destroy() {
         if (this.isDestroyed) return;
         this.isDestroyed = true;
@@ -536,6 +653,7 @@ export class WeavleJS {
 
         this.svg?.removeEventListener("mousedown", this.onMouseDownBound);
         this.svg?.removeEventListener("wheel",     this.onWheelBound);
+        this.container.removeEventListener("mousedown", this.onContainerPointerDownBound, true);
 
         window.removeEventListener("mousemove", this.onMouseMoveBound);
         window.removeEventListener("mouseup",   this.onMouseUpBound);
@@ -551,6 +669,10 @@ export class WeavleJS {
         if (this.didSetContainerPosition) {
             this.container.style.position = "";
         }
+        if (this.didSetTabIndex) {
+            this.container.removeAttribute("tabindex");
+        }
+        this.container.removeAttribute("data-weavle-host");
     }
 
 
@@ -7717,6 +7839,23 @@ export class WeavleJS {
     }
 
     /**
+     * Gives the container focus on any press inside it (unless an inner control takes focus itself),
+     * so keyboard shortcuts go to this editor. The SVG's own mousedown handling may preventDefault,
+     * which would otherwise keep the focus where it was.
+     */
+    onContainerPointerDown() {
+        if (this.options.keyboardScope === "global") return;
+        if (this.container.contains(document.activeElement)) return;
+        this.container.focus({ preventScroll: true });
+    }
+
+    /** True when keyboard shortcuts are meant for this editor (see options.keyboardScope). */
+    hasKeyboardFocus() {
+        if (this.options.keyboardScope === "global") return true;
+        return this.container.contains(document.activeElement);
+    }
+
+    /**
      * Handles keydown events.
      * - Escape: cancels any active interaction (connect, reconnect, create, drag).
      * - Delete / Backspace: removes the selected edge or node (with its connected edges).
@@ -7734,6 +7873,9 @@ export class WeavleJS {
             (evt.target && evt.target.isContentEditable);
 
         if (isTypingTarget) return;
+
+        // Another editor (or the rest of the page) has focus: these keys are not for us.
+        if (!this.hasKeyboardFocus()) return;
 
         // ESC — cancel the current interaction.
         if (evt.key === "Escape") {

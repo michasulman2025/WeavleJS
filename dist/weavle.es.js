@@ -2539,6 +2539,7 @@ var M = class {
 			debugAStarGrid: !1,
 			debugRoutePoints: !1,
 			toolSurfaceDockHost: null,
+			keyboardScope: "focus",
 			toolbar: !0,
 			toolbarPosition: "top",
 			toolbarFloatingPosition: null,
@@ -2615,7 +2616,7 @@ var M = class {
 		}, this.history = [], this.historyIndex = -1, this.isRestoringHistory = !1, this.init();
 	}
 	init() {
-		this.createSvg(), getComputedStyle(this.container).position === "static" && (this.container.style.position = "relative", this.didSetContainerPosition = !0), this.nodeToolEl = null, this.uiLayer = document.createElement("div"), this.uiLayer.className = "weavle-ui-layer", this.uiLayer.style.position = "absolute", this.uiLayer.style.inset = "0", this.uiLayer.style.pointerEvents = "none", this.container.appendChild(this.uiLayer), this.createCanvasToolbar(), this.bindEvents(), this.render();
+		this.createSvg(), getComputedStyle(this.container).position === "static" && (this.container.style.position = "relative", this.didSetContainerPosition = !0), this.nodeToolEl = null, this.uiLayer = document.createElement("div"), this.uiLayer.className = "weavle-ui-layer", this.uiLayer.style.position = "absolute", this.uiLayer.style.inset = "0", this.uiLayer.style.pointerEvents = "none", this.container.appendChild(this.uiLayer), this.container.setAttribute("data-weavle-host", ""), this.container.hasAttribute("tabindex") || (this.container.setAttribute("tabindex", "0"), this.didSetTabIndex = !0), this.createCanvasToolbar(), this.bindEvents(), this.render();
 	}
 	createSvg() {
 		let e = "http://www.w3.org/2000/svg";
@@ -2651,7 +2652,7 @@ var M = class {
 		}, this.layers.grid.setAttribute("data-layer", "grid"), this.layers.containers.setAttribute("data-layer", "containers"), this.layers.edges.setAttribute("data-layer", "edges"), this.layers.nodes.setAttribute("data-layer", "nodes"), this.layers.overlay.setAttribute("data-layer", "overlay"), this.layers.debug.setAttribute("data-layer", "debug"), this.viewport.appendChild(this.layers.grid), this.viewport.appendChild(this.layers.containers), this.viewport.appendChild(this.layers.edges), this.viewport.appendChild(this.layers.nodes), this.viewport.appendChild(this.layers.overlay), this.viewport.appendChild(this.layers.debug), this.svg.appendChild(this.viewport), this.container.appendChild(this.svg);
 	}
 	bindEvents() {
-		this.onMouseDownBound = this.onMouseDown.bind(this), this.onMouseMoveBound = this.onMouseMove.bind(this), this.onMouseUpBound = this.onMouseUp.bind(this), this.onKeyDownBound = this.onKeyDown.bind(this), this.onWheelBound = this.onWheel.bind(this), this.svg.addEventListener("mousedown", this.onMouseDownBound), this.svg.addEventListener("wheel", this.onWheelBound, { passive: !1 }), window.addEventListener("mousemove", this.onMouseMoveBound), window.addEventListener("mouseup", this.onMouseUpBound), window.addEventListener("keydown", this.onKeyDownBound);
+		this.onMouseDownBound = this.onMouseDown.bind(this), this.onMouseMoveBound = this.onMouseMove.bind(this), this.onMouseUpBound = this.onMouseUp.bind(this), this.onKeyDownBound = this.onKeyDown.bind(this), this.onWheelBound = this.onWheel.bind(this), this.onContainerPointerDownBound = this.onContainerPointerDown.bind(this), this.svg.addEventListener("mousedown", this.onMouseDownBound), this.svg.addEventListener("wheel", this.onWheelBound, { passive: !1 }), this.container.addEventListener("mousedown", this.onContainerPointerDownBound, !0), window.addEventListener("mousemove", this.onMouseMoveBound), window.addEventListener("mouseup", this.onMouseUpBound), window.addEventListener("keydown", this.onKeyDownBound);
 	}
 	getVersion() {
 		return "0.9.0";
@@ -2707,8 +2708,75 @@ var M = class {
 	clear() {
 		this.model.nodes = [], this.model.edges = [], this.clearTransientStateAfterHistoryRestore(), this.pushHistory(), this.emitModelChanged(), this.render();
 	}
+	setCanvasSize(e, t) {
+		this.options.width = Math.max(1, Math.round(e)), this.options.height = Math.max(1, Math.round(t)), this.svg.setAttribute("width", this.options.width), this.svg.setAttribute("height", this.options.height), this.render();
+	}
+	getContentBounds() {
+		if (!this.model.nodes.length) return null;
+		let e = null, t = (t) => {
+			if (t && (t.width || t.height)) {
+				if (!e) {
+					e = {
+						x: t.x,
+						y: t.y,
+						x2: t.x + t.width,
+						y2: t.y + t.height
+					};
+					return;
+				}
+				e.x = Math.min(e.x, t.x), e.y = Math.min(e.y, t.y), e.x2 = Math.max(e.x2, t.x + t.width), e.y2 = Math.max(e.y2, t.y + t.height);
+			}
+		};
+		for (let e of [
+			this.layers.containers,
+			this.layers.edges,
+			this.layers.nodes
+		]) try {
+			t(e.getBBox());
+		} catch {}
+		return e || (this.model.nodes.forEach((e) => t({
+			x: e.x,
+			y: e.y,
+			width: e.width,
+			height: e.height
+		})), this.model.edges.forEach((e) => (e.routePoints || []).forEach((e) => t({
+			x: e.x,
+			y: e.y,
+			width: .01,
+			height: .01
+		})))), e && {
+			x: e.x,
+			y: e.y,
+			width: e.x2 - e.x,
+			height: e.y2 - e.y
+		};
+	}
+	fitToContent({ padding: e = 20, maxZoom: t = 1, minZoom: n = .1 } = {}) {
+		let r = this.getContentBounds(), i = this.options.width, a = this.options.height;
+		if (!r) this.state.zoom = 1, this.state.panX = 0, this.state.panY = 0;
+		else {
+			let o = Math.max(n, Math.min(t, (i - 2 * e) / Math.max(r.width, 1), (a - 2 * e) / Math.max(r.height, 1)));
+			this.state.zoom = o, this.state.panX = (i - r.width * o) / 2 - r.x * o, this.state.panY = (a - r.height * o) / 2 - r.y * o;
+		}
+		this.clearNodeToolSurface(), this.render();
+	}
+	exportSvg({ padding: e = 16, background: t = null } = {}) {
+		let n = "http://www.w3.org/2000/svg", r = this.getContentBounds() || {
+			x: 0,
+			y: 0,
+			width: 0,
+			height: 0
+		}, i = Math.ceil(r.width + 2 * e), a = Math.ceil(r.height + 2 * e), o = this.svg.cloneNode(!0);
+		o.querySelectorAll("[data-layer=\"grid\"], [data-layer=\"overlay\"], [data-layer=\"debug\"]").forEach((e) => e.replaceChildren()), o.querySelectorAll(".weavle-edge-hit, .weavle-resize-handle, .weavle-port, [filter*=\"hover-glow\"]").forEach((e) => e.remove()), o.querySelectorAll(".is-selected, .is-preview").forEach((e) => e.classList.remove("is-selected", "is-preview")), o.querySelector("[data-viewport]").setAttribute("transform", `translate(${e - r.x}, ${e - r.y})`), o.setAttribute("xmlns", n), o.setAttribute("width", i), o.setAttribute("height", a), o.setAttribute("viewBox", `0 0 ${i} ${a}`), o.setAttribute("class", "weavle-export"), o.removeAttribute("style");
+		let s = this.svg.querySelector(".weavle-node-label");
+		if (o.setAttribute("font-family", s ? getComputedStyle(s).fontFamily : "sans-serif"), t) {
+			let e = document.createElementNS(n, "rect");
+			e.setAttribute("width", i), e.setAttribute("height", a), e.setAttribute("fill", t), o.insertBefore(e, o.querySelector("[data-viewport]"));
+		}
+		return new XMLSerializer().serializeToString(o);
+	}
 	destroy() {
-		this.isDestroyed || (this.isDestroyed = !0, this.state.editingLabel && this.cancelInlineLabelEdit(), this.svg?.removeEventListener("mousedown", this.onMouseDownBound), this.svg?.removeEventListener("wheel", this.onWheelBound), window.removeEventListener("mousemove", this.onMouseMoveBound), window.removeEventListener("mouseup", this.onMouseUpBound), window.removeEventListener("keydown", this.onKeyDownBound), this.clearNodeToolSurface(), this.setTextSelectionEnabled(!0), this.svg?.remove(), this.uiLayer?.remove(), this.toolbarAnchor?.remove(), this.didSetContainerPosition && (this.container.style.position = ""));
+		this.isDestroyed || (this.isDestroyed = !0, this.state.editingLabel && this.cancelInlineLabelEdit(), this.svg?.removeEventListener("mousedown", this.onMouseDownBound), this.svg?.removeEventListener("wheel", this.onWheelBound), this.container.removeEventListener("mousedown", this.onContainerPointerDownBound, !0), window.removeEventListener("mousemove", this.onMouseMoveBound), window.removeEventListener("mouseup", this.onMouseUpBound), window.removeEventListener("keydown", this.onKeyDownBound), this.clearNodeToolSurface(), this.setTextSelectionEnabled(!0), this.svg?.remove(), this.uiLayer?.remove(), this.toolbarAnchor?.remove(), this.didSetContainerPosition && (this.container.style.position = ""), this.didSetTabIndex && this.container.removeAttribute("tabindex"), this.container.removeAttribute("data-weavle-host"));
 	}
 	render() {
 		this.updateViewportTransform(), this.renderGrid(), this.renderEdges(), this.renderNodes(), this.renderOverlay(), this.renderDebug(), this.updateCanvasToolbar();
@@ -5914,10 +5982,16 @@ var M = class {
 			model: this.getData()
 		})), this.pushHistory(), this.emit("weavle:modelchanged", { model: this.getData() }), this.render();
 	}
+	onContainerPointerDown() {
+		this.options.keyboardScope !== "global" && (this.container.contains(document.activeElement) || this.container.focus({ preventScroll: !0 }));
+	}
+	hasKeyboardFocus() {
+		return this.options.keyboardScope === "global" || this.container.contains(document.activeElement);
+	}
 	onKeyDown(e) {
 		if (this.options.readOnly) return;
 		let t = e.target && e.target.tagName ? e.target.tagName.toLowerCase() : "";
-		if (!(t === "input" || t === "textarea" || e.target && e.target.isContentEditable)) {
+		if (!(t === "input" || t === "textarea" || e.target && e.target.isContentEditable) && this.hasKeyboardFocus()) {
 			if (e.key === "Escape") {
 				let t = !1;
 				if (this.state.resizingNodeId) {
@@ -6081,6 +6155,15 @@ function R(e, t = {}) {
 		setReadOnly(e) {
 			let t = !!e;
 			a.readOnly = t, s.options.readOnly !== t && (s.options.readOnly = t, s.clearSelection?.(), s.clearNodeToolSurface(), s.render());
+		},
+		setCanvasSize(e, t) {
+			a.width = e, a.height = t, s.setCanvasSize(e, t);
+		},
+		fitToContent(e) {
+			s.fitToContent(V(e) || {});
+		},
+		exportSvg(e) {
+			return s.exportSvg(V(e) || {});
 		},
 		addNode(e, t) {
 			let n = `node_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;

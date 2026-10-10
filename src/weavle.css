@@ -41,6 +41,16 @@
 
 /* ── Canvas ───────────────────────────────────────────────── */
 
+/* The container is focusable (keyboard shortcuts follow focus): no ring on click, one for keyboard users. */
+[data-weavle-host]:focus {
+    outline: none;
+}
+
+[data-weavle-host]:focus-visible {
+    outline: 2px solid var(--weavle-selection-color);
+    outline-offset: -2px;
+}
+
 .weavle-canvas {
     background: var(--weavle-canvas-bg);
     user-select: none;

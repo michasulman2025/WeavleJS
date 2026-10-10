@@ -153,6 +153,7 @@ Second constructor argument: `new WeavleJS(container, options, definition)`.
 | `edgeCornerRadius` | `8` | Rounded corners on orthogonal edges |
 | `toolbar` | `true` | Canvas toolbar at the top for inserting shapes (shown while nothing is selected) |
 | `toolSurfaceDockHost` | `null` | Element (or selector) to dock the node tools into, instead of floating them |
+| `keyboardScope` | `"focus"` | `"focus"`: shortcuts only act while this editor has focus (the container is made focusable). `"global"`: any key on the page |
 | `debug` | `false` | Console logging of routing / interaction diagnostics |
 | `debugRouting` | `false` | Master switch for the debug overlays below |
 | `debugRoutePoints` | `false` | Show numbered route points of the selected edge |
@@ -186,6 +187,11 @@ editor.getData();                       // deep copy of { nodes, edges }
 editor.addNode(node);                   // without x / y: placed on a free spot in view
 editor.setNodeSize(id, width, height);  // keeps the centre; respects the type's resize rules
 editor.clear();                         // remove everything (undoable)
+
+editor.setCanvasSize(width, height);    // e.g. follow the host element's size
+editor.fitToContent({ padding: 20 });   // zoom / pan so everything is in view (never enlarges by default)
+editor.getContentBounds();              // { x, y, width, height } of what is drawn, or null
+editor.exportSvg({ padding: 16 });      // standalone SVG text, cropped, without grid / selection / UI
 
 editor.undo();
 editor.redo();

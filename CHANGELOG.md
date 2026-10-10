@@ -3,6 +3,18 @@
 ## Unreleased
 
 ### Added
+- **Embedding in documents** (first user: ScrivleJS, the rich text editor): `fitToContent({ padding, maxZoom,
+  minZoom })` zooms and pans so the whole diagram is in view; `getContentBounds()` returns what is drawn;
+  `setCanvasSize(width, height)` lets the canvas follow its host element; `exportSvg({ padding, background })`
+  returns a standalone, cropped SVG without grid, selection, handles or UI (colours are presentation attributes,
+  the label font is carried over). OutSystems controller: `setCanvasSize`, `fitToContent`, `exportSvg`.
+
+### Changed
+- **Keyboard shortcuts follow focus** (`options.keyboardScope`, default `"focus"`): Delete, Escape and
+  Ctrl+Z / Y only act on the editor that has focus. The container becomes focusable (`tabindex="0"` unless it
+  has one, `data-weavle-host`) and takes focus on a press inside it. Fixes several editors on one page reacting
+  to the same key, and keys being lost inside a contenteditable host. `"global"` restores the old behaviour.
+  Focus ring only for keyboard focus (`:focus-visible`, `--weavle-selection-color`).
 - **Flow optimaliseren with pools and lanes**: every pool is laid out on its own; its lanes are bands —
   the layers run through all lanes, every node stays in its lane (`computeGroupedLayout` in weavle-layout.js),
   lanes get the height their contents need (at least their minimum), the pool fits around them, and the pools
