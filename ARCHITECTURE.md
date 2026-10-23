@@ -162,6 +162,7 @@ ports: [
 | Derived mode: `toGraph(data)` | Pedigree | – |
 | Layout hook with options and animation | Pedigree, Ishikawa | Partly: `layoutDiagram` ✅ (without options and animation) |
 | Expanding and lazy loading via events | Pedigree | – |
+| Themes (house style) and per-item styles | All (organisations) | Design: section 7 |
 
 ### Couplings that are still on the wrong side
 
@@ -170,6 +171,7 @@ ports: [
 - Palette and default sizes are in the demo (`palette`, `getDefaultNodeSize`), not in the add-in.
 - `createConnectedNode` and `startNodeCreation` use fixed sizes (140×60).
 - Nodes only have a `label`, no structured data.
+- Colours of selection, ports, handles, guides and edges are hard-coded in the engine (see 7.2).
 
 ---
 
@@ -189,8 +191,8 @@ ports: [
 - **Layout:** `layoutDiagram` places everything around the head: slanted main bones, alternately above and
   below the spine, in columns of two; causes as text on a horizontal line, sub-causes on a slanted twig.
   Text nodes are sized to their label.
-- **Interaction:** dragging, connecting and selecting edges are off; adding, reordering and deleting go through
-  the node tools, the toolbar adds a category. A new diagram = problem + 6M.
+- **Interaction:** connecting and selecting edges are off; dragging any part moves the whole diagram. Adding,
+  reordering and deleting go through the node tools, the toolbar adds a category. A new diagram = problem + 6M.
 - **Later (hybrid):** manual offsets along a bone. `layoutCategory` already works relative to the bone's
   junction with the spine; a per-node offset can be added there.
 
@@ -220,7 +222,196 @@ ports: [
 
 ---
 
-## 7. Roadmap
+## 7. Styling and themes (design)
+
+Status: design, not built yet. Goal: organisations can apply their house style to every diagram, and users can
+mark individual nodes and edges — without visual inline styles, and with the same result on screen and in
+`exportSvg()`.
+
+### 7.1 Two needs, two mechanisms
+
+| | House style | Emphasis |
+|---|---|---|
+| **Who** | The organisation (developer / OutSystems theme) | The user, while drawing |
+| **Example** | "Tasks in our blue, lines in our grey, our font" | "This cause is critical: red" |
+| **Scope** | All diagrams, all nodes of a type | One node or edge |
+| **Stored in** | Editor options (`options.theme`), **not** in the model | The model (`node.style`, `edge.style`) |
+| **Changes when the house style changes** | Yes, everywhere at once | Only if it refers to the theme (presets) |
+
+A house style must not be stored in each model: then every new node has to be coloured by hand, and old
+diagrams keep the old colours after a rebrand.
+
+### 7.2 Today (starting point)
+
+- Node colours: `nodeTypes[type].colors = { fill, stroke }` in the definition, set as SVG presentation attributes
+  by `applyNodeStyle()`. Definitions also call `engine.getNodeColors(node.type)` for detail lines (27 places).
+- Edges: `stroke="#666"`, width 1.5 (`edgeTypes[type].strokeWidth`), arrowheads as `<marker>` elements with a
+  fixed colour (`#666`, selected `#eb6c4c`).
+- Selection, ports, handles, guides, marquee, drop target: fixed colours in `weavle.js`, partly overridable
+  through `weavle.css` (`--weavle-selection-color`, `--weavle-port-*`, `--weavle-handle-*`).
+- Canvas, grid and all HTML UI (node tools, toolbar, menus, label editor): CSS custom properties in `weavle.css`.
+- Gaps: no styling per node; node shapes have no type class; arrowheads don't follow a CSS line colour;
+  CSS overrides don't reach `exportSvg()` (the export only keeps attributes); no single place to set a theme.
+
+### 7.3 Style properties
+
+One vocabulary for theme entries and per-item styles. Every property is optional.
+
+| Property | Nodes | Edges | Notes |
+|---|---|---|---|
+| `fill` | ✅ | – | Shape fill |
+| `stroke` | ✅ | ✅ | Outline / line colour; arrowheads follow the edge stroke |
+| `strokeWidth` | ✅ | ✅ | Number (px) |
+| `dash` | ✅ | ✅ | SVG dash array, e.g. `"4,3"`; `null` = solid |
+| `textColor` | ✅ | ✅ | Label colour |
+| `fontWeight` | ✅ | ✅ | `"normal"` \| `"bold"` (or a number) |
+| `fontStyle` | ✅ | ✅ | `"normal"` \| `"italic"` |
+
+Colours are CSS colour strings. Font family and size are theme-level only (7.4), so diagrams stay legible and
+labels keep fitting their boxes (label size is part of the layout, see `getLabelLayout`).
+
+### 7.4 The theme (`options.theme`)
+
+```js
+new WeavleJS(container, {
+    theme: {
+        font:  { family: "Inter, sans-serif" },             // labels; also written into the export
+
+        node:  { stroke: "#003B70", textColor: "#0B1F33" },  // every node type
+        nodeTypes: {                                         // per node type (all diagram types)
+            task:    { fill: "#E6F0FA" },
+            gateway: { fill: "#FFF4E0", stroke: "#B26B00" }
+        },
+
+        edge:  { stroke: "#5A6B7B", strokeWidth: 1.5 },      // every edge type
+        edgeTypes: {
+            messageFlow: { dash: "6,4" }
+        },
+
+        diagrams: {                                          // per diagram type (definition id), same keys
+            ishikawa: { nodeTypes: { category: { fill: "#E6F0FA" } } }
+        },
+
+        presets: {                                           // named styles for node.style / edge.style
+            accent:   { label: "Accent",   fill: "#E6F0FA", stroke: "#003B70" },
+            warning:  { label: "Let op",   fill: "#FFF4E0", stroke: "#B26B00", textColor: "#6B4000" },
+            critical: { label: "Kritiek",  fill: "#FDECEC", stroke: "#B42318", textColor: "#7A1A12", fontWeight: "bold" }
+        },
+
+        ui: {                                                // editor chrome, see 7.8
+            selection: "#FF6A00", canvasBackground: "#FFFFFF", grid: "#D5DBE3", accent: "#003B70"
+        }
+    }
+}, definition);
+```
+
+- `nodeTypes` / `edgeTypes` are keyed by type name. Names are unique within a definition but may repeat across
+  definitions (e.g. `annotation`); `diagrams[id]` is for the cases where one name needs different styles per
+  diagram type. One theme object can then serve every diagram type of an app (the OutSystems adapter rebuilds
+  the editor per type with the same options).
+- The theme is not part of the model, not part of undo and not reported in `weavle:modelchanged`.
+- API: `setTheme(theme)` (re-renders, no undo step), `getTheme()`. OutSystems: `options.theme` (JSON) and
+  `controller.setTheme(themeJson)`.
+- Definitions may ship a default theme (`diagram.defaultTheme`, same shape) — e.g. BPMN's current colours move
+  there from `nodeTypes[type].colors`. `colors` keeps working as a shorthand for `{ fill, stroke }`.
+
+### 7.5 Per-item style (`node.style`, `edge.style`)
+
+```js
+{ id: "n7", type: "cause", label: "Te weinig planners", style: { preset: "critical" } }
+{ id: "n8", type: "task",  label: "Controleren",        style: { fill: "#FDECEC", dash: "4,3" } }
+```
+
+- Stored in the model: saved, undone / redone, reported to the host, exported.
+- `preset` refers to `theme.presets`; explicit properties override the preset. An unknown preset is ignored
+  (the item falls back to its type's style), so a model stays valid when the theme changes.
+- Recommended for organisations: presets only (`options.allowCustomStyles = false`, the default), so users
+  stay within the house style. Free colours are opt-in.
+
+### 7.6 How a style is resolved
+
+One engine method per item; everything that draws uses it (shapes, detail lines, labels, edges, arrowheads,
+export, type previews in the toolbar):
+
+```
+engine.getNodeStyle(node)  /  engine.getEdgeStyle(edge)
+
+  1. engine defaults                      (fill #eee, stroke #999, strokeWidth 1.5, ...)
+  2. definition default                   (nodeTypes[type].colors / diagram.defaultTheme)
+  3. theme.node / theme.edge
+  4. theme.nodeTypes[type] / theme.edgeTypes[type]
+  5. theme.diagrams[id] (its node, nodeTypes[type], edge, edgeTypes[type])
+  6. theme.presets[item.style.preset]
+  7. item.style (explicit properties, if allowed)
+     → minus the properties the type fixes (fixedStyle)
+```
+
+- **Fixed properties:** a type can lock properties that would break its meaning:
+  `nodeTypes.cause.fixedStyle = { fill: "none", stroke: "none" }` (Ishikawa causes are text on a line; a theme
+  `node.fill` must not give them a box). The selection outline still works.
+- **Selection** stays outside this chain: a selected item is drawn with `theme.ui.selection` on top of its own
+  style, and the export never contains it.
+- `getNodeColors(type)` stays as a deprecated wrapper (`{ fill, stroke }` of steps 1–5) for existing definitions;
+  definitions move to `getNodeStyle(node)` so detail lines follow per-node styles too.
+- Resolved styles are cached per render (cleared on model, theme or selection change).
+
+### 7.7 Rendering, classes and export
+
+- Resolved values are written as **presentation attributes** (as today). That keeps `exportSvg()` and arrowheads
+  correct without CSS, and keeps the "no visual inline styles" rule.
+- **Classes for CSS users:** node groups get `weavle-node weavle-node--{type}` and `data-node-type`; edges keep
+  `weavle-edge--{type}`; styled items also get `weavle-node--preset-{name}` / `weavle-edge--preset-{name}`.
+  CSS rules still win over attributes on screen, but they are **not** carried into the export; the theme is the
+  recommended route for a house style, CSS for fine-tuning.
+- **Arrowheads** follow the edge stroke: markers are created on demand per colour (`arrow-<colour>`,
+  `arrow-open-<colour>`, `circle-open-<colour>`) in the SVG `<defs>` and reused. (SVG2 `context-stroke` would be
+  simpler but is not supported everywhere yet.)
+- **Labels:** `textColor`, `fontWeight`, `fontStyle` as attributes on the `<text>`; `theme.font.family` on the
+  SVG root (and so in the export). Web fonts are not embedded in the export; the host page or document must
+  provide them.
+
+### 7.8 Editor chrome (`theme.ui`)
+
+- `theme.ui` maps to the existing CSS custom properties, set on the container: `selection` →
+  `--weavle-selection-color`, `canvasBackground` → `--weavle-canvas-bg`, `grid` → `--weavle-grid-color`,
+  `accent` → `--weavle-handle-fill` / `--weavle-port-stroke` / `--weavle-ui-active-text`, plus `uiFont`,
+  `uiBackground`, `uiText`, `uiBorder` for the node tools and toolbar. (Setting custom properties on the container
+  is configuration, not a visual inline style on an element.)
+- The colours that are still hard-coded in `weavle.js` (selection `#F57100`, ports, handles, guides `#4da3ff`,
+  marquee, drop target, hover glow) read the same values, so attributes and CSS agree.
+
+### 7.9 Node tools: "Stijl"
+
+- A built-in context action `setStyle` ("Stijl", icon: a palette) with a submenu: the theme's presets (each
+  shown as a small swatch of the type's real shape, like the type menus) and "Standaard" (removes `style`).
+  With `allowCustomStyles`: fill / line / text colour pickers as well.
+- Works on the whole selection (one undo step) and on a selected edge.
+- Shown only when the theme has presets (or custom styles are allowed) and the definition allows it:
+  `diagram.canStyleNode(node)` / `canStyleEdge(edge)`, default yes (Ishikawa: not for edges, which are bones).
+
+### 7.10 Steps
+
+Each step is usable on its own and changes nothing for existing diagrams without a theme.
+
+1. **Resolver and classes:** `getNodeStyle` / `getEdgeStyle` (steps 1–4 of 7.6 with an empty theme), type classes,
+   definitions switch from `getNodeColors` to `getNodeStyle`. No visible change.
+2. **Theme:** `options.theme`, `setTheme`, `theme.diagrams`, `fixedStyle`, markers per colour, `theme.font`,
+   `theme.ui`, the remaining hard-coded colours. OutSystems `setTheme`. Playground: a theme switch (default /
+   sample house style).
+3. **Per-item style:** `node.style` / `edge.style` with presets and `allowCustomStyles`; export check.
+4. **"Stijl" in the node tools** and `canStyleNode` / `canStyleEdge`.
+5. **Definition defaults:** move BPMN / flowchart / Ishikawa colours into `defaultTheme`.
+
+### 7.11 Open questions
+
+1. **Free colours:** presets only by default — or should users get a colour picker unless the theme forbids it?
+2. **Per-diagram-type overrides:** is `theme.diagrams` needed in practice, or is one style per type name enough?
+3. **Dark mode:** a second theme the host switches with `setTheme`, or `theme.dark` inside one theme?
+4. **Fonts:** only the family in the theme — or also a base size (which changes how much text fits a node)?
+
+---
+
+## 8. Roadmap
 
 Every step can be tested on its own and must not break what exists.
 
@@ -234,12 +425,14 @@ Every step can be tested on its own and must not break what exists.
 - [ ] **6. Node editor add-in.**
 - [ ] **7. Derived mode and layout:** `toGraph`, layout hook with options and animation, expanding and lazy loading.
 - [ ] **8. Pedigree add-in.**
+- [ ] **9. Themes and per-item styles** (section 7, steps 7.10). Independent of the steps above; can be done
+      at any time.
 
 After step 5 the pedigree may come before the node editor, if it has more priority.
 
 ---
 
-## 8. Backlog
+## 9. Backlog
 
 - **Vertical pools and lanes** (header strip on top, lanes side by side).
 - **Connection rules** for BPMN (roadmap step 3): no sequence flow between pools, no incoming line on a
@@ -248,7 +441,7 @@ After step 5 the pedigree may come before the node editor, if it has more priori
 - **Nested lanes** (lanes within lanes).
 - **Ishikawa hybrid mode:** drag causes and categories along their bone (offsets kept in the model).
 
-## 9. Open questions (pedigree)
+## 10. Open questions (pedigree)
 
 1. **Data source:** does OutSystems supply the persons and relations? Does "Add father" open a form there, or
    should editing happen in the chart itself?
