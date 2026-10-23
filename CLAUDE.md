@@ -124,7 +124,9 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
   `getDependentNodes(node)` (deleted along via `withDescendants`). Ishikawa: tree = nodes effect / category /
   cause / subCause with child → parent edges; sibling order = model order; `layoutCategory` works relative to a
   bone's junction (ready for a later hybrid mode with manual offsets); `routeEdge` returns the bones from the
-  last layout; the head shape draws the spine's tail (`getSpineStart`, from the stored routes).
+  last layout, shifted by how far their child node moved since (live while dragging); dragging any part drags the
+  whole diagram (`getDragTarget` → head, `getDependentNodes` → the rest); the head shape draws the spine's tail
+  (`getSpineStart`, from the stored routes).
 - The diagram definition is the extension point for new diagram types: shapes, nodeTypes, getPorts,
   routeEdge, getContextActions, getNodeInteractionMode, getRoutingConfig.
 

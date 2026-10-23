@@ -16,7 +16,8 @@
 
   The definition owns the layout: layoutDiagram() positions every node from the tree on each change
   (the engine calls it before every undo step), and routeEdge() returns the bone drawn by that layout.
-  Users don't drag or connect; they add, rename, reorder and delete through the node tools.
+  Users don't connect; they add, rename, reorder and delete through the node tools. Dragging any part
+  moves the whole diagram (getDragTarget → the head, getDependentNodes → everything under it).
   Sibling order is the order of the nodes in model.nodes.
 
   Prepared for a later "hybrid" mode (manual offsets along a bone): all geometry comes from
@@ -252,7 +253,8 @@ function layoutCategory(engine, tree, category, side, spineY) {
 /**
  * Positions the whole diagram around the head (which stays where it is): main bones in columns of
  * two (one above, one below the spine), in model order from left to right, the last column nearest
- * the head. Fills `routes` (edge id → points) for routeEdge.
+ * the head. Fills `routes` (edge id → { points, at }) for routeEdge; `at` is where the edge's child node
+ * was placed, so routeEdge can shift the bone along while the diagram is dragged.
  */
 function layoutFishbone(engine, routes) {
     routes.clear();
@@ -309,7 +311,8 @@ function layoutFishbone(engine, routes) {
     routes.clear();
     for (const edge of engine.model.edges) {
         const points = byChild.get(edge.sourceNodeId);
-        if (points) routes.set(edge.id, points);
+        const child  = engine.getNode(edge.sourceNodeId);
+        if (points && child) routes.set(edge.id, { points, at: { x: child.x, y: child.y } });
     }
 }
 
@@ -337,7 +340,7 @@ export function createIshikawaDefinition() {
         // Nothing to place freely: the toolbar adds categories, the node tools do the rest.
         palette: [],
 
-        interaction: { dragNodes: false, connect: false, selectEdges: false },
+        interaction: { connect: false, selectEdges: false },
 
         defaultEdgeType: "bone",
 
@@ -370,8 +373,21 @@ export function createIshikawaDefinition() {
             layoutFishbone(engine, routes);
         },
 
-        routeEdge({ sourcePoint, targetPoint, edge }) {
-            return routes.get(edge?.id) || [sourcePoint, targetPoint];
+        // The bone from the last layout, shifted by how far its child node moved since (the whole diagram
+        // moves as one while dragged; the layout runs again on the drop).
+        routeEdge({ sourcePoint, targetPoint, edge, engine }) {
+            const route = routes.get(edge?.id);
+            const child = route && engine.getNode(edge.sourceNodeId);
+            if (!child) return [sourcePoint, targetPoint];
+
+            const dx = child.x - route.at.x;
+            const dy = child.y - route.at.y;
+            return route.points.map(p => ({ x: p.x + dx, y: p.y + dy }));
+        },
+
+        // Grabbing any part drags the whole diagram: the head, which takes everything under it along.
+        getDragTarget(node, engine) {
+            return readTree(engine).effect || null;
         },
 
         /**

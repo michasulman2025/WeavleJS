@@ -475,6 +475,22 @@ function getSelectionSnapshot() {
 
 
 /**
+ * Start an empty diagram of the current type (types with an initial model, such as Ishikawa, start from that).
+ */
+function newDiagram() {
+  if (!editor) return;
+
+  editor.load({ nodes: [], edges: [] });
+
+  const data = editor.getData();
+  logEvent("demo:new", { diagram: currentDiagramKey, nodes: data.nodes.length, edges: data.edges.length });
+
+  refreshSelectionInfo();
+  refreshJsonOutput();
+  setStatus(`New diagram (${currentDiagramKey})`);
+}
+
+/**
  * Load a small sample model.
  */
 function loadSample() {
@@ -552,6 +568,7 @@ document.getElementById("btnExport").addEventListener("click", () => {
   setStatus("JSON exported");
 });
 
+document.getElementById("btnNew").addEventListener("click", newDiagram);
 document.getElementById("btnLoadSample").addEventListener("click", loadSample);
 
 // The complex sample is BPMN: switch the diagram type first if needed.

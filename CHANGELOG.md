@@ -8,7 +8,8 @@
   spine) → causes (horizontal lines) → sub-causes (twigs), stored as nodes with child → parent edges. Laid out
   automatically on every change; a new diagram starts with the 6M categories (Mens, Machine, Methode, Materiaal,
   Meting, Milieu). Node tools: add child / sibling, reorder (sibling order = model order), delete (takes the
-  causes along; the problem can't be deleted). Playground: diagram type "Ishikawa (visgraat)" with a sample.
+  causes along; the problem can't be deleted). Dragging any part moves the whole diagram. Playground: diagram
+  type "Ishikawa (visgraat)" with a sample, and a "New" button (empty diagram of the current type).
 - Engine hooks for diagram types that arrange themselves: `layoutDiagram(engine)` (run on load, before every
   undo step and after undo / redo; `applyDiagramLayout()`), `createInitialModel()` (what `load` of an empty
   model and `clear()` start with), `interaction: { dragNodes, connect, selectEdges }` (`getInteraction()`),

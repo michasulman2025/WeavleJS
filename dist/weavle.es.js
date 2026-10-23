@@ -6282,8 +6282,14 @@ function pe(e, t) {
 	let u = new Map(t);
 	t.clear();
 	for (let n of e.model.edges) {
-		let e = u.get(n.sourceNodeId);
-		e && t.set(n.id, e);
+		let r = u.get(n.sourceNodeId), i = e.getNode(n.sourceNodeId);
+		r && i && t.set(n.id, {
+			points: r,
+			at: {
+				x: i.x,
+				y: i.y
+			}
+		});
 	}
 }
 function W() {
@@ -6328,7 +6334,6 @@ function W() {
 		},
 		palette: [],
 		interaction: {
-			dragNodes: !1,
 			connect: !1,
 			selectEdges: !1
 		},
@@ -6389,8 +6394,17 @@ function W() {
 		layoutDiagram(t) {
 			pe(t, e);
 		},
-		routeEdge({ sourcePoint: t, targetPoint: n, edge: r }) {
-			return e.get(r?.id) || [t, n];
+		routeEdge({ sourcePoint: t, targetPoint: n, edge: r, engine: i }) {
+			let a = e.get(r?.id), o = a && i.getNode(r.sourceNodeId);
+			if (!o) return [t, n];
+			let s = o.x - a.at.x, c = o.y - a.at.y;
+			return a.points.map((e) => ({
+				x: e.x + s,
+				y: e.y + c
+			}));
+		},
+		getDragTarget(e, t) {
+			return V(t).effect || null;
 		},
 		getSpineStart(e, t) {
 			if (!t?.getNode(e.id)) return null;
