@@ -162,7 +162,7 @@ ports: [
 | Derived mode: `toGraph(data)` | Pedigree | – |
 | Layout hook with options and animation | Pedigree, Ishikawa | Partly: `layoutDiagram` ✅ (without options and animation) |
 | Expanding and lazy loading via events | Pedigree | – |
-| Themes (house style) and per-item styles | All (organisations) | Design: section 7 |
+| Themes (house style) and per-item styles | All (organisations) | Partly: style resolver and type classes ✅ (section 7) |
 
 ### Couplings that are still on the wrong side
 
@@ -224,7 +224,7 @@ ports: [
 
 ## 7. Styling and themes (design)
 
-Status: design, not built yet. Goal: organisations can apply their house style to every diagram, and users can
+Status: step 1 of 7.10 is built; the rest is design. Goal: organisations can apply their house style to every diagram, and users can
 mark individual nodes and edges — without visual inline styles, and with the same result on screen and in
 `exportSvg()`.
 
@@ -393,7 +393,7 @@ engine.getNodeStyle(node)  /  engine.getEdgeStyle(edge)
 
 Each step is usable on its own and changes nothing for existing diagrams without a theme.
 
-1. **Resolver and classes:** `getNodeStyle` / `getEdgeStyle` (steps 1–4 of 7.6 with an empty theme), type classes,
+1. ✅ **Resolver and classes:** `getNodeStyle` / `getEdgeStyle` (steps 1–4 of 7.6 with an empty theme), type classes,
    definitions switch from `getNodeColors` to `getNodeStyle`. No visible change.
 2. **Theme:** `options.theme`, `setTheme`, `theme.diagrams`, `fixedStyle`, markers per colour, `theme.font`,
    `theme.ui`, the remaining hard-coded colours. OutSystems `setTheme`. Playground: a theme switch (default /

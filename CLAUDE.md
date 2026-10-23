@@ -130,6 +130,14 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
 - The diagram definition is the extension point for new diagram types: shapes, nodeTypes, getPorts,
   routeEdge, getContextActions, getNodeInteractionMode, getRoutingConfig.
 
+- Styles (ARCHITECTURE.md section 7; step 1 built): every node / edge look comes from `getNodeStyle(node)` /
+  `getEdgeStyle(edge)` — engine defaults (`NODE_STYLE_DEFAULTS`, `EDGE_STYLE_DEFAULTS`) → definition
+  (`nodeTypes[type].colors` / `.style`, label colour from `getLabelLayout`; `edgeTypes[type]` stroke / strokeWidth /
+  dash / style). Properties: fill, stroke, strokeWidth, dash, textColor, fontWeight, fontStyle. Written as attributes
+  by `applyNodeStyle`, `createEdgePath(..., style)`, `applyTextStyle`. Definitions use `engine.getNodeStyle(node)`
+  for detail lines (`getNodeColors(type)` is a deprecated wrapper). Node groups: `weavle-node weavle-node--{type}`,
+  `data-node-type`. Next: theme (`options.theme`), then `node.style` / `edge.style`.
+
 ## Conventions
 
 - No visual inline styles (OutSystems apps style through external CSS). UI chrome gets classes styled in

@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### Added
+- **Styles, step 1** (ARCHITECTURE.md section 7): one place decides how a node or edge looks —
+  `getNodeStyle(node)` / `getEdgeStyle(edge)` (fill, stroke, strokeWidth, dash, textColor, fontWeight, fontStyle;
+  engine defaults → the definition's `colors` / `style` / label colour, `edgeTypes[type]`). Shapes, detail
+  lines, labels, edges and type previews use it; flowchart, BPMN and Ishikawa switched from `getNodeColors`
+  (now a deprecated wrapper). Node groups get `weavle-node weavle-node--{type}` and `data-node-type` for CSS.
+  Edge types may set `stroke`. No visible change: exports of all three samples are identical apart from the
+  new classes.
 - **Ishikawa (visgraat) diagram type** (`createIshikawaDefinition()` in `src/weavle-ishikawa.js`, OutSystems
   `diagramType: "ishikawa"`): problem (head) → categories (slanted main bones, alternately above / below the
   spine) → causes (horizontal lines) → sub-causes (twigs), stored as nodes with child → parent edges. Laid out

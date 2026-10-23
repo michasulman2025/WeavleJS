@@ -72,13 +72,16 @@ const ishikawaShapes = {
         const tailX = engine.diagram.getSpineStart?.(node, engine);
 
         if (tailX != null) {
+            // Same look as the main bones it continues.
+            const bone  = engine.getEdgeStyle({ type: "bone" });
             const spine = document.createElementNS(NS, "line");
             spine.setAttribute("x1", tailX);
             spine.setAttribute("y1", y + h / 2);
             spine.setAttribute("x2", x);
             spine.setAttribute("y2", y + h / 2);
-            spine.setAttribute("stroke", "#666");
-            spine.setAttribute("stroke-width", "2.25");
+            spine.setAttribute("stroke", bone.stroke);
+            spine.setAttribute("stroke-width", String(bone.strokeWidth));
+            if (bone.dash) spine.setAttribute("stroke-dasharray", bone.dash);
             spine.setAttribute("class", "weavle-ishikawa-spine");
             spine.setAttribute("pointer-events", "none");
             group.appendChild(spine);

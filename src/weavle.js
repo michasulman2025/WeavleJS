@@ -8,6 +8,34 @@ import { createFlowchartDefinition } from "./weavle-flowchart.js";
 import { createBpmnDefinition  } from "./weavle-bpmn.js";
 import { computeLayeredLayout, computeGroupedLayout } from "./weavle-layout.js";
 
+// Style properties of nodes and edges (ARCHITECTURE.md 7.3) and their engine defaults.
+// null = not set (no attribute is written).
+const STYLE_KEYS = ["fill", "stroke", "strokeWidth", "dash", "textColor", "fontWeight", "fontStyle"];
+
+const NODE_STYLE_DEFAULTS = {
+    fill: "#eeeeee", stroke: "#999999", strokeWidth: 1.5, dash: null, textColor: null, fontWeight: null, fontStyle: null
+};
+
+const EDGE_STYLE_DEFAULTS = {
+    fill: "none", stroke: "#666", strokeWidth: 1.5, dash: null, textColor: null, fontWeight: null, fontStyle: null
+};
+
+/** The style properties of an object that are set (not undefined / null); anything else is ignored. */
+function pickStyle(source) {
+    const style = {};
+    if (!source) return style;
+
+    for (const key of STYLE_KEYS) {
+        if (source[key] !== undefined && source[key] !== null) style[key] = source[key];
+    }
+    return style;
+}
+
+/** Merges style layers over the defaults (which name every property); later layers win. A fresh object. */
+function mergeStyles(defaults, ...layers) {
+    return Object.assign({}, defaults, ...layers.map(pickStyle));
+}
+
 export class WeavleJS {
 
 
@@ -988,13 +1016,13 @@ export class WeavleJS {
             }
 
             // Visible edge path.
-            const visiblePath = this.createEdgePath(pathData, false, isSelected, this.getEdgeTypeDefinition(edge));
+            const visiblePath = this.createEdgePath(pathData, false, isSelected, this.getEdgeTypeDefinition(edge), this.getEdgeStyle(edge));
             visiblePath.setAttribute("data-edge-id", edge.id);
             this.layers.edges.appendChild(visiblePath);
 
             //If edge has a label, we place it on the right spot..
             if (edge.label) {
-                const label = this.createEdgeLabelFromPoints(points, edge.label);
+                const label = this.createEdgeLabelFromPoints(points, edge.label, this.getEdgeStyle(edge));
                 this.layers.edges.appendChild(label);
             }
 
@@ -1178,6 +1206,8 @@ export class WeavleJS {
         const NS = "http://www.w3.org/2000/svg";
         const group = document.createElementNS(NS, "g");
         group.setAttribute("data-node-id", node.id);
+        group.setAttribute("data-node-type", node.type);
+        group.setAttribute("class", `weavle-node weavle-node--${node.type}`);
 
         const isSelected = this.isNodeSelected(node.id);
         const isPrimarySelected = node.id === this.state.primarySelectedNodeId;
@@ -1306,8 +1336,7 @@ export class WeavleJS {
         text.setAttribute("font-size", box.fontSize);
         text.setAttribute("pointer-events", "none");
 
-        const color = this.getLabelLayout(node).color;
-        if (color) text.setAttribute("fill", color);
+        this.applyTextStyle(text, this.getNodeStyle(node));
 
         if (box.rotate) {
             text.setAttribute("transform", `rotate(${box.rotate} ${box.centerX} ${box.centerY})`);
@@ -1704,15 +1733,16 @@ export class WeavleJS {
     }
 
     /**
-     * Applies fill, stroke, and selection highlight to a node shape element.
-     * Colors are resolved from the diagram definition via getNodeColors().
+     * Applies the node's resolved style (getNodeStyle: fill, stroke, width, dash) and the selection
+     * highlight to a node shape element, as presentation attributes.
      */
     applyNodeStyle(shape, node) {
-        const colors = this.getNodeColors(node.type);
+        const style = this.getNodeStyle(node);
 
-        shape.setAttribute("fill",         colors.fill);
-        shape.setAttribute("stroke",       colors.stroke);
-        shape.setAttribute("stroke-width", "1.5");
+        shape.setAttribute("fill",         style.fill);
+        shape.setAttribute("stroke",       style.stroke);
+        shape.setAttribute("stroke-width", String(style.strokeWidth));
+        if (style.dash) shape.setAttribute("stroke-dasharray", style.dash);
         shape.classList.add("weavle-node-shape");
 
         // Override stroke colour and width when the node is selected.
@@ -1738,10 +1768,11 @@ export class WeavleJS {
      * Visible edge path. edgeDef (from getEdgeTypeDefinition) sets the marker and dash pattern;
      * without it the edge is a plain solid arrow.
      */
-    createEdgePath(pathData, isPreview = false, isSelected = false, edgeDef = null) {
+    createEdgePath(pathData, isPreview = false, isSelected = false, edgeDef = null, style = null) {
         const NS   = "http://www.w3.org/2000/svg";
         const path = document.createElementNS(NS, "path");
         const def  = edgeDef || this.getEdgeTypeDefinition(null);
+        const look = style || this.getEdgeStyle(null);
 
         path.setAttribute("d",           pathData);
         path.setAttribute("class", [
@@ -1750,8 +1781,8 @@ export class WeavleJS {
             isSelected ? "is-selected" : "",
             isPreview ? "is-preview" : ""
         ].filter(Boolean).join(" "));
-        path.setAttribute("stroke",      isSelected ? "#F57100" : "#666");
-        path.setAttribute("stroke-width", isSelected ? "2.5" : String(def.strokeWidth || 1.5));
+        path.setAttribute("stroke",      isSelected ? "#F57100" : look.stroke);
+        path.setAttribute("stroke-width", isSelected ? "2.5" : String(look.strokeWidth));
         path.setAttribute("fill",        "none");
 
         const markerId = {
@@ -1768,8 +1799,8 @@ export class WeavleJS {
             path.setAttribute("marker-start", `url(#${isSelected ? "circle-open-selected" : "circle-open"})`);
         }
 
-        if (def.dash) {
-            path.setAttribute("stroke-dasharray", def.dash);
+        if (look.dash) {
+            path.setAttribute("stroke-dasharray", look.dash);
         }
 
         if (isPreview) {
@@ -1873,7 +1904,7 @@ export class WeavleJS {
      * Creates an SVG text label placed near the middle of an edge.
      * For edges with 4+ points the label is placed at the midpoint of the middle segment.
      */
-    createEdgeLabelFromPoints(points, textValue) {
+    createEdgeLabelFromPoints(points, textValue, style = null) {
         const NS   = "http://www.w3.org/2000/svg";
         const text = document.createElementNS(NS, "text");
 
@@ -1894,6 +1925,7 @@ export class WeavleJS {
         text.setAttribute("class", "weavle-edge-label");
         text.setAttribute("font-size", 12);
         text.setAttribute("fill", "#444");
+        if (style) this.applyTextStyle(text, style);
         text.textContent    = textValue;
 
         return text;
@@ -4829,7 +4861,7 @@ export class WeavleJS {
         const factory = typeDef && this.diagram.shapes?.[typeDef.shape];
 
         if (!factory || typeDef.isContainer) {
-            const colors = this.getNodeColors(type);
+            const colors = this.getNodeStyle({ type });
             const rect   = document.createElementNS(NS, "rect");
             rect.setAttribute("x", 4);  rect.setAttribute("y", 8);
             rect.setAttribute("width", 32); rect.setAttribute("height", 24); rect.setAttribute("rx", 3);
@@ -5563,13 +5595,14 @@ export class WeavleJS {
                 this.buildRoundedOrthogonalPath(points, this.options.edgeCornerRadius),
                 false,
                 false,
-                this.getEdgeTypeDefinition(half)
+                this.getEdgeTypeDefinition(half),
+                this.getEdgeStyle(half)
             );
             path.classList.add("weavle-edge--split-preview");
             this.layers.edges.appendChild(path);
 
             if (half.label) {
-                this.layers.edges.appendChild(this.createEdgeLabelFromPoints(points, half.label));
+                this.layers.edges.appendChild(this.createEdgeLabelFromPoints(points, half.label, this.getEdgeStyle(half)));
             }
         });
     }
@@ -6898,15 +6931,55 @@ export class WeavleJS {
         return typeDef?.title || this.getDefaultLabelForType(nodeType);
     }
 
+    // ------------------------------------------------------------
+    // Styles (ARCHITECTURE.md section 7)
+    //
+    // Everything that draws a node or an edge takes its look from getNodeStyle / getEdgeStyle, so a
+    // style is decided in one place: shapes, detail lines, labels, edges, type previews and the export
+    // (the values are written as presentation attributes).
+    //
+    // Layers, later ones win:
+    //   1. engine defaults (NODE_STYLE_DEFAULTS / EDGE_STYLE_DEFAULTS)
+    //   2. the definition: nodeTypes[type].colors ({ fill, stroke }), nodeTypes[type].style and the
+    //      label colour of getLabelLayout; edgeTypes[type] (stroke, strokeWidth, dash) and its style
+    //   (planned: the theme, presets and node.style / edge.style — see section 7.6)
+    //
+    // Style properties: fill, stroke, strokeWidth, dash, textColor, fontWeight, fontStyle.
+    // ------------------------------------------------------------
+
+    /** The resolved style of a node (or of { type } for a type preview). Always has every property. */
+    getNodeStyle(node) {
+        const typeDef = this.diagram.nodeTypes?.[node?.type];
+        if (!typeDef) return mergeStyles(NODE_STYLE_DEFAULTS);
+
+        return mergeStyles(
+            NODE_STYLE_DEFAULTS,
+            pickStyle(typeDef.colors),
+            pickStyle(typeDef.style),
+            { textColor: this.getLabelLayout(node).color }
+        );
+    }
+
+    /** The resolved style of an edge (or of null for a preview line). Always has every property. */
+    getEdgeStyle(edge) {
+        const def = this.getEdgeTypeDefinition(edge);
+        return mergeStyles(EDGE_STYLE_DEFAULTS, pickStyle(def), pickStyle(def.style));
+    }
+
+    /** Puts a resolved style's text properties (textColor, fontWeight, fontStyle) on a <text>. */
+    applyTextStyle(text, style) {
+        if (style.textColor)  text.setAttribute("fill", style.textColor);
+        if (style.fontWeight) text.setAttribute("font-weight", style.fontWeight);
+        if (style.fontStyle)  text.setAttribute("font-style", style.fontStyle);
+    }
+
     /**
-     * Returns the fill and stroke colors for a node type from the diagram definition.
-     * Falls back to neutral grey if the type is not found.
+     * Fill and stroke of a node type.
+     * @deprecated Use getNodeStyle(node): it will also follow themes and per-node styles.
      */
     getNodeColors(nodeType) {
-        const typeDef = this.diagram.nodeTypes && this.diagram.nodeTypes[nodeType];
-        return typeDef
-            ? typeDef.colors
-            : { fill: "#eeeeee", stroke: "#999999" };
+        const { fill, stroke } = this.getNodeStyle({ type: nodeType });
+        return { fill, stroke };
     }
 
     /** Generates a random UUID using the browser's crypto API. */

@@ -27,7 +27,7 @@ function _fcLine(node, engine, x1, y1, x2, y2) {
     const line = document.createElementNS(NS, "line");
     line.setAttribute("x1", x1); line.setAttribute("y1", y1);
     line.setAttribute("x2", x2); line.setAttribute("y2", y2);
-    line.setAttribute("stroke", engine.getNodeColors(node.type).stroke);
+    line.setAttribute("stroke", engine.getNodeStyle(node).stroke);
     line.setAttribute("stroke-width", "1.5");
     return line;
 }
@@ -124,7 +124,7 @@ const flowchartShapes = {
         leftLine.setAttribute("y1", node.y + 6);
         leftLine.setAttribute("x2", node.x + 10);
         leftLine.setAttribute("y2", node.y + node.height - 6);
-        leftLine.setAttribute("stroke", engine.getNodeColors(node.type).stroke);
+        leftLine.setAttribute("stroke", engine.getNodeStyle(node).stroke);
         leftLine.setAttribute("stroke-width", "1.5");
 
         const rightLine = document.createElementNS(NS, "line");
@@ -132,7 +132,7 @@ const flowchartShapes = {
         rightLine.setAttribute("y1", node.y + 6);
         rightLine.setAttribute("x2", node.x + node.width - 10);
         rightLine.setAttribute("y2", node.y + node.height - 6);
-        rightLine.setAttribute("stroke", engine.getNodeColors(node.type).stroke);
+        rightLine.setAttribute("stroke", engine.getNodeStyle(node).stroke);
         rightLine.setAttribute("stroke-width", "1.5");
 
         group.appendChild(rect);
@@ -193,7 +193,7 @@ const flowchartShapes = {
         bottom.setAttribute("rx", rx);
         bottom.setAttribute("ry", ry);
         bottom.setAttribute("fill", "none");
-        bottom.setAttribute("stroke", engine.getNodeColors(node.type).stroke);
+        bottom.setAttribute("stroke", engine.getNodeStyle(node).stroke);
         bottom.setAttribute("stroke-width", "1.5");
 
         group.appendChild(body);
@@ -299,7 +299,7 @@ const flowchartShapes = {
         engine.applyNodeStyle(rect, node);
         group.appendChild(rect);
 
-        const stroke = engine.getNodeColors(node.type).stroke;
+        const stroke = engine.getNodeStyle(node).stroke;
         const lines = document.createElementNS(NS, "path");
         lines.setAttribute("d", `M ${x + i} ${y} L ${x + i} ${y + h} M ${x} ${y + i} L ${x + w} ${y + i}`);
         lines.setAttribute("fill", "none");
@@ -326,7 +326,7 @@ const flowchartShapes = {
         end.setAttribute("cx", x + w - r); end.setAttribute("cy", y + h / 2);
         end.setAttribute("rx", r); end.setAttribute("ry", h / 2);
         end.setAttribute("fill", "none");
-        end.setAttribute("stroke", engine.getNodeColors(node.type).stroke);
+        end.setAttribute("stroke", engine.getNodeStyle(node).stroke);
         end.setAttribute("stroke-width", "1.5");
         group.appendChild(end);
 

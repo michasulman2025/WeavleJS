@@ -210,7 +210,7 @@ const bpmnShapes = {
         const r     = Math.min(node.width, node.height) / 2;
         const cx    = node.x + node.width  / 2;
         const cy    = node.y + node.height / 2;
-        const color = engine.getNodeColors(node.type).stroke;
+        const color = engine.getNodeStyle(node).stroke;
 
         const outer = _el(group, "circle", { cx, cy, r });
         engine.applyNodeStyle(outer, node);
@@ -256,7 +256,7 @@ const bpmnShapes = {
         rect.setAttribute("rx", 10);
         engine.applyNodeStyle(rect, node);
 
-        const colors = engine.getNodeColors(node.type);
+        const colors = engine.getNodeStyle(node);
         const ix = node.x + 8, iy = node.y + 6, is = 14;
 
         const head = document.createElementNS(NS, "circle");
@@ -281,7 +281,7 @@ const bpmnShapes = {
         rect.setAttribute("rx", 10);
         engine.applyNodeStyle(rect, node);
 
-        const colors = engine.getNodeColors(node.type);
+        const colors = engine.getNodeStyle(node);
         const gx = node.x + 8 + 7, gy = node.y + 6 + 7, gr = 4.5, tr = 7;
         const teeth = 8;
 
@@ -318,7 +318,7 @@ const bpmnShapes = {
         rect.setAttribute("rx", 10);
         engine.applyNodeStyle(rect, node);
 
-        const colors = engine.getNodeColors(node.type);
+        const colors = engine.getNodeStyle(node);
         const ix = node.x + 7, iy = node.y + 7, ew = 14, eh = 10;
 
         const env = document.createElementNS(NS, "rect");
@@ -343,7 +343,7 @@ const bpmnShapes = {
         rect.setAttribute("rx", 10);
         engine.applyNodeStyle(rect, node);
 
-        const colors = engine.getNodeColors(node.type);
+        const colors = engine.getNodeStyle(node);
         const ix = node.x + 7, iy = node.y + 7, ew = 14, eh = 10;
 
         const env = document.createElementNS(NS, "rect");
@@ -368,7 +368,7 @@ const bpmnShapes = {
         rect.setAttribute("rx", 10);
         engine.applyNodeStyle(rect, node);
 
-        const colors = engine.getNodeColors(node.type);
+        const colors = engine.getNodeStyle(node);
         const ix = node.x + 8, iy = node.y + 6, sw = 12, sh = 16;
 
         const scroll = document.createElementNS(NS, "path");
@@ -404,7 +404,7 @@ const bpmnShapes = {
         const rect  = _el(group, "rect", { x: node.x, y: node.y, width: node.width, height: node.height, rx: 10 });
         engine.applyNodeStyle(rect, node);
 
-        const c = engine.getNodeColors(node.type).stroke;
+        const c = engine.getNodeStyle(node).stroke;
         const x = node.x + 8, y = node.y + 7;
         _el(group, "path", {
             d: `M ${x} ${y + 6} L ${x} ${y + 12} Q ${x} ${y + 14} ${x + 2} ${y + 14} L ${x + 11} ${y + 14} ` +
@@ -421,7 +421,7 @@ const bpmnShapes = {
         const rect  = _el(group, "rect", { x: node.x, y: node.y, width: node.width, height: node.height, rx: 10 });
         engine.applyNodeStyle(rect, node);
 
-        const c = engine.getNodeColors(node.type).stroke;
+        const c = engine.getNodeStyle(node).stroke;
         const x = node.x + 8, y = node.y + 7, w = 16, h = 12;
         _el(group, "rect", { x, y, width: w, height: h, fill: "#ffffff", stroke: c, "stroke-width": 1.2 });
         _el(group, "rect", { x, y, width: w, height: 3.5, fill: c, stroke: c, "stroke-width": 1.2 });
@@ -439,7 +439,7 @@ const bpmnShapes = {
         rect.setAttribute("rx", 10);
         engine.applyNodeStyle(rect, node);
 
-        const colors = engine.getNodeColors(node.type);
+        const colors = engine.getNodeStyle(node);
         const mx = node.x + node.width  / 2;
         const my = node.y + node.height - 14;
         const ms = 8;
@@ -482,7 +482,7 @@ const bpmnShapes = {
         polygon.setAttribute("points", `${cx},${node.y} ${node.x + node.width},${cy} ${cx},${node.y + node.height} ${node.x},${cy}`);
         engine.applyNodeStyle(polygon, node);
 
-        const colors = engine.getNodeColors(node.type);
+        const colors = engine.getNodeStyle(node);
         const s = Math.min(node.width, node.height) * 0.2;
         [[cx - s, cy - s, cx + s, cy + s], [cx + s, cy - s, cx - s, cy + s]].forEach(([x1, y1, x2, y2]) => {
             const l = document.createElementNS(NS, "line");
@@ -502,7 +502,7 @@ const bpmnShapes = {
         polygon.setAttribute("points", `${cx},${node.y} ${node.x + node.width},${cy} ${cx},${node.y + node.height} ${node.x},${cy}`);
         engine.applyNodeStyle(polygon, node);
 
-        const colors = engine.getNodeColors(node.type);
+        const colors = engine.getNodeStyle(node);
         const s = Math.min(node.width, node.height) * 0.2;
         [[cx - s, cy, cx + s, cy], [cx, cy - s, cx, cy + s]].forEach(([x1, y1, x2, y2]) => {
             const l = document.createElementNS(NS, "line");
@@ -522,7 +522,7 @@ const bpmnShapes = {
         polygon.setAttribute("points", `${cx},${node.y} ${node.x + node.width},${cy} ${cx},${node.y + node.height} ${node.x},${cy}`);
         engine.applyNodeStyle(polygon, node);
 
-        const colors = engine.getNodeColors(node.type);
+        const colors = engine.getNodeStyle(node);
         const circle = document.createElementNS(NS, "circle");
         circle.setAttribute("cx", cx); circle.setAttribute("cy", cy);
         circle.setAttribute("r", Math.min(node.width, node.height) * 0.18);
@@ -542,7 +542,7 @@ const bpmnShapes = {
         path.setAttribute("d", `M ${x} ${y} L ${x + w - fold} ${y} L ${x + w} ${y + fold} L ${x + w} ${y + h} L ${x} ${y + h} Z`);
         engine.applyNodeStyle(path, node);
 
-        const colors = engine.getNodeColors(node.type);
+        const colors = engine.getNodeStyle(node);
         const corner = document.createElementNS(NS, "path");
         corner.setAttribute("d", `M ${x + w - fold} ${y} L ${x + w - fold} ${y + fold} L ${x + w} ${y + fold}`);
         corner.setAttribute("fill", "none"); corner.setAttribute("stroke", colors.stroke); corner.setAttribute("stroke-width", "1.5");
@@ -568,7 +568,7 @@ const bpmnShapes = {
         top.setAttribute("rx", rx); top.setAttribute("ry", ry);
         engine.applyNodeStyle(top, node);
 
-        const colors = engine.getNodeColors(node.type);
+        const colors = engine.getNodeStyle(node);
         const bottom = document.createElementNS(NS, "ellipse");
         bottom.setAttribute("cx", cx); bottom.setAttribute("cy", node.y + node.height - ry);
         bottom.setAttribute("rx", rx); bottom.setAttribute("ry", ry);
@@ -587,7 +587,7 @@ const bpmnShapes = {
     // Text annotation — open bracket shape
     annotation(node, engine) {
         const group = document.createElementNS(NS, "g");
-        const colors = engine.getNodeColors(node.type);
+        const colors = engine.getNodeStyle(node);
         const bw = 12;
 
         const bg = document.createElementNS(NS, "rect");
@@ -615,7 +615,7 @@ const bpmnShapes = {
 
     swimlane(node, engine) {
         const group = document.createElementNS(NS, "g");
-        const colors = engine.getNodeColors(node.type);
+        const colors = engine.getNodeStyle(node);
         const orientation = (node.data && node.data.orientation) || "horizontal";
         const headerSize = POOL_HEADER;
 
@@ -681,7 +681,7 @@ const bpmnShapes = {
     // Pool — outer container that holds multiple swimlanes
     pool(node, engine) {
         const group = document.createElementNS(NS, "g");
-        const colors = engine.getNodeColors(node.type);
+        const colors = engine.getNodeStyle(node);
         const headerSize = POOL_HEADER;
 
         const body = document.createElementNS(NS, "rect");
