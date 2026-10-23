@@ -234,6 +234,8 @@ ports: [
   one, reorder, remove only this person (the team moves up) or with the team. Diagram events after the action's
   `modelchanged`: `managerchanged { nodeId, oldManagerId, newManagerId }`, `dottedlineadded` / `dottedlineremoved
   { nodeId, managerId }`.
+- **Colours:** variants `top` (person without a manager: dark blue, white text) and `manager` (person with reports:
+  light blue tint); everyone else a white card, vacancies grey and dashed. Presets still win per card.
 - **Later:** expand / collapse by clicking the "+n" badge; photo / initials, department colours and counts on the
   card; a search that opens collapsed teams and focuses a card.
 
@@ -329,6 +331,11 @@ new WeavleJS(container, {
             messageFlow: { dash: "6,4" }
         },
 
+        nodeVariants: {                                      // per structural variant (see below), e.g. org chart
+            top:     { fill: "#003B70", textColor: "#FFFFFF" },
+            manager: { fill: "#E6F0FA" }
+        },
+
         diagrams: {                                          // per diagram type (definition id), same keys
             ishikawa: { nodeTypes: { category: { fill: "#E6F0FA" } } }
         },
@@ -350,10 +357,15 @@ new WeavleJS(container, {
   definitions (e.g. `annotation`); `diagrams[id]` is for the cases where one name needs different styles per
   diagram type. One theme object can then serve every diagram type of an app (the OutSystems adapter rebuilds
   the editor per type with the same options).
+- `nodeVariants` style nodes by a role the definition derives from the diagram's structure
+  (`diagram.getNodeVariant(node, engine)`), not by their type: org chart `top` (a person without a manager) and
+  `manager` (a person with reports). The variant follows the structure by itself (someone who gets a report turns
+  into a manager), is not stored in the model and gives the node group the class `weavle-node--variant-{name}`.
+  To keep every card the same, set the variants back to the type's colours in the theme.
 - The theme is not part of the model, not part of undo and not reported in `weavle:modelchanged`.
 - API: `setTheme(theme)` (re-renders, no undo step), `getTheme()`. OutSystems: `options.theme` (JSON) and
   `controller.setTheme(themeJson)`.
-- Definitions ship their own colours as `diagram.defaultTheme` (`node`, `nodeTypes`, `edge`, `edgeTypes`, `presets`;
+- Definitions ship their own colours as `diagram.defaultTheme` (`node`, `nodeTypes`, `nodeVariants`, `edge`, `edgeTypes`, `presets`;
   not `ui` / `font`, which belong to the editor): flowchart `FLOWCHART_THEME`, BPMN `BPMN_THEME` (events per kind
   from `EVENT_COLORS`), Ishikawa `ISHIKAWA_THEME`. It is part of layer 2 of 7.6, so any `options.theme` overrides it.
   `getDefaultTheme()` (OutSystems: `controller.getDefaultTheme()`, JSON) returns it as a starting point for a house
@@ -388,10 +400,12 @@ export, type previews in the toolbar):
 engine.getNodeStyle(node)  /  engine.getEdgeStyle(edge)
 
   1. engine defaults                      (fill #eee, stroke #999, strokeWidth 1.5, ...)
-  2. definition default                   (nodeTypes[type].colors / .style, label colour; edgeTypes[type])
+  2. definition default                   (nodeTypes[type].colors / .style, label colour; edgeTypes[type];
+                                           then defaultTheme.nodeVariants[variant])
   3. generic theme                        theme.node / theme.edge, then theme.diagrams[id].node / .edge
   4. the type's fixedStyle                (properties a generic theme must not change)
   5. theme per type                       theme.nodeTypes[type] / theme.edgeTypes[type], then theme.diagrams[id]'s
+  5b. theme per variant (nodes)           theme.nodeVariants[variant], then theme.diagrams[id]'s
   6. theme.presets[item.style.preset]     (unknown presets are ignored)
   7. item.style                           (its own properties — only with options.allowCustomStyles)
 ```

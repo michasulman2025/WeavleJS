@@ -1,4 +1,4 @@
-/*! WeavleJS v0.9.0 | built 2026-10-23 14:28 UTC | (c) 2026 Micha Sulman | MIT License */
+/*! WeavleJS v0.9.0 | built 2026-10-23 14:36 UTC | (c) 2026 Micha Sulman | MIT License */
 //#region src/weavle-flowchart.js
 var e = "http://www.w3.org/2000/svg";
 function t(t, n, r) {
@@ -2978,22 +2978,24 @@ var he = class {
 	}
 	createNodeGroup(e) {
 		let t = "http://www.w3.org/2000/svg", n = document.createElementNS(t, "g");
-		n.setAttribute("data-node-id", e.id), n.setAttribute("data-node-type", e.type), n.setAttribute("class", `weavle-node weavle-node--${e.type}` + (e.style?.preset ? ` weavle-node--preset-${e.style.preset}` : "")), this.isNodeSelected(e.id);
-		let r = e.id === this.state.primarySelectedNodeId, i = (this.state.connectingNodeId !== null || this.state.reconnectingEdgeId !== null) && e.id === this.state.hoverNodeId;
-		if (i) {
+		n.setAttribute("data-node-id", e.id), n.setAttribute("data-node-type", e.type);
+		let r = this.getNodeVariant(e);
+		n.setAttribute("class", `weavle-node weavle-node--${e.type}` + (r ? ` weavle-node--variant-${r}` : "") + (e.style?.preset ? ` weavle-node--preset-${e.style.preset}` : "")), this.isNodeSelected(e.id);
+		let i = e.id === this.state.primarySelectedNodeId, a = (this.state.connectingNodeId !== null || this.state.reconnectingEdgeId !== null) && e.id === this.state.hoverNodeId;
+		if (a) {
 			let t = this.createHoverGlow(e);
 			n.appendChild(t);
 		}
-		let a = this.createNodeShape(e), o = this.createNodeText(e);
-		if (n.appendChild(a), e.id === this.state.dropTargetId) {
+		let o = this.createNodeShape(e), s = this.createNodeText(e);
+		if (n.appendChild(o), e.id === this.state.dropTargetId) {
 			let r = document.createElementNS(t, "rect");
 			r.setAttribute("x", e.x - 3), r.setAttribute("y", e.y - 3), r.setAttribute("width", e.width + 6), r.setAttribute("height", e.height + 6), r.setAttribute("rx", 8), r.setAttribute("fill", "rgba(46, 168, 223, 0.06)"), r.setAttribute("stroke", this.getUiColors().port), r.setAttribute("stroke-width", "2"), r.setAttribute("stroke-dasharray", "6,4"), r.setAttribute("class", "weavle-drop-target"), r.setAttribute("pointer-events", "none"), n.appendChild(r);
 		}
-		if (n.appendChild(o), o.getAttribute("data-truncated")) {
+		if (n.appendChild(s), s.getAttribute("data-truncated")) {
 			let e = document.createElementNS(t, "title");
-			e.textContent = o.getAttribute("data-full-label"), n.insertBefore(e, n.firstChild);
+			e.textContent = s.getAttribute("data-full-label"), n.insertBefore(e, n.firstChild);
 		}
-		if (r && this.getInteraction().connect && this.createSelectionHandles(e).forEach((e) => n.appendChild(e)), r && !this.options.readOnly && this.state.selectedNodeIds.length === 1 && !this.state.connectingNodeId && !this.state.reconnectingEdgeId && this.getResizeRules(e) && this.createResizeHandles(e).forEach((e) => n.appendChild(e)), i && this.state.hoverHandleName) {
+		if (i && this.getInteraction().connect && this.createSelectionHandles(e).forEach((e) => n.appendChild(e)), i && !this.options.readOnly && this.state.selectedNodeIds.length === 1 && !this.state.connectingNodeId && !this.state.reconnectingEdgeId && this.getResizeRules(e) && this.createResizeHandles(e).forEach((e) => n.appendChild(e)), a && this.state.hoverHandleName) {
 			let t = this.createHotHandle(e, this.state.hoverHandleName);
 			t && n.appendChild(t);
 		}
@@ -5940,14 +5942,18 @@ var he = class {
 		return (this.diagram.nodeTypes && this.diagram.nodeTypes[e])?.title || this.getDefaultLabelForType(e);
 	}
 	getNodeStyle(e) {
-		let t = e?.type, n = this.diagram.nodeTypes?.[t], r = this.getTheme(), i = r.diagrams?.[this.diagram.id] || {}, a = this.getDefaultTheme();
+		let t = e?.type, n = this.diagram.nodeTypes?.[t], r = this.getTheme(), i = r.diagrams?.[this.diagram.id] || {}, a = this.getDefaultTheme(), o = this.getNodeVariant(e);
 		return me(le, ...n ? [
 			a.node,
 			n.colors,
 			n.style,
 			{ textColor: this.getLabelLayout(e).color },
-			a.nodeTypes?.[t]
-		] : [], r.node, i.node, n?.fixedStyle, r.nodeTypes?.[t], i.nodeTypes?.[t], ...this.getItemStyleLayers(e));
+			a.nodeTypes?.[t],
+			o && a.nodeVariants?.[o]
+		] : [], r.node, i.node, n?.fixedStyle, r.nodeTypes?.[t], i.nodeTypes?.[t], o && r.nodeVariants?.[o], o && i.nodeVariants?.[o], ...this.getItemStyleLayers(e));
+	}
+	getNodeVariant(e) {
+		return !e?.id || typeof this.diagram.getNodeVariant != "function" ? null : this.diagram.getNodeVariant(e, this) || null;
 	}
 	getEdgeStyle(e) {
 		let t = this.getEdgeTypeDefinition(e), n = this.getDefaultTheme(), r = this.getTheme(), i = r.diagrams?.[this.diagram.id] || {};
@@ -7637,7 +7643,7 @@ function Pt(e) {
 				"text-anchor": "middle",
 				"font-size": 11,
 				"font-weight": "600",
-				fill: s.fill || "#FFFFFF",
+				fill: "#FFFFFF",
 				"pointer-events": "none",
 				class: "weavle-orgchart-badge-text"
 			});
@@ -7712,103 +7718,104 @@ function Rt(e, t) {
 		hiddenCount: 0
 	};
 }
-function zt(e, t, n, r) {
-	t.clear(), n.clear(), r.clear();
-	let i = Z(e);
-	if (!i.roots.length) return;
+function zt(e, t, n, r, i) {
+	t.clear(), n.clear(), r.clear(), i.clear();
+	let a = Z(e);
+	if (!a.roots.length) return;
+	for (let t of e.model.nodes) t.type === "person" && (a.managerOf(t) ? a.reports(t).length && i.set(t.id, "manager") : i.set(t.id, "top"));
 	for (let t of e.model.nodes) n.set(t.id, Rt(e, t));
-	let a = (e) => i.assistants(e).length ? 400 : 0, o = /* @__PURE__ */ new Map(), s = (e) => {
-		let t = i.team(e), n = e.width;
+	let o = (e) => a.assistants(e).length ? 400 : 0, s = /* @__PURE__ */ new Map(), c = (e) => {
+		let t = a.team(e), n = e.width;
 		if (!e.collapsed) {
-			if (Lt(i, e)) t.forEach(s), n = Math.max(e.width, 204);
+			if (Lt(a, e)) t.forEach(c), n = Math.max(e.width, 204);
 			else {
-				let r = t.reduce((e, t) => e + s(t), 0) + St * Math.max(0, t.length - 1);
-				n = Math.max(e.width, r, a(e));
+				let r = t.reduce((e, t) => e + c(t), 0) + St * Math.max(0, t.length - 1);
+				n = Math.max(e.width, r, o(e));
 			}
 		}
-		return o.set(e, n), n;
-	}, c = /* @__PURE__ */ new Map(), l = (e) => {
-		let t = i.descendants(e);
+		return s.set(e, n), n;
+	}, l = /* @__PURE__ */ new Map(), u = (e) => {
+		let t = a.descendants(e);
 		for (let n of t) n.x = e.x, n.y = e.y, r.add(n.id);
 		n.get(e.id).hiddenCount = t.length;
-	}, u = (e, t, n) => {
-		let r = o.get(e), a = i.team(e), s = {
+	}, d = (e, t, n) => {
+		let r = s.get(e), i = a.team(e), o = {
 			x: 0,
 			y: n + e.height
 		};
-		if (e.collapsed && i.reports(e).length) {
-			e.x = t + r / 2 - e.width / 2, e.y = n, l(e);
+		if (e.collapsed && a.reports(e).length) {
+			e.x = t + r / 2 - e.width / 2, e.y = n, u(e);
 			return;
 		}
-		if (Lt(i, e)) {
+		if (Lt(a, e)) {
 			e.x = t, e.y = n;
-			let r = t + Et / 2, i = n + e.height + Ot;
-			for (let n of a) {
-				u(n, t + Et, i);
-				let a = n.y + n.height / 2;
-				c.set(n.id, [
+			let r = t + Et / 2, a = n + e.height + Ot;
+			for (let n of i) {
+				d(n, t + Et, a);
+				let i = n.y + n.height / 2;
+				l.set(n.id, [
 					{
 						x: n.x,
-						y: a
+						y: i
 					},
 					{
 						x: r,
-						y: a
+						y: i
 					},
 					{
 						x: r,
 						y: e.y + e.height
 					}
-				]), i += n.height + Dt;
+				]), a += n.height + Dt;
 			}
 			return;
 		}
-		e.x = t + r / 2 - e.width / 2, e.y = n, s.x = e.x + e.width / 2;
-		let d = s.y, f = i.assistants(e);
+		e.x = t + r / 2 - e.width / 2, e.y = n, o.x = e.x + e.width / 2;
+		let c = o.y, f = a.assistants(e);
 		for (let e = 0; e < f.length; e += 2) {
-			let t = f.slice(e, e + 2), n = d + At;
+			let t = f.slice(e, e + 2), n = c + At;
 			t.forEach((e, t) => {
 				let r = t === 0;
-				e.x = r ? s.x + kt : s.x - kt - e.width, e.y = n;
+				e.x = r ? o.x + kt : o.x - kt - e.width, e.y = n;
 				let i = n + e.height / 2, a = r ? e.x : e.x + e.width;
-				c.set(e.id, [
+				l.set(e.id, [
 					{
 						x: a,
 						y: i
 					},
 					{
-						x: s.x,
+						x: o.x,
 						y: i
 					},
-					s
+					o
 				]);
-			}), d = n + Math.max(...t.map((e) => e.height));
+			}), c = n + Math.max(...t.map((e) => e.height));
 		}
-		if (!a.length) return;
-		let p = d + Ct, m = d + Ct / 2, h = t + (r - (a.reduce((e, t) => e + o.get(t), 0) + St * (a.length - 1))) / 2;
-		for (let e of a) {
-			u(e, h, p), h += o.get(e) + St;
+		if (!i.length) return;
+		let p = c + Ct, m = c + Ct / 2, h = t + (r - (i.reduce((e, t) => e + s.get(t), 0) + St * (i.length - 1))) / 2;
+		for (let e of i) {
+			d(e, h, p), h += s.get(e) + St;
 			let t = {
 				x: e.x + e.width / 2,
 				y: e.y
 			};
-			c.set(e.id, t.x === s.x ? [t, s] : [
+			l.set(e.id, t.x === o.x ? [t, o] : [
 				t,
 				{
 					x: t.x,
 					y: m
 				},
 				{
-					x: s.x,
+					x: o.x,
 					y: m
 				},
-				s
+				o
 			]);
 		}
-	}, d = i.roots[0];
-	s(d);
-	let f = Lt(i, d) ? d.x : d.x + d.width / 2 - o.get(d) / 2, p = d.y;
-	for (let e of i.roots) e !== d && s(e), u(e, f, p), f += o.get(e) + wt;
+	}, f = a.roots[0];
+	c(f);
+	let p = Lt(a, f) ? f.x : f.x + f.width / 2 - s.get(f) / 2, m = f.y;
+	for (let e of a.roots) e !== f && c(e), d(e, p, m), p += s.get(e) + wt;
 	for (let n of e.model.edges) {
 		let r = e.getNode(n.sourceNodeId);
 		if (!r) continue;
@@ -7816,7 +7823,7 @@ function zt(e, t, n, r) {
 			Bt(n, r, e.getNode(n.targetNodeId));
 			continue;
 		}
-		let i = c.get(n.sourceNodeId);
+		let i = l.get(n.sourceNodeId);
 		i && t.set(n.id, {
 			points: i,
 			at: {
@@ -7845,6 +7852,17 @@ var Vt = {
 			textColor: "#5B6573",
 			fontWeight: "600",
 			dash: "5,4"
+		}
+	},
+	nodeVariants: {
+		top: {
+			fill: "#1B5278",
+			stroke: "#0E3A57",
+			textColor: "#FFFFFF"
+		},
+		manager: {
+			fill: "#EAF2F8",
+			stroke: "#1B5278"
 		}
 	},
 	edgeTypes: {
@@ -7899,21 +7917,21 @@ function Wt(e) {
 	}));
 }
 function Gt() {
-	let e = /* @__PURE__ */ new Map(), t = /* @__PURE__ */ new Map(), n = /* @__PURE__ */ new Set(), r = (e, t) => {
+	let e = /* @__PURE__ */ new Map(), t = /* @__PURE__ */ new Map(), n = /* @__PURE__ */ new Set(), r = /* @__PURE__ */ new Map(), i = (e, t) => {
 		t.length && queueMicrotask(() => t.forEach(([t, n]) => e.emitDiagramEvent(t, n)));
-	}, i = (e, t, n, r, i) => {
+	}, a = (e, t, n, r, i) => {
 		let a = t.managerOf(n);
 		It(e, n, r), i.push(["managerchanged", {
 			nodeId: n.id,
 			oldManagerId: a?.id || "",
 			newManagerId: r?.id || ""
 		}]);
-	}, a = (e, t, n) => n !== t && n !== e.managerOf(t) && !e.dottedOf(t).includes(n), o = (e, t, n, r) => {
+	}, o = (e, t, n) => n !== t && n !== e.managerOf(t) && !e.dottedOf(t).includes(n), s = (e, t, n, r) => {
 		e.model.edges.push(Ft(e, t, n, "dottedLine")), r.push(["dottedlineadded", {
 			nodeId: t.id,
 			managerId: n.id
 		}]);
-	}, s = (e, t, n, r) => {
+	}, c = (e, t, n, r) => {
 		let i = e.model.nodes, a = t.reports(r).filter((e) => e !== n).pop() || r;
 		i.splice(i.indexOf(n), 1), i.splice(i.indexOf(a) + 1, 0, n);
 	};
@@ -7979,11 +7997,14 @@ function Gt() {
 				}
 			]);
 		},
-		layoutDiagram(r) {
-			zt(r, e, t, n);
+		layoutDiagram(i) {
+			zt(i, e, t, n, r);
 		},
 		isNodeHidden(e) {
 			return n.has(e.id);
+		},
+		getNodeVariant(e) {
+			return r.get(e.id) || null;
 		},
 		routeEdge({ sourcePoint: t, targetPoint: n, sourceHandle: r, targetHandle: i, edge: a, engine: o }) {
 			if (a && Y(a)) return o.buildRoutedEdgePoints(t, n, r, i, a);
@@ -8002,10 +8023,10 @@ function Gt() {
 			let i = new Set(r);
 			return t.getRenderOrder().reverse().find((e) => !i.has(e.id) && n.x >= e.x && n.x <= e.x + e.width && n.y >= e.y && n.y <= e.y + e.height) || null;
 		},
-		onNodeDrop(e, t, n, { altKey: c }) {
+		onNodeDrop(e, t, n, { altKey: r }) {
 			if (!t) return;
 			let l = Z(n), u = [];
-			c ? a(l, e, t) && o(n, e, t, u) : t !== l.managerOf(e) && (delete e.assistant, delete t.collapsed, s(n, l, e, t), i(n, l, e, t, u)), r(n, u);
+			r ? o(l, e, t) && s(n, e, t, u) : t !== l.managerOf(e) && (delete e.assistant, delete t.collapsed, c(n, l, e, t), a(n, l, e, t, u)), i(n, u);
 		},
 		canDeleteNode(e, t) {
 			let n = Z(t);
@@ -8107,57 +8128,57 @@ function Gt() {
 				label: i.length ? "Verwijderen (met team)" : "Verwijderen"
 			}), s;
 		},
-		handleAction(e, n, s) {
-			let c = Z(s), l = [];
+		handleAction(e, n, r) {
+			let c = Z(r), l = [];
 			switch (e.type) {
 				case "ocAddReport":
 				case "ocAddAssistant": {
 					delete n.collapsed;
-					let t = Kt(s, n, e.nodeType, c.reports(n).at(-1) || null);
-					return e.type === "ocAddAssistant" && (t.assistant = !0), qt(s, t), !0;
+					let t = Kt(r, n, e.nodeType, c.reports(n).at(-1) || null);
+					return e.type === "ocAddAssistant" && (t.assistant = !0), qt(r, t), !0;
 				}
 				case "ocAddColleague": {
 					let t = c.managerOf(n);
-					return t ? (qt(s, Kt(s, t, e.nodeType, n)), !0) : !1;
+					return t ? (qt(r, Kt(r, t, e.nodeType, n)), !0) : !1;
 				}
 				case "ocToggleCollapse": return c.reports(n).length ? (n.collapsed ? delete n.collapsed : n.collapsed = !0, !0) : !1;
 				case "ocToggleAssistant": return !c.managerOf(n) || c.reports(n).length ? !1 : (n.assistant ? delete n.assistant : n.assistant = !0, !0);
-				case "ocEditRole": return s.startInlineLabelEdit("node", n.id, {
+				case "ocEditRole": return r.startInlineLabelEdit("node", n.id, {
 					field: "role",
-					box: Nt(s, n, t)
+					box: Nt(r, n, t)
 				}), !1;
-				case "ocAddDotted": return s.startNodePick({
-					filter: (e) => a(Z(s), n, e),
+				case "ocAddDotted": return r.startNodePick({
+					filter: (e) => o(Z(r), n, e),
 					onPick: (e) => {
 						let t = [];
-						o(s, n, e, t), s.pushHistory(), s.emitModelChanged(), s.render(), r(s, t);
+						s(r, n, e, t), r.pushHistory(), r.emitModelChanged(), r.render(), i(r, t);
 					}
 				}), !1;
 				case "ocRemoveDotted": {
-					let t = s.model.edges, i = t.find((t) => Y(t) && t.sourceNodeId === n.id && t.targetNodeId === e.targetId);
-					return i ? (s.model.edges = t.filter((e) => e !== i), l.push(["dottedlineremoved", {
+					let t = r.model.edges, a = t.find((t) => Y(t) && t.sourceNodeId === n.id && t.targetNodeId === e.targetId);
+					return a ? (r.model.edges = t.filter((e) => e !== a), l.push(["dottedlineremoved", {
 						nodeId: n.id,
 						managerId: e.targetId
-					}]), r(s, l), !0) : !1;
+					}]), i(r, l), !0) : !1;
 				}
 				case "ocAddManager": {
-					let e = c.managerOf(n), t = Kt(s, e, "person", null), a = s.model.nodes;
-					return a.splice(a.indexOf(t), 1), a.splice(a.indexOf(n), 0, t), e || Object.assign(t, {
+					let e = c.managerOf(n), t = Kt(r, e, "person", null), o = r.model.nodes;
+					return o.splice(o.indexOf(t), 1), o.splice(o.indexOf(n), 0, t), e || Object.assign(t, {
 						x: n.x,
 						y: n.y
-					}), n.assistant && (t.assistant = !0, delete n.assistant), i(s, c, n, t, l), r(s, l), qt(s, t), !0;
+					}), n.assistant && (t.assistant = !0, delete n.assistant), a(r, c, n, t, l), i(r, l), qt(r, t), !0;
 				}
 				case "ocPromote": {
 					let e = c.managerOf(n), t = e && c.managerOf(e);
 					if (!t) return !1;
-					let a = s.model.nodes;
-					return a.splice(a.indexOf(n), 1), a.splice(a.indexOf(e) + 1, 0, n), delete n.assistant, i(s, c, n, t, l), r(s, l), !0;
+					let o = r.model.nodes;
+					return o.splice(o.indexOf(n), 1), o.splice(o.indexOf(e) + 1, 0, n), delete n.assistant, a(r, c, n, t, l), i(r, l), !0;
 				}
 				case "ocMove": {
-					let t = c.managerOf(n), r = t ? c.isAssistant(n) ? c.assistants(t) : c.team(t) : c.roots, i = r[r.indexOf(n) + e.direction];
-					if (!i) return !1;
-					let a = s.model.nodes, o = a.indexOf(n), l = a.indexOf(i);
-					return [a[o], a[l]] = [a[l], a[o]], !0;
+					let t = c.managerOf(n), i = t ? c.isAssistant(n) ? c.assistants(t) : c.team(t) : c.roots, a = i[i.indexOf(n) + e.direction];
+					if (!a) return !1;
+					let o = r.model.nodes, s = o.indexOf(n), l = o.indexOf(a);
+					return [o[s], o[l]] = [o[l], o[s]], !0;
 				}
 				case "ocRemoveOnly": {
 					let e = c.managerOf(n), t = c.reports(n);
@@ -8166,10 +8187,10 @@ function Gt() {
 						x: n.x,
 						y: n.y
 					});
-					let a = s.model.nodes.filter((e) => !t.includes(e));
-					return a.splice(a.indexOf(n), 1, ...t), s.model.nodes = a, t.forEach((t) => {
-						delete t.assistant, i(s, c, t, e, l);
-					}), s.model.edges = s.model.edges.filter((e) => e.sourceNodeId !== n.id && e.targetNodeId !== n.id), s.clearSelection?.(), s.clearNodeToolSurface?.(), s.emitSelectionChanged(), r(s, l), !0;
+					let o = r.model.nodes.filter((e) => !t.includes(e));
+					return o.splice(o.indexOf(n), 1, ...t), r.model.nodes = o, t.forEach((t) => {
+						delete t.assistant, a(r, c, t, e, l);
+					}), r.model.edges = r.model.edges.filter((e) => e.sourceNodeId !== n.id && e.targetNodeId !== n.id), r.clearSelection?.(), r.clearNodeToolSurface?.(), r.emitSelectionChanged(), i(r, l), !0;
 				}
 				case "changeType": {
 					if (!jt.includes(e.nodeType) || e.nodeType === n.type) return !1;

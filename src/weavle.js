@@ -1177,7 +1177,9 @@ export class WeavleJS {
         const group = document.createElementNS(NS, "g");
         group.setAttribute("data-node-id", node.id);
         group.setAttribute("data-node-type", node.type);
+        const variant = this.getNodeVariant(node);
         group.setAttribute("class", `weavle-node weavle-node--${node.type}` +
+            (variant ? ` weavle-node--variant-${variant}` : "") +
             (node.style?.preset ? ` weavle-node--preset-${node.style.preset}` : ""));
 
         const isSelected = this.isNodeSelected(node.id);
@@ -7129,6 +7131,9 @@ export class WeavleJS {
     //   4. the type's fixedStyle (properties a generic theme must not change, e.g. a pool's white
     //      header text or the transparent background of an Ishikawa cause)
     //   5. the theme per type: theme.nodeTypes[type] / theme.edgeTypes[type], then theme.diagrams[id]'s
+    //   5b. nodes only — the variant the definition derives from the diagram's structure
+    //      (diagram.getNodeVariant(node, engine), e.g. org chart "top" / "manager"): defaultTheme.nodeVariants
+    //      (in the definition layer, after its nodeTypes), then theme.nodeVariants and theme.diagrams[id]'s
     //   6. the item's preset: theme.presets[item.style.preset] (unknown presets are ignored)
     //   7. the item's own properties in item.style — only with options.allowCustomStyles
     //
@@ -7143,8 +7148,10 @@ export class WeavleJS {
         const diagram  = theme.diagrams?.[this.diagram.id] || {};
 
         const own        = this.getDefaultTheme();
+        const variant    = this.getNodeVariant(node);
         const definition = typeDef
-            ? [own.node, typeDef.colors, typeDef.style, { textColor: this.getLabelLayout(node).color }, own.nodeTypes?.[type]]
+            ? [own.node, typeDef.colors, typeDef.style, { textColor: this.getLabelLayout(node).color }, own.nodeTypes?.[type],
+               variant && own.nodeVariants?.[variant]]
             : [];
 
         return mergeStyles(
@@ -7153,8 +7160,18 @@ export class WeavleJS {
             theme.node, diagram.node,
             typeDef?.fixedStyle,
             theme.nodeTypes?.[type], diagram.nodeTypes?.[type],
+            variant && theme.nodeVariants?.[variant], variant && diagram.nodeVariants?.[variant],
             ...this.getItemStyleLayers(node)
         );
+    }
+
+    /**
+     * The node's variant: a style key the definition derives from the diagram's structure
+     * (diagram.getNodeVariant(node, engine); org chart: "top" / "manager"), or null. Type previews have none.
+     */
+    getNodeVariant(node) {
+        if (!node?.id || typeof this.diagram.getNodeVariant !== "function") return null;
+        return this.diagram.getNodeVariant(node, this) || null;
     }
 
     /** The resolved style of an edge (or of null for a preview line). Always has every property. */

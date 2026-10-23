@@ -23,6 +23,8 @@
     manager, alternately right and left, above the row of reports.
   - A collapsed card (node.collapsed) hides everything below it and shows "+n" on its bottom edge; the
     engine skips hidden nodes (isNodeHidden).
+  - Cards get a style variant from the structure (getNodeVariant): "top" for a person without a manager,
+    "manager" for a person with reports — coloured by nodeVariants in the (default) theme.
 
   Dragging a card drags it with its team; dropping it onto another card makes that card its manager
   (with Alt: adds a dotted line instead). Everything else goes through the node tools. Sibling order is
@@ -142,7 +144,7 @@ function createShapes(metrics) {
             }));
             const text = svgEl("text", {
                 x: cx, y: by + BADGE_H / 2 + 4, "text-anchor": "middle", "font-size": 11, "font-weight": "600",
-                fill: style.fill || "#FFFFFF", "pointer-events": "none", class: "weavle-orgchart-badge-text"
+                fill: "#FFFFFF", "pointer-events": "none", class: "weavle-orgchart-badge-text"
             });
             text.textContent = label;
             group.appendChild(text);
@@ -260,13 +262,22 @@ function fitCard(engine, node) {
  * for the label position and the "+n" badge, and `hidden` (ids under collapsed cards). `at` is where the
  * edge's report was placed, so routeEdge can shift the line along while a team is dragged.
  */
-function layoutOrgChart(engine, routes, metrics, hidden) {
+function layoutOrgChart(engine, routes, metrics, hidden, variants) {
     routes.clear();
     metrics.clear();
     hidden.clear();
+    variants.clear();
 
     const tree = readTree(engine);
     if (!tree.roots.length) return;
+
+    // Style variants from the structure (before sizing: a theme may give a variant another font).
+    // Vacancies keep their own look.
+    for (const node of engine.model.nodes) {
+        if (node.type !== "person") continue;
+        if (!tree.managerOf(node)) variants.set(node.id, "top");
+        else if (tree.reports(node).length) variants.set(node.id, "manager");
+    }
 
     for (const node of engine.model.nodes) metrics.set(node.id, fitCard(engine, node));
 
@@ -412,11 +423,18 @@ function pickDottedHandles(edge, report, manager) {
     }
 }
 
-// The definition's own colours (ARCHITECTURE.md 7.4): the bottom layer under any theme.
+// The definition's own colours (ARCHITECTURE.md 7.4): the bottom layer under any theme. Variants come from
+// the structure (getNodeVariant): "top" = a person without a manager, "manager" = a person with reports.
+// Kept subtle on purpose: the top stands out, managers are only tinted. A theme overrides them through
+// nodeVariants (or makes them plain again with the person colours).
 const ORGCHART_THEME = {
     nodeTypes: {
         person:  { fill: "#FFFFFF", stroke: "#1B5278", textColor: "#1F2933", fontWeight: "600" },
         vacancy: { fill: "#F7F8FA", stroke: "#8A94A3", textColor: "#5B6573", fontWeight: "600", dash: "5,4" }
+    },
+    nodeVariants: {
+        top:     { fill: "#1B5278", stroke: "#0E3A57", textColor: "#FFFFFF" },
+        manager: { fill: "#EAF2F8", stroke: "#1B5278" }
     },
     edgeTypes: {
         reportsTo:  { stroke: "#8A94A3" },
@@ -514,9 +532,10 @@ export function orgChartToList(model) {
 export function createOrgChartDefinition() {
     // From the last layout: lines per edge id, per card its name block height and hidden count, and
     // the ids hidden under collapsed cards.
-    const routes  = new Map();
-    const metrics = new Map();
-    const hidden  = new Set();
+    const routes   = new Map();
+    const metrics  = new Map();
+    const hidden   = new Set();
+    const variants = new Map();   // node id → "top" | "manager"
 
     // Diagram events of the running action, dispatched once its weavle:modelchanged has gone out.
     const report = (engine, events) => {
@@ -586,11 +605,16 @@ export function createOrgChartDefinition() {
         },
 
         layoutDiagram(engine) {
-            layoutOrgChart(engine, routes, metrics, hidden);
+            layoutOrgChart(engine, routes, metrics, hidden, variants);
         },
 
         isNodeHidden(node) {
             return hidden.has(node.id);
+        },
+
+        // Style variant from the last layout: "top" (no manager) or "manager" (has reports); see ORGCHART_THEME.
+        getNodeVariant(node) {
+            return variants.get(node.id) || null;
         },
 
         // Tree lines: the line from the last layout, shifted by how far its report moved since (a team

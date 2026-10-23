@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Added
+- **Style variants** (ARCHITECTURE.md 7.4 / 7.6): a definition can derive a variant per node from the diagram's
+  structure (`getNodeVariant(node, engine)`), styled by `nodeVariants` in its default theme and in `options.theme`
+  (also per diagram), between the per-type layers and presets; class `weavle-node--variant-{name}`. Org chart: the
+  top (a person without a manager) is dark blue with white text, managers (a person with reports) get a light blue
+  tint, everyone else stays a white card; it follows changes by itself. The sample house style colours them navy /
+  warm.
 - **Org chart, step 2**: drag a card onto another card to make that its manager (the target is highlighted; with
   Alt it adds a dotted line instead; dropped elsewhere the card goes back). Collapse / expand a team ("+n" on the
   card). Assistants beside the line under their manager (node tool "Assistent maken", or "Medewerker toevoegen" →

@@ -60,6 +60,13 @@ export const houseStyleTheme = {
             edgeTypes: {
                 bone: { stroke: DEEP_NAVY }
             }
+        },
+        // Org chart: the top in navy, managers on the warm background; everyone else a white card.
+        orgchart: {
+            nodeVariants: {
+                top:     { fill: NAVY, stroke: DEEP_NAVY, textColor: WHITE },
+                manager: { fill: WARM, stroke: NAVY }
+            }
         }
     },
 

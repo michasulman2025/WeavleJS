@@ -152,6 +152,9 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
   `ocMove`, `ocRemoveOnly`, `changeType`; events `managerchanged`, `dottedlineadded`, `dottedlineremoved` (queued after
   the action's `modelchanged`). Definition `modelFromList` / `modelToList` drive the adapter's `setModelFromList` /
   `getList` / `onListChanged`.
+- Style variants: `diagram.getNodeVariant(node, engine)` → a key into `nodeVariants` (definition `defaultTheme`, then
+  `theme.nodeVariants` / `theme.diagrams[id].nodeVariants`, after the per-type layers, before presets); class
+  `weavle-node--variant-{name}`. Org chart: `top` / `manager` for persons, computed in the layout (`variants`).
 - Engine hooks for definitions (generic): `isNodeHidden(node, engine)` (not drawn, hit, marquee-selected or routed
   around; nor its edges), `getDropTarget(node, engine, { pos, draggedIds })` (highlighted while dragging; default the
   container) + `onNodeDrop(node, target, engine, { altKey, shiftKey })` on release, `edgeTypes[type].fixed` (kept by
