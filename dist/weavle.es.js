@@ -1,4 +1,4 @@
-/*! WeavleJS v0.9.0 | built 2026-10-23 14:36 UTC | (c) 2026 Micha Sulman | MIT License */
+/*! WeavleJS v0.9.0 | built 2026-10-23 15:00 UTC | (c) 2026 Micha Sulman | MIT License */
 //#region src/weavle-flowchart.js
 var e = "http://www.w3.org/2000/svg";
 function t(t, n, r) {
@@ -2821,7 +2821,9 @@ var he = class {
 			width: 0,
 			height: 0
 		}, i = Math.ceil(r.width + 2 * e), a = Math.ceil(r.height + 2 * e), o = this.svg.cloneNode(!0);
-		o.querySelectorAll("[data-layer=\"grid\"], [data-layer=\"overlay\"], [data-layer=\"debug\"]").forEach((e) => e.replaceChildren()), o.querySelectorAll(".weavle-edge-hit, .weavle-resize-handle, .weavle-port, [filter*=\"hover-glow\"]").forEach((e) => e.remove()), o.querySelectorAll(".is-selected, .is-preview").forEach((e) => e.classList.remove("is-selected", "is-preview")), o.querySelector("[data-viewport]").setAttribute("transform", `translate(${e - r.x}, ${e - r.y})`), o.setAttribute("xmlns", n), o.setAttribute("width", i), o.setAttribute("height", a), o.setAttribute("viewBox", `0 0 ${i} ${a}`), o.setAttribute("class", "weavle-export"), o.removeAttribute("style");
+		o.querySelectorAll("[data-layer=\"grid\"], [data-layer=\"overlay\"], [data-layer=\"debug\"]").forEach((e) => e.replaceChildren()), o.querySelectorAll(".weavle-edge-hit, .weavle-resize-handle, .weavle-port, [filter*=\"hover-glow\"]").forEach((e) => e.remove()), o.querySelectorAll(".weavle-node-button:not(.weavle-node-button--export)").forEach((e) => e.remove()), o.querySelectorAll(".weavle-node-button").forEach((e) => {
+			e.removeAttribute("data-node-button"), e.querySelector("title")?.remove();
+		}), o.querySelectorAll(".is-selected, .is-preview").forEach((e) => e.classList.remove("is-selected", "is-preview")), o.querySelector("[data-viewport]").setAttribute("transform", `translate(${e - r.x}, ${e - r.y})`), o.setAttribute("xmlns", n), o.setAttribute("width", i), o.setAttribute("height", a), o.setAttribute("viewBox", `0 0 ${i} ${a}`), o.setAttribute("class", "weavle-export"), o.removeAttribute("style");
 		let s = this.svg.querySelector(".weavle-node-label");
 		if (o.setAttribute("font-family", s ? getComputedStyle(s).fontFamily : "sans-serif"), t) {
 			let e = document.createElementNS(n, "rect");
@@ -2991,7 +2993,7 @@ var he = class {
 			let r = document.createElementNS(t, "rect");
 			r.setAttribute("x", e.x - 3), r.setAttribute("y", e.y - 3), r.setAttribute("width", e.width + 6), r.setAttribute("height", e.height + 6), r.setAttribute("rx", 8), r.setAttribute("fill", "rgba(46, 168, 223, 0.06)"), r.setAttribute("stroke", this.getUiColors().port), r.setAttribute("stroke-width", "2"), r.setAttribute("stroke-dasharray", "6,4"), r.setAttribute("class", "weavle-drop-target"), r.setAttribute("pointer-events", "none"), n.appendChild(r);
 		}
-		if (n.appendChild(s), s.getAttribute("data-truncated")) {
+		if (n.appendChild(s), this.createNodeButtons(e).forEach((e) => n.appendChild(e)), s.getAttribute("data-truncated")) {
 			let e = document.createElementNS(t, "title");
 			e.textContent = s.getAttribute("data-full-label"), n.insertBefore(e, n.firstChild);
 		}
@@ -3000,6 +3002,67 @@ var he = class {
 			t && n.appendChild(t);
 		}
 		return n;
+	}
+	getNodeButtons(e) {
+		if (typeof this.diagram.getNodeButtons != "function") return [];
+		let t = this.diagram.getNodeButtons(e, this) || [];
+		return this.options.readOnly ? t.filter((e) => e.readOnly) : t;
+	}
+	createNodeButtons(e) {
+		let t = this.getNodeButtons(e);
+		if (!t.length) return [];
+		let n = this.getNodeStyle(e), r = this.isNodeSelected(e.id), i = (e, t) => {
+			let n = document.createElementNS("http://www.w3.org/2000/svg", e);
+			for (let [e, r] of Object.entries(t)) n.setAttribute(e, r);
+			return n;
+		};
+		return t.map((e, t) => {
+			let a = e.fill || n.stroke, o = e.color || "#FFFFFF", s = e.text ? Math.max(16, 10 + String(e.text).length * 7) : 16, c = i("g", {
+				class: "weavle-node-button" + (e.show === "hover" ? " weavle-node-button--hover" : "") + (e.show === "hover" && r ? " is-visible" : "") + (e.keepInExport ? " weavle-node-button--export" : ""),
+				"data-node-button": t
+			});
+			if (e.title) {
+				let t = i("title", {});
+				t.textContent = e.title, c.appendChild(t);
+			}
+			if (c.appendChild(i("rect", {
+				x: e.x - s / 2,
+				y: e.y - 8,
+				width: s,
+				height: 16,
+				rx: 8,
+				fill: a,
+				stroke: "#FFFFFF",
+				"stroke-width": 1.5,
+				class: "weavle-node-button-bg"
+			})), e.text) {
+				let t = i("text", {
+					x: e.x,
+					y: e.y + 4,
+					"text-anchor": "middle",
+					"font-size": 11,
+					"font-weight": "600",
+					fill: o,
+					"pointer-events": "none"
+				});
+				t.textContent = e.text, c.appendChild(t);
+			} else if (e.icon === "plus" || e.icon === "minus") {
+				let t = `M ${e.x - 4} ${e.y} L ${e.x + 4} ${e.y}` + (e.icon === "plus" ? ` M ${e.x} ${e.y - 4} L ${e.x} ${e.y + 4}` : "");
+				c.appendChild(i("path", {
+					d: t,
+					stroke: o,
+					"stroke-width": 2,
+					"stroke-linecap": "round",
+					fill: "none",
+					"pointer-events": "none"
+				}));
+			}
+			return c;
+		});
+	}
+	handleNodeButtonClick(e) {
+		let t = e.target?.closest?.("[data-node-button]"), n = t?.closest("[data-node-id]"), r = n && this.getNode(n.getAttribute("data-node-id")), i = r && this.getNodeButtons(r)[Number(t.getAttribute("data-node-button"))];
+		return !i || e.button !== 0 ? !1 : (e.preventDefault(), e.stopPropagation(), this.handleContextAction(i.action, r), this.render(), !0);
 	}
 	createNodeShape(e) {
 		let t = this.diagram.nodeTypes && this.diagram.nodeTypes[e.type], n = t && t.shape ? t.shape : "process", r = this.diagram.shapes && this.diagram.shapes[n];
@@ -6124,6 +6187,7 @@ var he = class {
 			this.commitInlineLabelEdit();
 			return;
 		}
+		if (!this.state.nodePick && this.handleNodeButtonClick(e)) return;
 		if (this.state.nodePick && e.button === 0) {
 			let t = this.state.nodePick, n = this.getMousePosition(e), r = this.findNodeAt(n.x, n.y);
 			r && t.filter(r) ? (this.state.nodePick = null, this.state.dropTargetId = null, this.svg.classList.remove("is-picking"), t.onPick(r), this.render()) : this.cancelNodePick(), e.preventDefault();
@@ -6902,68 +6966,68 @@ function Be(e) {
 }
 //#endregion
 //#region src/weavle-fta.js
-var Ve = "http://www.w3.org/2000/svg", He = 24, Ue = 16, We = 44, Ge = 28, j = 150, Ke = 46, qe = 120, Je = 40, Ye = {
+var Ve = "http://www.w3.org/2000/svg", He = 24, Ue = 16, We = 44, Ge = 28, j = 150, M = 46, Ke = 120, qe = 40, Je = {
 	placement: "inside",
 	fontSize: 13,
 	paddingX: 8,
 	paddingY: 7,
 	maxLines: 5
-}, Xe = {
+}, Ye = {
 	placement: "below",
 	fontSize: 12,
 	belowWidth: 120,
 	belowGap: 5,
 	maxLines: 4
-}, Ze = {
+}, Xe = {
 	placement: "inside",
 	fontSize: 12,
 	paddingX: 6,
 	paddingY: 6,
 	widthFactor: .78,
 	maxLines: 3
-}, Qe = {
+}, Ze = {
 	placement: "inside",
 	fontSize: 10,
 	paddingX: 2,
 	paddingY: 2,
 	maxLines: 1
-}, $e = 1.25, et = .18, M = [
+}, Qe = 1.25, $e = .18, N = [
 	"orGate",
 	"andGate",
 	"xorGate",
 	"priorityAndGate",
 	"votingGate",
 	"inhibitGate"
-], tt = ["topEvent", "event"], nt = [
+], et = ["topEvent", "event"], tt = [
 	"basicEvent",
 	"undevelopedEvent",
 	"houseEvent",
 	"transfer"
-], N = ["event", ...nt], P = (e) => M.includes(e?.type), F = (e) => tt.includes(e?.type);
-function I(e, t) {
+], P = ["event", ...tt], F = (e) => N.includes(e?.type), I = (e) => et.includes(e?.type);
+function L(e, t) {
 	let n = document.createElementNS(Ve, e);
 	for (let [e, r] of Object.entries(t)) n.setAttribute(e, r);
 	return n;
 }
-function L(e, t, n) {
-	let r = I("polygon", { points: e.map((e) => `${e[0]},${e[1]}`).join(" ") });
+function nt(e, t, n) {
+	let r = L("polygon", { points: e.map((e) => `${e[0]},${e[1]}`).join(" ") });
 	return n.applyNodeStyle(r, t), r;
 }
 function rt(e, t, n, r, i) {
 	let a = e + n / 2;
-	return `M ${e} ${i} Q ${a} ${i - r * et * 2} ${e + n} ${i} Q ${e + n} ${t + r * .35} ${a} ${t} Q ${e} ${t + r * .35} ${e} ${i} Z`;
+	return `M ${e} ${i} Q ${a} ${i - r * $e * 2} ${e + n} ${i} Q ${e + n} ${t + r * .35} ${a} ${t} Q ${e} ${t + r * .35} ${e} ${i} Z`;
 }
 function it(e, t, n, r) {
 	let i = r * .5;
 	return `M ${e} ${t + r} L ${e} ${t + i} A ${n / 2} ${i} 0 0 1 ${e + n} ${t + i} L ${e + n} ${t + r} Z`;
 }
 function R(e, t, n) {
-	let r = I("path", { d: e });
+	let r = L("path", { d: e });
 	return n.applyNodeStyle(r, t), r;
 }
 function at(e, t, n) {
 	let r = n.getNodeStyle(t);
-	return I("path", {
+	return L("path", {
 		d: e,
 		fill: "none",
 		stroke: r.stroke,
@@ -6972,7 +7036,7 @@ function at(e, t, n) {
 }
 var ot = {
 	eventBox(e, t) {
-		let n = I("rect", {
+		let n = L("rect", {
 			x: e.x,
 			y: e.y,
 			width: e.width,
@@ -6982,7 +7046,7 @@ var ot = {
 		return t.applyNodeStyle(n, e), n;
 	},
 	basicEvent(e, t) {
-		let n = Math.min(e.width, e.height) / 2, r = I("circle", {
+		let n = Math.min(e.width, e.height) / 2, r = L("circle", {
 			cx: e.x + e.width / 2,
 			cy: e.y + e.height / 2,
 			r: n
@@ -6991,7 +7055,7 @@ var ot = {
 	},
 	undevelopedEvent(e, t) {
 		let { x: n, y: r, width: i, height: a } = e;
-		return L([
+		return nt([
 			[n + i / 2, r],
 			[n + i, r + a / 2],
 			[n + i / 2, r + a],
@@ -7000,7 +7064,7 @@ var ot = {
 	},
 	houseEvent(e, t) {
 		let { x: n, y: r, width: i, height: a } = e;
-		return L([
+		return nt([
 			[n + i / 2, r],
 			[n + i, r + a * .38],
 			[n + i, r + a],
@@ -7010,14 +7074,14 @@ var ot = {
 	},
 	transfer(e, t) {
 		let { x: n, y: r, width: i, height: a } = e;
-		return L([
+		return nt([
 			[n + i / 2, r],
 			[n + i, r + a],
 			[n, r + a]
 		], e, t);
 	},
 	conditionEvent(e, t) {
-		let n = I("ellipse", {
+		let n = L("ellipse", {
 			cx: e.x + e.width / 2,
 			cy: e.y + e.height / 2,
 			rx: e.width / 2,
@@ -7030,16 +7094,16 @@ var ot = {
 		return R(rt(n, r, i, a, r + a), e, t);
 	},
 	xorGate(e, t) {
-		let { x: n, y: r, width: i, height: a } = e, o = I("g", {});
-		return o.appendChild(R(rt(n, r, i, a - 6, r + a - 6), e, t)), o.appendChild(at(`M ${n} ${r + a} Q ${n + i / 2} ${r + a - 2 * a * et} ${n + i} ${r + a}`, e, t)), o;
+		let { x: n, y: r, width: i, height: a } = e, o = L("g", {});
+		return o.appendChild(R(rt(n, r, i, a - 6, r + a - 6), e, t)), o.appendChild(at(`M ${n} ${r + a} Q ${n + i / 2} ${r + a - 2 * a * $e} ${n + i} ${r + a}`, e, t)), o;
 	},
 	votingGate(e, t) {
-		let { x: n, y: r, width: i, height: a } = e, o = I("g", {});
+		let { x: n, y: r, width: i, height: a } = e, o = L("g", {});
 		o.appendChild(R(rt(n, r, i, a, r + a), e, t));
 		let { k: s, n: c } = t.getNode(e.id) ? st(t, e) : {
 			k: "k",
 			n: "n"
-		}, l = t.getNodeStyle(e), u = I("text", {
+		}, l = t.getNodeStyle(e), u = L("text", {
 			x: n + i / 2,
 			y: r + a * .6,
 			"text-anchor": "middle",
@@ -7056,12 +7120,12 @@ var ot = {
 		return R(it(n, r, i, a), e, t);
 	},
 	priorityAndGate(e, t) {
-		let { x: n, y: r, width: i, height: a } = e, o = I("g", {});
+		let { x: n, y: r, width: i, height: a } = e, o = L("g", {});
 		return o.appendChild(R(it(n, r, i, a), e, t)), o.appendChild(at(`M ${n} ${r + a * .8} L ${n + i} ${r + a * .8}`, e, t)), o;
 	},
 	inhibitGate(e, t) {
 		let { x: n, y: r, width: i, height: a } = e;
-		return L([
+		return nt([
 			[n + i / 2, r],
 			[n + i, r + a / 4],
 			[n + i, r + a * 3 / 4],
@@ -7084,7 +7148,7 @@ function z(e) {
 		children: i,
 		inputs: (e) => i(e).filter((e) => e.type !== "conditionEvent"),
 		condition: (e) => i(e).find((e) => e.type === "conditionEvent") || null,
-		gateOf: (e) => i(e).find(P) || null
+		gateOf: (e) => i(e).find(F) || null
 	};
 }
 function st(e, t) {
@@ -7105,8 +7169,8 @@ function ct(e, t, n) {
 	};
 }
 function lt(e, t) {
-	let n = t.type === "conditionEvent", r = n ? Ze : Ye, i = n ? qe : j, a = e.getNodeStyle(t), o = i * (r.widthFactor ?? 1) - 2 * r.paddingX, { lines: s } = e.wrapLabel(t.label || "", o, r.maxLines, r.fontSize, a), c = Math.max(1, s.length) * r.fontSize * $e;
-	t.width = i, t.height = Math.max(n ? Je : Ke, Math.ceil((c + 2 * r.paddingY) / (n ? .8 : 1)));
+	let n = t.type === "conditionEvent", r = n ? Xe : Je, i = n ? Ke : j, a = e.getNodeStyle(t), o = i * (r.widthFactor ?? 1) - 2 * r.paddingX, { lines: s } = e.wrapLabel(t.label || "", o, r.maxLines, r.fontSize, a), c = Math.max(1, s.length) * r.fontSize * Qe;
+	t.width = i, t.height = Math.max(n ? qe : M, Math.ceil((c + 2 * r.paddingY) / (n ? .8 : 1)));
 }
 function ut(e) {
 	return {
@@ -7119,14 +7183,14 @@ function dt(e) {
 		"orGate",
 		"xorGate",
 		"votingGate"
-	].includes(e.type) ? e.height * et : 0;
+	].includes(e.type) ? e.height * $e : 0;
 	return {
 		x: e.x + e.width / 2,
 		y: t - n
 	};
 }
 function ft(e, t, n) {
-	if (nt.includes(n.type)) return Math.max(n.width, Xe.belowWidth);
+	if (tt.includes(n.type)) return Math.max(n.width, Ye.belowWidth);
 	let r = n.type === "inhibitGate" && t.condition(n);
 	return r ? n.width + 2 * (Ge + r.width) : n.width;
 }
@@ -7135,7 +7199,7 @@ function pt(e, t) {
 	let n = z(e), r = n.top;
 	if (!r) return;
 	let i = e.diagram.getDefaultSize;
-	for (let t of e.model.nodes) F(t) || t.type === "conditionEvent" ? lt(e, t) : (!t.width || !t.height) && Object.assign(t, i(t.type));
+	for (let t of e.model.nodes) I(t) || t.type === "conditionEvent" ? lt(e, t) : (!t.width || !t.height) && Object.assign(t, i(t.type));
 	let a = /* @__PURE__ */ new Map(), o = (t) => {
 		let r = n.inputs(t), i = r.reduce((e, t) => e + o(t), 0) + He * Math.max(0, r.length - 1), s = Math.max(ft(e, n, t), i);
 		return a.set(t, s), s;
@@ -7144,7 +7208,7 @@ function pt(e, t) {
 		e.x = t + i / 2 - e.width / 2, e.y = r;
 		let o = n.inputs(e);
 		if (o.length) {
-			let n = dt(e), r = n.y + (P(e) ? We : Ue), l = (n.y + r) / 2, u = t + (i - (o.reduce((e, t) => e + a.get(t), 0) + He * (o.length - 1))) / 2;
+			let n = dt(e), r = n.y + (F(e) ? We : Ue), l = (n.y + r) / 2, u = t + (i - (o.reduce((e, t) => e + a.get(t), 0) + He * (o.length - 1))) / 2;
 			for (let e of o) {
 				c(e, u, r), u += a.get(e) + He;
 				let t = ut(e);
@@ -7318,7 +7382,7 @@ function ht() {
 					x: 400,
 					y: 80,
 					width: j,
-					height: Ke
+					height: M
 				},
 				{
 					id: "gate-1",
@@ -7400,15 +7464,15 @@ function ht() {
 					active: r.current === e
 				}))
 			}), o = [];
-			if (F(e)) {
+			if (I(e)) {
 				let t = n.gateOf(e);
-				t ? (o.push(a("Oorzaak toevoegen", "ftaAddInput", N, { icon: "branch" })), o.push(a("Poort wijzigen", "ftaChangeGate", M, {
+				t ? (o.push(a("Oorzaak toevoegen", "ftaAddInput", P, { icon: "branch" })), o.push(a("Poort wijzigen", "ftaChangeGate", N, {
 					nodeType: t.type,
 					current: t.type
-				}))) : o.push(a("Poort toevoegen", "ftaAddGate", M, { icon: "branch" }));
+				}))) : o.push(a("Poort toevoegen", "ftaAddGate", N, { icon: "branch" }));
 			}
-			if (P(e)) {
-				if (o.push(a("Invoer toevoegen", "ftaAddInput", N, { icon: "branch" })), o.push(a("Type wijzigen", "ftaChangeGate", M, {
+			if (F(e)) {
+				if (o.push(a("Invoer toevoegen", "ftaAddInput", P, { icon: "branch" })), o.push(a("Type wijzigen", "ftaChangeGate", N, {
 					icon: "wrench",
 					current: e.type
 				})), e.type === "votingGate") {
@@ -7431,12 +7495,12 @@ function ht() {
 					nodeType: "conditionEvent"
 				});
 			}
-			if (N.includes(e.type) && P(r)) {
-				let t = n.children(e).length ? ["event"] : N;
+			if (P.includes(e.type) && F(r)) {
+				let t = n.children(e).length ? ["event"] : P;
 				t.length > 1 && o.push(a("Type wijzigen", "changeType", t, {
 					icon: "wrench",
 					current: e.type
-				})), o.push(a("Ernaast toevoegen", "ftaAddSibling", N, { icon: "plus" }));
+				})), o.push(a("Ernaast toevoegen", "ftaAddSibling", P, { icon: "plus" }));
 				let i = n.inputs(r), s = i.indexOf(e);
 				s > 0 && o.push({
 					type: "ftaMove",
@@ -7459,22 +7523,22 @@ function ht() {
 			let r = z(n);
 			switch (e.type) {
 				case "ftaAddGate": {
-					if (!F(t) || r.gateOf(t)) return !1;
+					if (!I(t) || r.gateOf(t)) return !1;
 					let i = V(n, t, e.nodeType, null), a = V(n, i, "basicEvent", null);
 					return i.type === "inhibitGate" ? V(n, i, "conditionEvent", null) : V(n, i, "basicEvent", null), H(n, a), !0;
 				}
 				case "ftaAddInput": {
-					let i = P(t) ? t : r.gateOf(t);
-					return !i && F(t) && (i = V(n, t, "orGate", null)), i ? (H(n, V(n, i, e.nodeType, gt(n, i))), !0) : !1;
+					let i = F(t) ? t : r.gateOf(t);
+					return !i && I(t) && (i = V(n, t, "orGate", null)), i ? (H(n, V(n, i, e.nodeType, gt(n, i))), !0) : !1;
 				}
 				case "ftaAddSibling": {
 					let i = r.parentOf(t);
-					return P(i) ? (H(n, V(n, i, e.nodeType, t)), !0) : !1;
+					return F(i) ? (H(n, V(n, i, e.nodeType, t)), !0) : !1;
 				}
 				case "ftaAddCondition": return t.type !== "inhibitGate" || r.condition(t) ? !1 : (H(n, V(n, t, "conditionEvent", null)), !0);
 				case "ftaChangeGate": {
-					let n = P(t) ? t : r.gateOf(t);
-					if (!n || !M.includes(e.nodeType) || n.type === e.nodeType) return !1;
+					let n = F(t) ? t : r.gateOf(t);
+					if (!n || !N.includes(e.nodeType) || n.type === e.nodeType) return !1;
 					let i = r.condition(n);
 					return i && e.nodeType !== "inhibitGate" && (i.type = "basicEvent", i.width = i.height = 0), n.type = e.nodeType, n.type !== "votingGate" && delete n.k, !0;
 				}
@@ -7486,7 +7550,7 @@ function ht() {
 					return [s[c], s[l]] = [s[l], s[c]], !0;
 				}
 				case "changeType": {
-					if (!N.includes(e.nodeType) || e.nodeType === t.type || r.children(t).length && e.nodeType !== "event") return !1;
+					if (!P.includes(e.nodeType) || e.nodeType === t.type || r.children(t).length && e.nodeType !== "event") return !1;
 					let n = this.nodeTypes[t.type]?.defaultLabel;
 					return t.type = e.nodeType, (!t.label || t.label === n) && (t.label = this.nodeTypes[t.type].defaultLabel), t.width = t.height = 0, !0;
 				}
@@ -7497,11 +7561,11 @@ function ht() {
 			return {
 				topEvent: {
 					width: j,
-					height: Ke
+					height: M
 				},
 				event: {
 					width: j,
-					height: Ke
+					height: M
 				},
 				basicEvent: {
 					width: 44,
@@ -7520,8 +7584,8 @@ function ht() {
 					height: 40
 				},
 				conditionEvent: {
-					width: qe,
-					height: Je
+					width: Ke,
+					height: qe
 				}
 			}[e] || {
 				width: 44,
@@ -7532,7 +7596,7 @@ function ht() {
 			return "action-surface";
 		},
 		getLabelLayout(e) {
-			return F(e) ? Ye : e.type === "conditionEvent" ? Ze : P(e) ? Qe : Xe;
+			return I(e) ? Je : e.type === "conditionEvent" ? Xe : F(e) ? Ze : Ye;
 		},
 		getResizeRules() {
 			return !1;
@@ -7562,20 +7626,20 @@ function H(e, t) {
 }
 //#endregion
 //#region src/weavle-orgchart.js
-var _t = "http://www.w3.org/2000/svg", U = 180, W = 52, vt = 4, yt = 10, bt = 8, xt = 2, St = 20, Ct = 40, wt = 60, Tt = 3, Et = 24, Dt = 10, Ot = 16, kt = 20, At = 14, G = 16, K = {
+var _t = "http://www.w3.org/2000/svg", U = 180, W = 52, vt = 4, yt = 10, bt = 8, xt = 2, St = 20, Ct = 40, wt = 60, Tt = 3, Et = 24, Dt = 10, Ot = 16, kt = 20, At = 14, G = {
 	fontSize: 13,
 	maxLines: 2
-}, q = {
+}, K = {
 	fontSize: 11,
 	maxLines: 2
-}, J = 1.25, jt = ["person", "vacancy"], Mt = (e) => !e.type || e.type === "reportsTo", Y = (e) => e.type === "dottedLine";
-function X(e, t) {
+}, q = 1.25, jt = ["person", "vacancy"], Mt = (e) => !e.type || e.type === "reportsTo", J = (e) => e.type === "dottedLine";
+function Y(e, t) {
 	let n = document.createElementNS(_t, e);
 	for (let [e, r] of Object.entries(t)) n.setAttribute(e, r);
 	return n;
 }
 function Nt(e, t, n) {
-	let r = n.get(t.id), i = r ? r.nameH : K.fontSize * J, a = q.fontSize * J, o = t.width - 20, s = e.getNodeStyle(t), { lines: c } = e.wrapLabel(t.role || "", o, q.maxLines, q.fontSize, {
+	let r = n.get(t.id), i = r ? r.nameH : G.fontSize * q, a = K.fontSize * q, o = t.width - 20, s = e.getNodeStyle(t), { lines: c } = e.wrapLabel(t.role || "", o, K.maxLines, K.fontSize, {
 		...s,
 		fontWeight: "normal"
 	}), l = t.y + vt + bt + i + xt, u = Math.max(1, c.length) * a;
@@ -7584,21 +7648,21 @@ function Nt(e, t, n) {
 		lineHeight: a,
 		width: o,
 		height: u,
-		fontSize: q.fontSize,
+		fontSize: K.fontSize,
 		centerX: t.x + t.width / 2,
 		centerY: l + u / 2
 	};
 }
 function Pt(e) {
 	let t = (t, n) => {
-		let { x: r, y: i, width: a, height: o } = t, s = n.getNodeStyle(t), c = X("g", {}), l = X("rect", {
+		let { x: r, y: i, width: a, height: o } = t, s = n.getNodeStyle(t), c = Y("g", {}), l = Y("rect", {
 			x: r,
 			y: i,
 			width: a,
 			height: o,
 			rx: 6
 		});
-		if (n.applyNodeStyle(l, t), c.appendChild(l), c.appendChild(X("rect", {
+		if (n.applyNodeStyle(l, t), c.appendChild(l), c.appendChild(Y("rect", {
 			x: r + 1,
 			y: i + 1,
 			width: Math.max(0, a - 2),
@@ -7608,7 +7672,7 @@ function Pt(e) {
 			"pointer-events": "none",
 			class: "weavle-orgchart-accent"
 		})), t.role && n.getNode(t.id)) {
-			let r = Nt(n, t, e), i = X("text", {
+			let r = Nt(n, t, e), i = Y("text", {
 				"text-anchor": "middle",
 				"font-size": r.fontSize,
 				fill: s.textColor || s.stroke,
@@ -7617,37 +7681,12 @@ function Pt(e) {
 				class: "weavle-orgchart-role"
 			}), a = r.centerY - r.height / 2 + r.lineHeight / 2 + r.fontSize * .35;
 			r.lines.forEach((e, t) => {
-				let n = X("tspan", {
+				let n = Y("tspan", {
 					x: r.centerX,
 					y: a + t * r.lineHeight
 				});
 				n.textContent = e, i.appendChild(n);
 			}), c.appendChild(i);
-		}
-		let u = e.get(t.id)?.hiddenCount || 0;
-		if (u) {
-			let e = `+${u}`, t = Math.max(26, 10 + e.length * 7), n = r + a / 2, l = i + o - G / 2;
-			c.appendChild(X("rect", {
-				x: n - t / 2,
-				y: l,
-				width: t,
-				height: G,
-				rx: G / 2,
-				fill: s.stroke,
-				"pointer-events": "none",
-				class: "weavle-orgchart-badge"
-			}));
-			let d = X("text", {
-				x: n,
-				y: l + G / 2 + 4,
-				"text-anchor": "middle",
-				"font-size": 11,
-				"font-weight": "600",
-				fill: "#FFFFFF",
-				"pointer-events": "none",
-				class: "weavle-orgchart-badge-text"
-			});
-			d.textContent = e, c.appendChild(d);
 		}
 		return c;
 	};
@@ -7656,7 +7695,7 @@ function Pt(e) {
 		vacancy: t
 	};
 }
-function Z(e) {
+function X(e) {
 	let t = e.model.nodes, n = new Map(t.map((e) => [e.id, e])), r = /* @__PURE__ */ new Map();
 	for (let t of e.model.edges) {
 		if (!Mt(t)) continue;
@@ -7687,7 +7726,7 @@ function Z(e) {
 		assistants: (e) => a(e).filter(o),
 		team: (e) => a(e).filter((e) => !o(e)),
 		descendants: s,
-		dottedOf: (t) => e.model.edges.filter((e) => Y(e) && e.sourceNodeId === t.id).map((e) => n.get(e.targetNodeId)).filter(Boolean)
+		dottedOf: (t) => e.model.edges.filter((e) => J(e) && e.sourceNodeId === t.id).map((e) => n.get(e.targetNodeId)).filter(Boolean)
 	};
 }
 function Ft(e, t, n, r = "reportsTo") {
@@ -7701,33 +7740,36 @@ function Ft(e, t, n, r = "reportsTo") {
 	};
 }
 function It(e, t, n) {
-	e.model.edges = e.model.edges.filter((e) => e.sourceNodeId !== t.id || !Mt(e) && !(n && Y(e) && e.targetNodeId === n.id)), n && e.model.edges.push(Ft(e, t, n));
+	e.model.edges = e.model.edges.filter((e) => e.sourceNodeId !== t.id || !Mt(e) && !(n && J(e) && e.targetNodeId === n.id)), n && e.model.edges.push(Ft(e, t, n));
 }
-function Lt(e, t) {
+function Z(e, t) {
 	if (t.collapsed) return !1;
 	let n = e.team(t);
 	return e.assistants(t).length === 0 && n.length >= Tt && n.every((t) => e.reports(t).length === 0);
 }
-function Rt(e, t) {
-	let n = e.getNodeStyle(t), r = e.wrapLabel(t.label || "", 160, K.maxLines, K.fontSize, n), i = t.role ? e.wrapLabel(t.role, 160, q.maxLines, q.fontSize, {
+function Lt(e, t) {
+	let n = e.getNodeStyle(t), r = e.wrapLabel(t.label || "", 160, G.maxLines, G.fontSize, n), i = t.role ? e.wrapLabel(t.role, 160, K.maxLines, K.fontSize, {
 		...n,
 		fontWeight: "normal"
-	}) : { lines: [] }, a = Math.max(1, r.lines.length) * K.fontSize * J, o = i.lines.length * q.fontSize * J;
+	}) : { lines: [] }, a = Math.max(1, r.lines.length) * G.fontSize * q, o = i.lines.length * K.fontSize * q;
 	return t.width = U, t.height = Math.max(W, Math.ceil(20 + a + (o ? xt + o : 0))), {
 		nameH: a,
 		hiddenCount: 0
 	};
 }
-function zt(e, t, n, r, i) {
+function Rt(e, t, n, r, i) {
 	t.clear(), n.clear(), r.clear(), i.clear();
-	let a = Z(e);
+	let a = X(e);
 	if (!a.roots.length) return;
 	for (let t of e.model.nodes) t.type === "person" && (a.managerOf(t) ? a.reports(t).length && i.set(t.id, "manager") : i.set(t.id, "top"));
-	for (let t of e.model.nodes) n.set(t.id, Rt(e, t));
+	for (let t of e.model.nodes) n.set(t.id, {
+		...Lt(e, t),
+		hasReports: a.reports(t).length > 0
+	});
 	let o = (e) => a.assistants(e).length ? 400 : 0, s = /* @__PURE__ */ new Map(), c = (e) => {
 		let t = a.team(e), n = e.width;
 		if (!e.collapsed) {
-			if (Lt(a, e)) t.forEach(c), n = Math.max(e.width, 204);
+			if (Z(a, e)) t.forEach(c), n = Math.max(e.width, 204);
 			else {
 				let r = t.reduce((e, t) => e + c(t), 0) + St * Math.max(0, t.length - 1);
 				n = Math.max(e.width, r, o(e));
@@ -7747,7 +7789,7 @@ function zt(e, t, n, r, i) {
 			e.x = t + r / 2 - e.width / 2, e.y = n, u(e);
 			return;
 		}
-		if (Lt(a, e)) {
+		if (Z(a, e)) {
 			e.x = t, e.y = n;
 			let r = t + Et / 2, a = n + e.height + Ot;
 			for (let n of i) {
@@ -7814,13 +7856,13 @@ function zt(e, t, n, r, i) {
 		}
 	}, f = a.roots[0];
 	c(f);
-	let p = Lt(a, f) ? f.x : f.x + f.width / 2 - s.get(f) / 2, m = f.y;
+	let p = Z(a, f) ? f.x : f.x + f.width / 2 - s.get(f) / 2, m = f.y;
 	for (let e of a.roots) e !== f && c(e), d(e, p, m), p += s.get(e) + wt;
 	for (let n of e.model.edges) {
 		let r = e.getNode(n.sourceNodeId);
 		if (!r) continue;
-		if (Y(n)) {
-			Bt(n, r, e.getNode(n.targetNodeId));
+		if (J(n)) {
+			zt(n, r, e.getNode(n.targetNodeId));
 			continue;
 		}
 		let i = l.get(n.sourceNodeId);
@@ -7833,12 +7875,12 @@ function zt(e, t, n, r, i) {
 		});
 	}
 }
-function Bt(e, t, n) {
+function zt(e, t, n) {
 	if (!n) return;
 	let r = n.x + n.width / 2 - (t.x + t.width / 2);
 	Math.abs(r) < U ? (e.sourceHandle = "right", e.targetHandle = "right") : (e.sourceHandle = r > 0 ? "right" : "left", e.targetHandle = r > 0 ? "left" : "right");
 }
-var Vt = {
+var Bt = {
 	nodeTypes: {
 		person: {
 			fill: "#FFFFFF",
@@ -7870,10 +7912,10 @@ var Vt = {
 		dottedLine: { stroke: "#7A5AB8" }
 	}
 };
-function Ht(e) {
+function Vt(e) {
 	return Array.isArray(e) ? e.map(String) : e == null || e === "" ? [] : String(e).split(",").map((e) => e.trim()).filter(Boolean);
 }
-function Ut(e) {
+function Ht(e) {
 	let t = Array.isArray(e) ? e : [], n = new Set(t.map((e) => String(e.id))), r = t.map((e) => {
 		let t = e.vacancy === !0 || e.type === "vacancy", n = {
 			id: String(e.id),
@@ -7896,16 +7938,16 @@ function Ut(e) {
 	for (let e of t) {
 		let t = String(e.id), r = e.managerId != null && e.managerId !== "" ? String(e.managerId) : null;
 		r && n.has(r) && a.push(i(`reportsTo-${t}`, t, r, "reportsTo"));
-		for (let o of Ht(e.dottedManagerIds)) o !== t && o !== r && n.has(o) && a.push(i(`dottedLine-${t}-${o}`, t, o, "dottedLine"));
+		for (let o of Vt(e.dottedManagerIds)) o !== t && o !== r && n.has(o) && a.push(i(`dottedLine-${t}-${o}`, t, o, "dottedLine"));
 	}
 	return {
 		nodes: r,
 		edges: a
 	};
 }
-function Wt(e) {
+function Ut(e) {
 	let t = e?.nodes || [], n = /* @__PURE__ */ new Map(), r = new Map(t.map((e) => [e.id, []]));
-	for (let t of e?.edges || []) Y(t) ? r.get(t.sourceNodeId)?.push(t.targetNodeId) : Mt(t) && !n.has(t.sourceNodeId) && n.set(t.sourceNodeId, t.targetNodeId);
+	for (let t of e?.edges || []) J(t) ? r.get(t.sourceNodeId)?.push(t.targetNodeId) : Mt(t) && !n.has(t.sourceNodeId) && n.set(t.sourceNodeId, t.targetNodeId);
 	return t.map((e) => ({
 		id: e.id,
 		managerId: n.get(e.id) || "",
@@ -7916,7 +7958,7 @@ function Wt(e) {
 		dottedManagerIds: r.get(e.id) || []
 	}));
 }
-function Gt() {
+function Wt() {
 	let e = /* @__PURE__ */ new Map(), t = /* @__PURE__ */ new Map(), n = /* @__PURE__ */ new Set(), r = /* @__PURE__ */ new Map(), i = (e, t) => {
 		t.length && queueMicrotask(() => t.forEach(([t, n]) => e.emitDiagramEvent(t, n)));
 	}, a = (e, t, n, r, i) => {
@@ -7938,7 +7980,7 @@ function Gt() {
 	return {
 		id: "orgchart",
 		shapes: Pt(t),
-		defaultTheme: Vt,
+		defaultTheme: Bt,
 		nodeTypes: {
 			person: {
 				defaultLabel: "Naam",
@@ -7974,10 +8016,10 @@ function Gt() {
 		getEdgeTypeForConnection() {
 			return "reportsTo";
 		},
-		modelFromList: Ut,
-		modelToList: Wt,
+		modelFromList: Ht,
+		modelToList: Ut,
 		createInitialModel() {
-			return Ut([
+			return Ht([
 				{
 					id: "manager",
 					name: "Naam",
@@ -7998,7 +8040,7 @@ function Gt() {
 			]);
 		},
 		layoutDiagram(i) {
-			zt(i, e, t, n, r);
+			Rt(i, e, t, n, r);
 		},
 		isNodeHidden(e) {
 			return n.has(e.id);
@@ -8006,18 +8048,41 @@ function Gt() {
 		getNodeVariant(e) {
 			return r.get(e.id) || null;
 		},
+		getNodeButtons(e) {
+			let n = t.get(e.id), r = {
+				x: e.x + e.width / 2,
+				y: e.y + e.height
+			}, i = { type: "ocToggleCollapse" };
+			return n?.hiddenCount ? [{
+				...r,
+				action: i,
+				text: `+${n.hiddenCount}`,
+				title: `Team uitklappen (${n.hiddenCount})`,
+				readOnly: !0,
+				keepInExport: !0
+			}] : n?.hasReports ? [{
+				...r,
+				action: i,
+				icon: "minus",
+				title: "Team inklappen",
+				show: "hover",
+				readOnly: !0
+			}] : [];
+		},
 		routeEdge({ sourcePoint: t, targetPoint: n, sourceHandle: r, targetHandle: i, edge: a, engine: o }) {
-			if (a && Y(a)) return o.buildRoutedEdgePoints(t, n, r, i, a);
-			let s = e.get(a?.id), c = s && o.getNode(a.sourceNodeId);
-			if (!c) return [t, n];
-			let l = c.x - s.at.x, u = c.y - s.at.y;
-			return s.points.map((e) => ({
+			if (a && J(a)) return o.buildRoutedEdgePoints(t, n, r, i, a);
+			let s = a && o.getNode(a.sourceNodeId);
+			if (s && Gt(o, a)) return Kt(o, s);
+			let c = e.get(a?.id);
+			if (!c || !s) return [t, n];
+			let l = s.x - c.at.x, u = s.y - c.at.y;
+			return c.points.map((e) => ({
 				x: e.x + l,
 				y: e.y + u
 			}));
 		},
 		getDependentNodes(e, t) {
-			return Z(t).reports(e);
+			return X(t).reports(e);
 		},
 		getDropTarget(e, t, { pos: n, draggedIds: r }) {
 			let i = new Set(r);
@@ -8025,18 +8090,18 @@ function Gt() {
 		},
 		onNodeDrop(e, t, n, { altKey: r }) {
 			if (!t) return;
-			let l = Z(n), u = [];
+			let l = X(n), u = [];
 			r ? o(l, e, t) && s(n, e, t, u) : t !== l.managerOf(e) && (delete e.assistant, delete t.collapsed, c(n, l, e, t), a(n, l, e, t, u)), i(n, u);
 		},
 		canDeleteNode(e, t) {
-			let n = Z(t);
+			let n = X(t);
 			return n.roots.length !== 1 || n.roots[0] !== e;
 		},
 		getCanvasActions() {
 			return [];
 		},
 		getContextActions(e, t) {
-			let n = Z(t), r = n.managerOf(e), i = n.reports(e), a = (e) => t.getTypeTitle(e), o = (e) => jt.map((t) => ({
+			let n = X(t), r = n.managerOf(e), i = n.reports(e), a = (e) => t.getTypeTitle(e), o = (e) => jt.map((t) => ({
 				type: e,
 				nodeType: t,
 				label: a(t)
@@ -8108,7 +8173,7 @@ function Gt() {
 					nodeType: e.type
 				}))
 			});
-			let l = r ? n.isAssistant(e) ? n.assistants(r) : n.team(r) : n.roots, u = l.indexOf(e), d = r && !n.isAssistant(e) && Lt(n, r);
+			let l = r ? n.isAssistant(e) ? n.assistants(r) : n.team(r) : n.roots, u = l.indexOf(e), d = r && !n.isAssistant(e) && Z(n, r);
 			return u > 0 && s.push({
 				type: "ocMove",
 				direction: -1,
@@ -8129,17 +8194,17 @@ function Gt() {
 			}), s;
 		},
 		handleAction(e, n, r) {
-			let c = Z(r), l = [];
+			let c = X(r), l = [];
 			switch (e.type) {
 				case "ocAddReport":
 				case "ocAddAssistant": {
 					delete n.collapsed;
-					let t = Kt(r, n, e.nodeType, c.reports(n).at(-1) || null);
-					return e.type === "ocAddAssistant" && (t.assistant = !0), qt(r, t), !0;
+					let t = qt(r, n, e.nodeType, c.reports(n).at(-1) || null);
+					return e.type === "ocAddAssistant" && (t.assistant = !0), Jt(r, t), !0;
 				}
 				case "ocAddColleague": {
 					let t = c.managerOf(n);
-					return t ? (qt(r, Kt(r, t, e.nodeType, n)), !0) : !1;
+					return t ? (Jt(r, qt(r, t, e.nodeType, n)), !0) : !1;
 				}
 				case "ocToggleCollapse": return c.reports(n).length ? (n.collapsed ? delete n.collapsed : n.collapsed = !0, !0) : !1;
 				case "ocToggleAssistant": return !c.managerOf(n) || c.reports(n).length ? !1 : (n.assistant ? delete n.assistant : n.assistant = !0, !0);
@@ -8148,25 +8213,25 @@ function Gt() {
 					box: Nt(r, n, t)
 				}), !1;
 				case "ocAddDotted": return r.startNodePick({
-					filter: (e) => o(Z(r), n, e),
+					filter: (e) => o(X(r), n, e),
 					onPick: (e) => {
 						let t = [];
 						s(r, n, e, t), r.pushHistory(), r.emitModelChanged(), r.render(), i(r, t);
 					}
 				}), !1;
 				case "ocRemoveDotted": {
-					let t = r.model.edges, a = t.find((t) => Y(t) && t.sourceNodeId === n.id && t.targetNodeId === e.targetId);
+					let t = r.model.edges, a = t.find((t) => J(t) && t.sourceNodeId === n.id && t.targetNodeId === e.targetId);
 					return a ? (r.model.edges = t.filter((e) => e !== a), l.push(["dottedlineremoved", {
 						nodeId: n.id,
 						managerId: e.targetId
 					}]), i(r, l), !0) : !1;
 				}
 				case "ocAddManager": {
-					let e = c.managerOf(n), t = Kt(r, e, "person", null), o = r.model.nodes;
+					let e = c.managerOf(n), t = qt(r, e, "person", null), o = r.model.nodes;
 					return o.splice(o.indexOf(t), 1), o.splice(o.indexOf(n), 0, t), e || Object.assign(t, {
 						x: n.x,
 						y: n.y
-					}), n.assistant && (t.assistant = !0, delete n.assistant), a(r, c, n, t, l), i(r, l), qt(r, t), !0;
+					}), n.assistant && (t.assistant = !0, delete n.assistant), a(r, c, n, t, l), i(r, l), Jt(r, t), !0;
 				}
 				case "ocPromote": {
 					let e = c.managerOf(n), t = e && c.managerOf(e);
@@ -8210,11 +8275,11 @@ function Gt() {
 			return "action-surface";
 		},
 		getLabelLayout(e) {
-			let n = 12 + (t.get(e.id)?.nameH ?? K.fontSize * J) / 2;
+			let n = 12 + (t.get(e.id)?.nameH ?? G.fontSize * q) / 2;
 			return {
 				placement: "inside",
-				fontSize: K.fontSize,
-				maxLines: K.maxLines,
+				fontSize: G.fontSize,
+				maxLines: G.maxLines,
 				paddingX: yt,
 				paddingY: 0,
 				offsetY: n - (e.height || W) / 2
@@ -8225,7 +8290,34 @@ function Gt() {
 		}
 	};
 }
-function Kt(e, t, n, r) {
+function Gt(e, t) {
+	let n = e.state.draggingNodeIds || (e.state.draggingNodeId ? [e.state.draggingNodeId] : null);
+	return !!n && n.includes(t.sourceNodeId) && !n.includes(t.targetNodeId);
+}
+function Kt(e, t) {
+	let n = {
+		x: t.x + t.width / 2,
+		y: t.y
+	}, r = e.getNode(e.state.dropTargetId);
+	if (!r) return [n, n];
+	let i = {
+		x: r.x + r.width / 2,
+		y: r.y + r.height
+	}, a = (n.y + i.y) / 2;
+	return [
+		n,
+		{
+			x: n.x,
+			y: a
+		},
+		{
+			x: i.x,
+			y: a
+		},
+		i
+	];
+}
+function qt(e, t, n, r) {
 	let i = {
 		id: e.generateId(),
 		type: n,
@@ -8237,39 +8329,39 @@ function Kt(e, t, n, r) {
 	}, a = e.model.nodes, o = r ? a.indexOf(r) : -1;
 	return o >= 0 ? a.splice(o + 1, 0, i) : a.push(i), t && e.model.edges.push(Ft(e, i, t)), i;
 }
-function qt(e, t) {
+function Jt(e, t) {
 	e.selectSingleNode(t.id), e.emitSelectionChanged(), setTimeout(() => {
 		e.getNode(t.id) && !e.state.editingLabel && e.startInlineLabelEdit("node", t.id);
 	}, 0);
 }
 //#endregion
 //#region src/weavle-outsystems.js
-var Jt = {
+var Yt = {
 	bpmn: S,
 	flowchart: c,
 	ishikawa: Re,
 	fta: ht,
-	orgchart: Gt
-}, Yt = {
+	orgchart: Wt
+}, Xt = {
 	nodes: [],
 	edges: []
 };
-function Xt(e, t) {
-	Jt[e] = t;
+function Zt(e, t) {
+	Yt[e] = t;
 }
-function Zt() {
-	return Object.keys(Jt);
+function Qt() {
+	return Object.keys(Yt);
 }
-function Qt(e) {
-	return tn(e)?._weavle || null;
+function $t(e) {
+	return nn(e)?._weavle || null;
 }
-function $t(e, t = {}) {
-	let n = tn(e);
+function en(e, t = {}) {
+	let n = nn(e);
 	if (!n) throw Error(`Weavle.mount: container "${e}" not found`);
 	n._weavle?.destroy();
 	let r = typeof t.diagramType == "function" ? "custom" : t.diagramType || "bpmn", i = (e) => {
-		let n = e === "custom" && typeof t.diagramType == "function" ? t.diagramType : Jt[e];
-		if (!n) throw Error(`Weavle: unknown diagram type "${e}" (known: ${Zt().join(", ")})`);
+		let n = e === "custom" && typeof t.diagramType == "function" ? t.diagramType : Yt[e];
+		if (!n) throw Error(`Weavle: unknown diagram type "${e}" (known: ${Qt().join(", ")})`);
 		return n;
 	}, a = { ...Q(t.options) || {} }, o = r, s = new he(n, { ...a }, i(o)()), c = null, l = (e) => ({
 		diagramType: o,
@@ -8301,7 +8393,7 @@ function $t(e, t = {}) {
 	}, h = (e) => {
 		let { diagramType: t, ...n } = e;
 		s.load(JSON.parse(JSON.stringify({
-			...Yt,
+			...Xt,
 			...n
 		})));
 	}, g = {
@@ -8309,7 +8401,7 @@ function $t(e, t = {}) {
 			return s;
 		},
 		setModel(e) {
-			let t = (typeof e == "string" ? Q(e) : e) || Yt, n = t.diagramType || r, i = $({
+			let t = (typeof e == "string" ? Q(e) : e) || Xt, n = t.diagramType || r, i = $({
 				...t,
 				diagramType: n
 			});
@@ -8331,7 +8423,7 @@ function $t(e, t = {}) {
 		},
 		setDiagramType(e, t) {
 			if (e === o && t == null) return !1;
-			let n = (typeof t == "string" ? Q(t) : t) || Yt;
+			let n = (typeof t == "string" ? Q(t) : t) || Xt;
 			return e !== o && m(e), h(n), p(), !0;
 		},
 		undo() {
@@ -8344,10 +8436,10 @@ function $t(e, t = {}) {
 			s.clear();
 		},
 		optimizeEdges(e) {
-			return s.optimizeEdges({ nodeIds: en(e) });
+			return s.optimizeEdges({ nodeIds: tn(e) });
 		},
 		optimizeLayout(e) {
-			return s.optimizeLayout({ nodeIds: en(e) });
+			return s.optimizeLayout({ nodeIds: tn(e) });
 		},
 		setLayoutDirection(e) {
 			s.setLayoutDirection(e), a.layoutDirection = s.options.layoutDirection;
@@ -8402,13 +8494,13 @@ function $t(e, t = {}) {
 			s.destroy(), n._weavle === g && delete n._weavle;
 		}
 	};
-	return n._weavle = g, g.setModel(t.model ?? Yt), g;
+	return n._weavle = g, g.setModel(t.model ?? Xt), g;
 }
-function en(e) {
+function tn(e) {
 	let t = e ? typeof e == "string" ? JSON.parse(e) : e : null;
 	return t && t.length ? t : null;
 }
-function tn(e) {
+function nn(e) {
 	return e ? typeof e == "string" ? document.getElementById(e) || document.querySelector(e) : e : null;
 }
 function Q(e) {
@@ -8419,8 +8511,8 @@ function $(e) {
 }
 //#endregion
 //#region src/index.js
-var nn = "0.9.0";
+var rn = "0.9.0";
 //#endregion
-export { he as WeavleJS, S as createBpmnDefinition, c as createFlowchartDefinition, ht as createFtaDefinition, Re as createIshikawaDefinition, Gt as createOrgChartDefinition, Zt as getDiagramTypes, Qt as getInstance, $t as mount, Ut as orgChartFromList, Wt as orgChartToList, Xt as registerDiagramType, nn as version };
+export { he as WeavleJS, S as createBpmnDefinition, c as createFlowchartDefinition, ht as createFtaDefinition, Re as createIshikawaDefinition, Wt as createOrgChartDefinition, Qt as getDiagramTypes, $t as getInstance, en as mount, Ht as orgChartFromList, Ut as orgChartToList, Zt as registerDiagramType, rn as version };
 
 //# sourceMappingURL=weavle.es.js.map

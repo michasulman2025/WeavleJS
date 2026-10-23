@@ -620,6 +620,12 @@ export class WeavleJS {
             .forEach(layer => layer.replaceChildren());
         svg.querySelectorAll('.weavle-edge-hit, .weavle-resize-handle, .weavle-port, [filter*="hover-glow"]')
             .forEach(el => el.remove());
+        // Node buttons are editor chrome, unless they carry information (keepInExport, e.g. "+6").
+        svg.querySelectorAll(".weavle-node-button:not(.weavle-node-button--export)").forEach(el => el.remove());
+        svg.querySelectorAll(".weavle-node-button").forEach(el => {
+            el.removeAttribute("data-node-button");
+            el.querySelector("title")?.remove();
+        });
         svg.querySelectorAll(".is-selected, .is-preview").forEach(el => el.classList.remove("is-selected", "is-preview"));
 
         svg.querySelector("[data-viewport]")
@@ -1219,6 +1225,9 @@ export class WeavleJS {
 
         group.appendChild(text);
 
+        // Clickable buttons the definition puts on the node (org chart: collapse / expand a team).
+        this.createNodeButtons(node).forEach(button => group.appendChild(button));
+
         // Label cut off → show the full label as a tooltip when hovering the node.
         if (text.getAttribute("data-truncated")) {
             const title = document.createElementNS(NS, "title");
@@ -1253,6 +1262,96 @@ export class WeavleJS {
         }
 
         return group;
+    }
+
+    /**
+     * Buttons on a node, from diagram.getNodeButtons(node, engine) — each:
+     *   action       passed to handleContextAction on click (like a node tool), e.g. { type: "ocToggleCollapse" }
+     *   x, y         centre, in model coordinates
+     *   icon         "plus" | "minus" (optional)    text   short text, e.g. "+6" (optional; makes it a pill)
+     *   title        tooltip
+     *   show         "always" (default) | "hover": only while the node is hovered or selected
+     *   readOnly     true: also works in read-only mode (view actions such as collapsing)
+     *   keepInExport true: stays in exportSvg (e.g. the "+6" of a collapsed team)
+     *   fill / color background and glyph colour (default: the node's line colour and white)
+     * A click on a button runs its action and neither selects nor drags the node.
+     */
+    getNodeButtons(node) {
+        if (typeof this.diagram.getNodeButtons !== "function") return [];
+        const buttons = this.diagram.getNodeButtons(node, this) || [];
+        return this.options.readOnly ? buttons.filter(b => b.readOnly) : buttons;
+    }
+
+    createNodeButtons(node) {
+        const NS      = "http://www.w3.org/2000/svg";
+        const buttons = this.getNodeButtons(node);
+        if (!buttons.length) return [];
+
+        const style   = this.getNodeStyle(node);
+        const visible = this.isNodeSelected(node.id);
+        const el      = (tag, attrs) => {
+            const e = document.createElementNS(NS, tag);
+            for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+            return e;
+        };
+
+        return buttons.map((button, index) => {
+            const fill  = button.fill  || style.stroke;
+            const color = button.color || "#FFFFFF";
+            const r     = 8;
+            const width = button.text ? Math.max(2 * r, 10 + String(button.text).length * 7) : 2 * r;
+
+            const group = el("g", {
+                class: "weavle-node-button" +
+                    (button.show === "hover" ? " weavle-node-button--hover" : "") +
+                    (button.show === "hover" && visible ? " is-visible" : "") +
+                    (button.keepInExport ? " weavle-node-button--export" : ""),
+                "data-node-button": index
+            });
+
+            if (button.title) {
+                const title = el("title", {});
+                title.textContent = button.title;
+                group.appendChild(title);
+            }
+
+            group.appendChild(el("rect", {
+                x: button.x - width / 2, y: button.y - r, width, height: 2 * r, rx: r,
+                fill, stroke: "#FFFFFF", "stroke-width": 1.5, class: "weavle-node-button-bg"
+            }));
+
+            if (button.text) {
+                const text = el("text", {
+                    x: button.x, y: button.y + 4, "text-anchor": "middle", "font-size": 11, "font-weight": "600",
+                    fill: color, "pointer-events": "none"
+                });
+                text.textContent = button.text;
+                group.appendChild(text);
+            } else if (button.icon === "plus" || button.icon === "minus") {
+                const d = `M ${button.x - 4} ${button.y} L ${button.x + 4} ${button.y}` +
+                          (button.icon === "plus" ? ` M ${button.x} ${button.y - 4} L ${button.x} ${button.y + 4}` : "");
+                group.appendChild(el("path", {
+                    d, stroke: color, "stroke-width": 2, "stroke-linecap": "round", fill: "none", "pointer-events": "none"
+                }));
+            }
+
+            return group;
+        });
+    }
+
+    /** Runs the node button under a mousedown, if any. Returns true when it handled the click. */
+    handleNodeButtonClick(evt) {
+        const buttonEl = evt.target?.closest?.("[data-node-button]");
+        const nodeEl   = buttonEl?.closest("[data-node-id]");
+        const node     = nodeEl && this.getNode(nodeEl.getAttribute("data-node-id"));
+        const button   = node && this.getNodeButtons(node)[Number(buttonEl.getAttribute("data-node-button"))];
+        if (!button || evt.button !== 0) return false;
+
+        evt.preventDefault();
+        evt.stopPropagation();
+        this.handleContextAction(button.action, node);
+        this.render();
+        return true;
     }
 
     /**
@@ -7604,6 +7703,9 @@ export class WeavleJS {
             this.commitInlineLabelEdit();
             return;
         }
+
+        // A button on a node (getNodeButtons): run its action, nothing else (also in read-only mode).
+        if (!this.state.nodePick && this.handleNodeButtonClick(evt)) return;
 
         // Picking a node (startNodePick): a valid node completes the pick, anything else cancels it.
         if (this.state.nodePick && evt.button === 0) {

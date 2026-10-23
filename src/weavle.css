@@ -60,6 +60,26 @@
     cursor: grabbing;
 }
 
+/* Buttons on a node (getNodeButtons), e.g. collapse / expand an org chart team. "hover" buttons show while
+   the node is hovered or selected. */
+.weavle-node-button {
+    cursor: pointer;
+}
+
+.weavle-node-button:hover .weavle-node-button-bg {
+    filter: brightness(1.25);
+}
+
+.weavle-node-button--hover {
+    opacity: 0;
+    transition: opacity 0.12s;
+}
+
+.weavle-node:hover .weavle-node-button--hover,
+.weavle-node-button--hover.is-visible {
+    opacity: 1;
+}
+
 /* startNodePick(): the next click picks a node (e.g. the other end of an org chart dotted line). */
 .weavle-canvas.is-picking,
 .weavle-canvas.is-picking .weavle-node {

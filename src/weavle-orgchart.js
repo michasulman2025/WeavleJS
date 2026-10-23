@@ -21,8 +21,9 @@
     so wide teams don't make the chart wide.
   - Assistants (node.assistant on a report without reports of its own) sit beside the line under their
     manager, alternately right and left, above the row of reports.
-  - A collapsed card (node.collapsed) hides everything below it and shows "+n" on its bottom edge; the
-    engine skips hidden nodes (isNodeHidden).
+  - A collapsed card (node.collapsed) hides everything below it and shows a "+n" button on its bottom
+    edge; an open team gets a "−" button there while hovered (getNodeButtons). The engine skips hidden
+    nodes (isNodeHidden).
   - Cards get a style variant from the structure (getNodeVariant): "top" for a person without a manager,
     "manager" for a person with reports — coloured by nodeVariants in the (default) theme.
 
@@ -60,8 +61,6 @@ const STACK_TOP     = 16;    // gap between a manager and its first stacked repo
 
 const ASSIST_GAP_X  = 20;    // horizontal gap between the line under a manager and an assistant
 const ASSIST_GAP_Y  = 14;    // vertical gap above each row of assistants
-
-const BADGE_H       = 16;    // "+n" on a collapsed card
 
 // The name is the engine-drawn label (so double-click edits it); the role is drawn by the shape.
 const NAME_FONT   = { fontSize: 13, maxLines: 2 };
@@ -128,25 +127,6 @@ function createShapes(metrics) {
                 tspan.textContent = line;
                 text.appendChild(tspan);
             });
-            group.appendChild(text);
-        }
-
-        // Collapsed team: "+n" (everyone hidden below this card) on the bottom edge.
-        const hiddenCount = metrics.get(node.id)?.hiddenCount || 0;
-        if (hiddenCount) {
-            const label = `+${hiddenCount}`;
-            const bw    = Math.max(26, 10 + label.length * 7);
-            const cx    = x + w / 2;
-            const by    = y + h - BADGE_H / 2;
-            group.appendChild(svgEl("rect", {
-                x: cx - bw / 2, y: by, width: bw, height: BADGE_H, rx: BADGE_H / 2,
-                fill: style.stroke, "pointer-events": "none", class: "weavle-orgchart-badge"
-            }));
-            const text = svgEl("text", {
-                x: cx, y: by + BADGE_H / 2 + 4, "text-anchor": "middle", "font-size": 11, "font-weight": "600",
-                fill: "#FFFFFF", "pointer-events": "none", class: "weavle-orgchart-badge-text"
-            });
-            text.textContent = label;
             group.appendChild(text);
         }
 
@@ -279,7 +259,9 @@ function layoutOrgChart(engine, routes, metrics, hidden, variants) {
         else if (tree.reports(node).length) variants.set(node.id, "manager");
     }
 
-    for (const node of engine.model.nodes) metrics.set(node.id, fitCard(engine, node));
+    for (const node of engine.model.nodes) {
+        metrics.set(node.id, { ...fitCard(engine, node), hasReports: tree.reports(node).length > 0 });
+    }
 
     // Room the assistants of a manager need on both sides of the line under it (kept symmetric, so the
     // manager stays centred above its team).
@@ -617,17 +599,37 @@ export function createOrgChartDefinition() {
             return variants.get(node.id) || null;
         },
 
+        // On the bottom edge of a card with a team: "+n" to expand a collapsed team (always shown, also in
+        // the export), "−" to collapse an open one (while hovered or selected). Both work in read-only mode.
+        getNodeButtons(node) {
+            const m      = metrics.get(node.id);
+            const at     = { x: node.x + node.width / 2, y: node.y + node.height };
+            const action = { type: "ocToggleCollapse" };
+
+            if (m?.hiddenCount) {
+                return [{ ...at, action, text: `+${m.hiddenCount}`, title: `Team uitklappen (${m.hiddenCount})`,
+                          readOnly: true, keepInExport: true }];
+            }
+            if (m?.hasReports) {
+                return [{ ...at, action, icon: "minus", title: "Team inklappen", show: "hover", readOnly: true }];
+            }
+            return [];
+        },
+
         // Tree lines: the line from the last layout, shifted by how far its report moved since (a team
-        // moves as one while dragged; the layout runs again on the drop). Dotted lines: the engine's
-        // orthogonal router, around the cards.
+        // moves as one while dragged; the layout runs again on the drop). The line of the card being
+        // dragged itself previews where it would go: to the highlighted drop target, or nowhere.
+        // Dotted lines: the engine's orthogonal router, around the cards.
         routeEdge({ sourcePoint, targetPoint, sourceHandle, targetHandle, edge, engine }) {
             if (edge && isDottedEdge(edge)) {
                 return engine.buildRoutedEdgePoints(sourcePoint, targetPoint, sourceHandle, targetHandle, edge);
             }
 
-            const route  = routes.get(edge?.id);
-            const report = route && engine.getNode(edge.sourceNodeId);
-            if (!report) return [sourcePoint, targetPoint];
+            const report = edge && engine.getNode(edge.sourceNodeId);
+            if (report && isDraggedAway(engine, edge)) return dragPreview(engine, report);
+
+            const route = routes.get(edge?.id);
+            if (!route || !report) return [sourcePoint, targetPoint];
 
             const dx = report.x - route.at.x;
             const dy = report.y - route.at.y;
@@ -910,6 +912,26 @@ export function createOrgChartDefinition() {
             return false;
         }
     };
+}
+
+/** Whether the edge's report is being dragged while its manager is not (its line is being pulled loose). */
+function isDraggedAway(engine, edge) {
+    const dragged = engine.state.draggingNodeIds || (engine.state.draggingNodeId ? [engine.state.draggingNodeId] : null);
+    return !!dragged && dragged.includes(edge.sourceNodeId) && !dragged.includes(edge.targetNodeId);
+}
+
+/**
+ * The line of a card being dragged: an elbow from its top to the card it would be dropped onto, or no
+ * line at all (a zero-length route) while it is over empty space.
+ */
+function dragPreview(engine, report) {
+    const out    = { x: report.x + report.width / 2, y: report.y };
+    const target = engine.getNode(engine.state.dropTargetId);
+    if (!target) return [out, out];
+
+    const to   = { x: target.x + target.width / 2, y: target.y + target.height };
+    const midY = (out.y + to.y) / 2;
+    return [out, { x: out.x, y: midY }, { x: to.x, y: midY }, to];
 }
 
 /**

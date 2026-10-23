@@ -2,7 +2,16 @@
 
 ## Unreleased
 
+### Fixed
+- Org chart: while a card is dragged, its line no longer drags a piece of the old line to its manager along. It
+  previews the new line to the highlighted card instead, and shows no line over empty space.
+
 ### Added
+- **Node buttons**: definitions can put small clickable buttons on a node (`getNodeButtons(node, engine)`: position,
+  plus / minus icon or short text, tooltip, action). A click runs the action like a node tool, without selecting or
+  dragging; buttons can show always or only while the node is hovered / selected, may work in read-only mode and
+  may stay in `exportSvg`. Org chart: a "−" under a manager collapses the team, the "+n" of a collapsed team expands
+  it again (also in read-only mode).
 - **Style variants** (ARCHITECTURE.md 7.4 / 7.6): a definition can derive a variant per node from the diagram's
   structure (`getNodeVariant(node, engine)`), styled by `nodeVariants` in its default theme and in `options.theme`
   (also per diagram), between the per-type layers and presets; class `weavle-node--variant-{name}`. Org chart: the

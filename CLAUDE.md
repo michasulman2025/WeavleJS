@@ -155,6 +155,11 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
 - Style variants: `diagram.getNodeVariant(node, engine)` → a key into `nodeVariants` (definition `defaultTheme`, then
   `theme.nodeVariants` / `theme.diagrams[id].nodeVariants`, after the per-type layers, before presets); class
   `weavle-node--variant-{name}`. Org chart: `top` / `manager` for persons, computed in the layout (`variants`).
+- Node buttons: `diagram.getNodeButtons(node, engine)` → `[{ action, x, y, icon: "plus"|"minus", text, title,
+  show: "always"|"hover", readOnly, keepInExport, fill, color }]`; drawn by `createNodeButtons` in the node group
+  (`.weavle-node-button`, `--hover` shows on hover / selection), a mousedown on one runs `handleContextAction(action,
+  node)` via `handleNodeButtonClick` (no select / drag; `readOnly: true` also in read-only mode); `exportSvg` drops
+  them unless `keepInExport`. Org chart: "−" (hover) collapses, "+n" expands.
 - Engine hooks for definitions (generic): `isNodeHidden(node, engine)` (not drawn, hit, marquee-selected or routed
   around; nor its edges), `getDropTarget(node, engine, { pos, draggedIds })` (highlighted while dragging; default the
   container) + `onNodeDrop(node, target, engine, { altKey, shiftKey })` on release, `edgeTypes[type].fixed` (kept by

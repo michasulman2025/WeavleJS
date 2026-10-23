@@ -227,7 +227,8 @@ ports: [
   `isNodeHidden`). Dotted lines use the engine's orthogonal router between facing sides. Cards have a fixed width and
   grow with name and role.
 - **Interaction:** no connecting or edge selection. Dragging a card drags its team; dropping it onto another card
-  (highlighted) makes that card its manager, with Alt it adds a dotted line instead; dropped elsewhere it goes back
+  (highlighted) makes that card its manager, with Alt it adds a dotted line instead; while dragging, its own line
+  previews the new one to the highlighted card (no line over empty space); dropped elsewhere it goes back
   (engine hooks `getDropTarget` / `onNodeDrop`). Node tools: add a report, assistant or colleague (person or vacancy),
   collapse / expand the team, edit the job title (inline, field `role`), vacancy ↔ person, assistant on / off, insert
   a manager above, one level higher, add a dotted line (then click the other card: engine `startNodePick`) or remove
@@ -236,7 +237,11 @@ ports: [
   { nodeId, managerId }`.
 - **Colours:** variants `top` (person without a manager: dark blue, white text) and `manager` (person with reports:
   light blue tint); everyone else a white card, vacancies grey and dashed. Presets still win per card.
-- **Later:** expand / collapse by clicking the "+n" badge; photo / initials, department colours and counts on the
+- **Collapse / expand buttons:** a "−" on the bottom edge of a card with a team (shown while hovered or selected)
+  collapses it; a collapsed card shows a "+n" button there that expands it (kept in the export). Both also work in
+  read-only mode. Built on the engine's node buttons (`getNodeButtons`), which other diagram types can use for their
+  own on-node actions.
+- **Later:** photo / initials, department colours and counts on the
   card; a search that opens collapsed teams and focuses a card.
 
 ### Node editor (free drawing, Blender style)
