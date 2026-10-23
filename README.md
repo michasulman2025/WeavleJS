@@ -1,7 +1,7 @@
 # 🧶 Weavle
 
 A lightweight, dependency-free SVG diagram editor for the browser. One engine, many diagram types:
-flowcharts and BPMN today, more to come. Built with OutSystems in mind, but it runs anywhere you have a DOM.
+flowcharts, BPMN and Ishikawa (fishbone) diagrams today, more to come. Built with OutSystems in mind, but it runs anywhere you have a DOM.
 
 The engine knows nothing about "gateways" or "decisions". Everything that makes a diagram type what it is —
 shapes, colours, ports, edge types, sizes, labels, rules — lives in a **diagram definition** (an add-in).
@@ -9,10 +9,43 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the design and roadmap.
 
 ---
 
+## Examples
+
+All images below are exported by Weavle itself (`exportSvg()`). The BPMN and Ishikawa diagrams are the playground samples.
+
+### Flowchart
+
+ISO 5807 shapes with orthogonal edge routing — a decision, a loop back, a data store and a comment.
+
+<img src="docs/images/flowchart.svg" alt="Flowchart: order handling with a stock check, a reorder loop and a data store" width="560" />
+
+### BPMN
+
+Pools and lanes, typed tasks (user, service, send, script), gateways, message and timer events, data objects and
+stores, message flows between pools and annotations.
+
+[![BPMN: order process across customer, web shop and carrier pools](docs/images/bpmn.svg)](docs/images/bpmn.svg)
+
+### Ishikawa (fishbone)
+
+Cause-and-effect diagram with automatic layout: add categories, causes and sub-causes from the node tools and the
+fishbone arranges itself. A new diagram starts with the 6M categories.
+
+![Ishikawa: causes of late deliveries in six categories](docs/images/ishikawa.svg)
+
+### Themes and styles
+
+The same diagram with a house-style theme (`options.theme`): colours per node type, line colour, editor colours, and
+presets users can pick per node ("Kritiek" and "Let op" here).
+
+![The Ishikawa diagram in a navy / orange house style with highlighted causes](docs/images/ishikawa-house-style.svg)
+
+---
+
 ## Features
 
 - Zero runtime dependencies, plain ES modules
-- Pluggable diagram definitions — flowchart and BPMN included
+- Pluggable diagram definitions — flowchart, BPMN and Ishikawa included
 - Flowchart: all 26 standard (ISO 5807) shapes in five groups, incl. on-page / off-page connectors and comments
 - BPMN: 23 event types (start / intermediate catch & throw / end), 10 activity types, gateways, data,
   annotations, pools & lanes — with "change type" in the node tools
@@ -32,6 +65,9 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the design and roadmap.
 - Zoom (Ctrl + wheel) and pan (middle mouse button)
 - CSS-stylable dot or line grid
 - Containers: BPMN pools and lanes hold their contents, stack lanes and move as one
+- Ishikawa (fishbone): problem → categories → causes → sub-causes, laid out automatically; starts with the 6M
+- Themes for a house style (`options.theme` / `setTheme()`): node and edge styles per type, font, editor colours —
+  also in `exportSvg()`; presets users can give single nodes ("Stijl" in the node tools)
 - Read-only mode
 - DOM `CustomEvent`s for every model change — easy to sync with a server
 - `destroy()` for frameworks that rebuild screens
@@ -45,6 +81,8 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the design and roadmap.
 | `src/weavle.js` | The engine — `export class WeavleJS` |
 | `src/weavle-flowchart.js` | Flowchart definition — `export function createFlowchartDefinition()` |
 | `src/weavle-bpmn.js` | BPMN definition — `export function createBpmnDefinition()` |
+| `src/weavle-ishikawa.js` | Ishikawa definition — `export function createIshikawaDefinition()` |
+| `src/samples/` | Sample diagrams and the sample house-style theme used by the playground |
 | `dist/weavle.iife.js` | Single-file build for a `<script>` tag — global `Weavle` (engine, definitions, OutSystems adapter) |
 | `dist/weavle.es.js` | Same as an ES module |
 | `dist/weavle.css` | Stylesheet (copy of `src/weavle.css`) |
@@ -292,7 +330,27 @@ Classes you can target directly:
 | `.weavle-label-editor` | Inline label editor |
 | `.weavle-drop-target` | Container highlight while dragging into it |
 
-Node colours come from the diagram definition.
+Node and edge colours come from the diagram definition (`defaultTheme`) and can be replaced by a theme — see below.
+
+### House style (themes)
+
+For colours inside the diagram use a theme rather than CSS: it is applied as SVG attributes, so it also shows in
+`exportSvg()`, and arrowheads follow the line colour.
+
+```js
+editor.setTheme({
+  node:      { fill: "#FFFFFF", stroke: "#0D2D44", textColor: "#042841" },   // every node type
+  nodeTypes: { decision: { fill: "#F5DCC1", stroke: "#F47200" } },          // per type
+  edge:      { stroke: "#0D2D44" },
+  presets:   { critical: { label: "Kritiek", fill: "#F47200", textColor: "#FFFFFF", fontWeight: "bold" } },
+  ui:        { selection: "#F47200", canvasBackground: "#F2F2F2" }           // editor colours
+});
+
+editor.setNodeStyle("n7", { preset: "critical" });   // or let users pick it under "Stijl" in the node tools
+```
+
+`getDefaultTheme()` returns the diagram type's own colours as a starting point. A full example is
+`src/samples/theme-house-style.js`; the design is in [ARCHITECTURE.md](ARCHITECTURE.md), section 7.
 
 ---
 
