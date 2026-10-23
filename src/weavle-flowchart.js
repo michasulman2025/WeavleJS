@@ -433,6 +433,39 @@ const FLOWCHART_TYPES = FLOWCHART_GROUPS.flatMap(g => g.types);
 // Node types whose shape is a circle (keep their proportions).
 const FLOWCHART_ROUND = ["onPageConnector", "summingJunction", "or"];
 
+// The definition's own colours (ARCHITECTURE.md 7.4): the bottom layer under any theme. Same shape as
+// options.theme; an organisation's theme overrides what it names. getDefaultTheme() returns it.
+const FLOWCHART_THEME = {
+    nodeTypes: {
+        process:             { fill: "#F6D6B4", stroke: "#0d2d44" },
+        decision:            { fill: "#FFB366", stroke: "#F57100" },
+        terminator:          { fill: "#E8F3EC", stroke: "#1B5278" },
+        inputOutput:         { fill: "#F6D6B4", stroke: "#4A8DB5" },
+        document:            { fill: "#FFF4E8", stroke: "#4A8DB5" },
+        subProcess:          { fill: "#8aa8b9", stroke: "#4A8DB5" },
+        database:            { fill: "#EAF4FB", stroke: "#1B5278" },
+        preparation:         { fill: "#E8F3EC", stroke: "#1B5278" },
+        loopLimit:           { fill: "#E8F3EC", stroke: "#1B5278" },
+        delay:               { fill: "#FFF4E8", stroke: "#B07A00" },
+        manualInput:         { fill: "#F6D6B4", stroke: "#4A8DB5" },
+        display:             { fill: "#F6D6B4", stroke: "#4A8DB5" },
+        multipleDocuments:   { fill: "#FFF4E8", stroke: "#4A8DB5" },
+        storedData:          { fill: "#EAF4FB", stroke: "#1B5278" },
+        internalStorage:     { fill: "#EAF4FB", stroke: "#1B5278" },
+        directAccessStorage: { fill: "#EAF4FB", stroke: "#1B5278" },
+        manualOperation:     { fill: "#F6D6B4", stroke: "#0d2d44" },
+        merge:               { fill: "#FFFFFF", stroke: "#0d2d44" },
+        extract:             { fill: "#FFFFFF", stroke: "#0d2d44" },
+        sort:                { fill: "#FFFFFF", stroke: "#0d2d44" },
+        collate:             { fill: "#FFFFFF", stroke: "#0d2d44" },
+        summingJunction:     { fill: "#FFFFFF", stroke: "#0d2d44" },
+        or:                  { fill: "#FFFFFF", stroke: "#0d2d44" },
+        onPageConnector:     { fill: "#FFFFFF", stroke: "#1B5278" },
+        offPageConnector:    { fill: "#FFFFFF", stroke: "#1B5278" },
+        annotation:          { fill: "none", stroke: "#64748B" }
+    }
+};
+
 /**
  * @param {object} [options]
  * @param {"TB"|"LR"} [options.direction="TB"]  flow direction for the tidy-up functions
@@ -442,88 +475,61 @@ export function createFlowchartDefinition({ direction = "TB" } = {}) {
 
         id: "flowchart",
         shapes: flowchartShapes,
+        defaultTheme: FLOWCHART_THEME,
         nodeTypes: {
             process: {
                 defaultLabel: "Processtap",
-                colors: {
-                    fill: "#F6D6B4",
-                    stroke: "#0d2d44"
-                },
                 shape: "process"
             },
             decision: {
                 defaultLabel: "Beslissing?",
-                colors: {
-                    fill: "#FFB366",
-                    stroke: "#F57100"
-                },
                 shape: "decision"
             },
             terminator: {
                 defaultLabel: "Start / Stop",
-                colors: {
-                    fill: "#E8F3EC",
-                    stroke: "#1B5278"
-                },
                 shape: "terminator"
             },
             inputOutput: {
                 defaultLabel: "Input / Output",
-                colors: {
-                    fill: "#F6D6B4",
-                    stroke: "#4A8DB5"
-                },
                 shape: "inputOutput"
             },
             document: {
                 defaultLabel: "Document",
-                colors: {
-                    fill: "#FFF4E8",
-                    stroke: "#4A8DB5"
-                },
                 shape: "document"
             },
             subProcess: {
                 defaultLabel: "Subproces",
-                colors: {
-                    fill: "#8aa8b9",
-                    stroke: "#4A8DB5"
-                },
                 shape: "subProcess"
             },
             database: {
                 defaultLabel: "Database",
-                colors: {
-                    fill: "#EAF4FB",
-                    stroke: "#1B5278"
-                },
                 shape: "database"
             },
 
             // ── Additional standard shapes ──
-            preparation:         { defaultLabel: "Voorbereiding",        colors: { fill: "#E8F3EC", stroke: "#1B5278" }, shape: "preparation" },
-            loopLimit:           { defaultLabel: "Herhaal",              colors: { fill: "#E8F3EC", stroke: "#1B5278" }, shape: "loopLimit" },
-            delay:               { defaultLabel: "Wachten",              colors: { fill: "#FFF4E8", stroke: "#B07A00" }, shape: "delay" },
+            preparation:         { defaultLabel: "Voorbereiding",        shape: "preparation" },
+            loopLimit:           { defaultLabel: "Herhaal",              shape: "loopLimit" },
+            delay:               { defaultLabel: "Wachten",              shape: "delay" },
 
-            manualInput:         { defaultLabel: "Handmatige invoer",    colors: { fill: "#F6D6B4", stroke: "#4A8DB5" }, shape: "manualInput" },
-            display:             { defaultLabel: "Weergave",             colors: { fill: "#F6D6B4", stroke: "#4A8DB5" }, shape: "display" },
-            multipleDocuments:   { defaultLabel: "Documenten",           colors: { fill: "#FFF4E8", stroke: "#4A8DB5" }, shape: "multipleDocuments" },
+            manualInput:         { defaultLabel: "Handmatige invoer",    shape: "manualInput" },
+            display:             { defaultLabel: "Weergave",             shape: "display" },
+            multipleDocuments:   { defaultLabel: "Documenten",           shape: "multipleDocuments" },
 
-            storedData:          { defaultLabel: "Opgeslagen gegevens",  colors: { fill: "#EAF4FB", stroke: "#1B5278" }, shape: "storedData" },
-            internalStorage:     { defaultLabel: "Intern geheugen",      colors: { fill: "#EAF4FB", stroke: "#1B5278" }, shape: "internalStorage" },
-            directAccessStorage: { defaultLabel: "Directe opslag",       colors: { fill: "#EAF4FB", stroke: "#1B5278" }, shape: "directAccessStorage" },
+            storedData:          { defaultLabel: "Opgeslagen gegevens",  shape: "storedData" },
+            internalStorage:     { defaultLabel: "Intern geheugen",      shape: "internalStorage" },
+            directAccessStorage: { defaultLabel: "Directe opslag",       shape: "directAccessStorage" },
 
-            manualOperation:     { defaultLabel: "Handmatige handeling", colors: { fill: "#F6D6B4", stroke: "#0d2d44" }, shape: "manualOperation" },
-            merge:               { defaultLabel: "Samenvoegen",          colors: { fill: "#FFFFFF", stroke: "#0d2d44" }, shape: "merge" },
-            extract:             { defaultLabel: "Uitsplitsen",          colors: { fill: "#FFFFFF", stroke: "#0d2d44" }, shape: "extract" },
-            sort:                { defaultLabel: "Sorteren",             colors: { fill: "#FFFFFF", stroke: "#0d2d44" }, shape: "sort" },
-            collate:             { defaultLabel: "Collatie",             colors: { fill: "#FFFFFF", stroke: "#0d2d44" }, shape: "collate" },
-            summingJunction:     { defaultLabel: "Sommatie",             colors: { fill: "#FFFFFF", stroke: "#0d2d44" }, shape: "summingJunction" },
-            or:                  { defaultLabel: "Of",                   colors: { fill: "#FFFFFF", stroke: "#0d2d44" }, shape: "or" },
+            manualOperation:     { defaultLabel: "Handmatige handeling", shape: "manualOperation" },
+            merge:               { defaultLabel: "Samenvoegen",          shape: "merge" },
+            extract:             { defaultLabel: "Uitsplitsen",          shape: "extract" },
+            sort:                { defaultLabel: "Sorteren",             shape: "sort" },
+            collate:             { defaultLabel: "Collatie",             shape: "collate" },
+            summingJunction:     { defaultLabel: "Sommatie",             shape: "summingJunction" },
+            or:                  { defaultLabel: "Of",                   shape: "or" },
 
-            onPageConnector:     { defaultLabel: "A",        title: "On-page verbinder", colors: { fill: "#FFFFFF", stroke: "#1B5278" }, shape: "onPageConnector" },
-            offPageConnector:    { defaultLabel: "Pagina 2", title: "Off-page verbinder", colors: { fill: "#FFFFFF", stroke: "#1B5278" }, shape: "offPageConnector" },
-            annotation:          { defaultLabel: "Opmerking",            colors: { fill: "none",    stroke: "#64748B" }, shape: "annotation" }
+            onPageConnector:     { defaultLabel: "A",        title: "On-page verbinder", shape: "onPageConnector" },
+            offPageConnector:    { defaultLabel: "Pagina 2", title: "Off-page verbinder", shape: "offPageConnector" },
+            annotation:          { defaultLabel: "Opmerking",            shape: "annotation" }
         },
 
         // Grouped: the canvas toolbar and the node tools get a submenu per group.

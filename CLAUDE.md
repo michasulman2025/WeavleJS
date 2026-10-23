@@ -148,7 +148,9 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
   node tool "Stijl" (`getStyleAction`, appended in `getNodeContextActions`; `setStyle` in `handleContextAction`,
   whole selection) — "Standaard" + presets with swatches (`appendStyleSwatch`), colour inputs with
   `allowCustomStyles` (submenu children `{ input: "color" }`); `diagram.canStyleNode(node)`. Playground checkbox
-  "Custom styles". Next (step 5): definition colours into `defaultTheme`.
+  "Custom styles". Step 5 built: definitions keep their colours in `diagram.defaultTheme` (`FLOWCHART_THEME`,
+  `BPMN_THEME`, `ISHIKAWA_THEME`; same shape as a theme, part of the definition layer), `getDefaultTheme()`,
+  `getPresets()` (definition presets + theme presets). `nodeTypes[type].colors` still works for custom definitions.
 
 ## Conventions
 

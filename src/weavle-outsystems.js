@@ -227,6 +227,11 @@ export function mount(container, config = {}) {
             editor.setTheme(value);
         },
 
+        /** The diagram type's own colours as JSON text (same shape as a theme): a starting point for a house style. */
+        getDefaultTheme() {
+            return JSON.stringify(editor.getDefaultTheme());
+        },
+
         /**
          * Own style of nodes: nodeIds = one id or a JSON array of ids, style = JSON text or object
          * ({ "preset": "critical" }, or style properties with options.allowCustomStyles); "" removes it.

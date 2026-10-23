@@ -178,6 +178,7 @@ model (e.g. another record loaded) is loaded normally.
 | `setToolbarPosition(position)` | `"top"`, `"left"`, `"right"` or `"floating"` |
 | `setNodeStyle(nodeIdOrJsonArray, styleJson)` | Own style of nodes, e.g. `{"preset":"critical"}` from the theme's presets; `""` removes it (one undo step) |
 | `setEdgeStyle(edgeId, styleJson)` | The same for an edge |
+| `getDefaultTheme()` | The diagram type's own colours as JSON (same shape as a theme) — copy it to start a house style |
 | `setTheme(themeJson)` | House style (node / edge colours, font, editor colours; see ARCHITECTURE.md 7.4); `""` = none. Also as `options.theme` |
 | `addNode(type, label?)` | Adds a node on a free spot in view; returns its id |
 | `setNodeLabel(nodeId, label)` | One undo step |

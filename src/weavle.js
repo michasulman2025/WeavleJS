@@ -5011,7 +5011,7 @@ export class WeavleJS {
     getStyleAction(node) {
         if (typeof this.diagram.canStyleNode === "function" && this.diagram.canStyleNode(node, this) === false) return null;
 
-        const presets = Object.entries(this.getTheme().presets || {});
+        const presets = Object.entries(this.getPresets());
         const custom  = !!this.options.allowCustomStyles;
         if (!presets.length && !custom) return null;
 
@@ -7009,8 +7009,9 @@ export class WeavleJS {
     //
     // Layers, later ones win:
     //   1. engine defaults (NODE_STYLE_DEFAULTS / EDGE_STYLE_DEFAULTS)
-    //   2. the definition: nodeTypes[type].colors ({ fill, stroke }), nodeTypes[type].style and the
-    //      label colour of getLabelLayout; edgeTypes[type] (stroke, strokeWidth, dash) and its style
+    //   2. the definition: diagram.defaultTheme.node, nodeTypes[type].colors ({ fill, stroke }) and .style,
+    //      the label colour of getLabelLayout, then diagram.defaultTheme.nodeTypes[type]; for edges
+    //      defaultTheme.edge, edgeTypes[type] (stroke, strokeWidth, dash) and its style, defaultTheme.edgeTypes[type]
     //   3. the generic theme: theme.node / theme.edge, then theme.diagrams[id].node / .edge
     //   4. the type's fixedStyle (properties a generic theme must not change, e.g. a pool's white
     //      header text or the transparent background of an Ishikawa cause)
@@ -7028,8 +7029,9 @@ export class WeavleJS {
         const theme    = this.getTheme();
         const diagram  = theme.diagrams?.[this.diagram.id] || {};
 
+        const own        = this.getDefaultTheme();
         const definition = typeDef
-            ? [typeDef.colors, typeDef.style, { textColor: this.getLabelLayout(node).color }]
+            ? [own.node, typeDef.colors, typeDef.style, { textColor: this.getLabelLayout(node).color }, own.nodeTypes?.[type]]
             : [];
 
         return mergeStyles(
@@ -7045,12 +7047,13 @@ export class WeavleJS {
     /** The resolved style of an edge (or of null for a preview line). Always has every property. */
     getEdgeStyle(edge) {
         const def     = this.getEdgeTypeDefinition(edge);
+        const own     = this.getDefaultTheme();
         const theme   = this.getTheme();
         const diagram = theme.diagrams?.[this.diagram.id] || {};
 
         return mergeStyles(
             EDGE_STYLE_DEFAULTS,
-            def, def.style,
+            own.edge, def, def.style, own.edgeTypes?.[def.type],
             theme.edge, diagram.edge,
             def.fixedStyle,
             theme.edgeTypes?.[def.type], diagram.edgeTypes?.[def.type],
@@ -7067,7 +7070,7 @@ export class WeavleJS {
         if (!own) return [];
 
         return [
-            own.preset ? this.getTheme().presets?.[own.preset] : null,
+            own.preset ? this.getPresets()[own.preset] : null,
             this.options.allowCustomStyles ? own : null
         ];
     }
@@ -7119,6 +7122,20 @@ export class WeavleJS {
     /** The current theme (options.theme), or an empty object. Not part of the model or of undo. */
     getTheme() {
         return this.options.theme || {};
+    }
+
+    /**
+     * The definition's own colours (diagram.defaultTheme, same shape as a theme: node, nodeTypes, edge,
+     * edgeTypes, presets), or an empty object. The bottom layer under options.theme — a starting point
+     * for an organisation's theme.
+     */
+    getDefaultTheme() {
+        return this.diagram.defaultTheme || {};
+    }
+
+    /** Named styles for node.style / edge.style: the definition's presets, then the theme's (same name wins). */
+    getPresets() {
+        return { ...(this.getDefaultTheme().presets || {}), ...(this.getTheme().presets || {}) };
     }
 
     /**

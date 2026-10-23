@@ -722,48 +722,77 @@ const bpmnShapes = {
 // EXPORTED DEFINITION
 // ============================================================
 
+// The definition's own colours (ARCHITECTURE.md 7.4): the bottom layer under any theme. Same shape as
+// options.theme; an organisation's theme overrides what it names. getDefaultTheme() returns it.
+const BPMN_THEME = {
+    nodeTypes: {
+        // Events: one colour per kind (EVENT_COLORS)
+        ...Object.fromEntries(Object.entries(EVENT_TYPES).map(([type, def]) => [type, EVENT_COLORS[def.kind]])),
+        task:             { fill: "#FDF7E7", stroke: "#0d2d44" },
+        userTask:         { fill: "#EDF7FD", stroke: "#1B5278" },
+        serviceTask:      { fill: "#F3EDF7", stroke: "#6C3483" },
+        sendTask:         { fill: "#EBF5EC", stroke: "#1E8449" },
+        receiveTask:      { fill: "#EBF5EC", stroke: "#1E8449" },
+        scriptTask:       { fill: "#FDF7E7", stroke: "#7D6608" },
+        manualTask:       { fill: "#FDF7E7", stroke: "#0d2d44" },
+        businessRuleTask: { fill: "#FDF7E7", stroke: "#7D6608" },
+        callActivity:     { fill: "#FDF7E7", stroke: "#0d2d44" },
+        subProcess:       { fill: "#F8F9FA", stroke: "#566573" },
+        gateway:          { fill: "#FFF4E8", stroke: "#F57100" },
+        exclusiveGateway: { fill: "#FFF4E8", stroke: "#F57100" },
+        parallelGateway:  { fill: "#EBF5EC", stroke: "#1E8449" },
+        inclusiveGateway: { fill: "#EAF4FB", stroke: "#1B5278" },
+        dataObject:       { fill: "#FDFEFE", stroke: "#717D7E" },
+        dataStore:        { fill: "#EAF4FB", stroke: "#1B5278" },
+        annotation:       { fill: "#FFFDE7", stroke: "#999999" },
+        swimlane:         { fill: "#F4F6F7", stroke: "#85929E" },
+        pool:             { fill: "#FDFEFE", stroke: "#2C3E50" },
+    }
+};
+
 export function createBpmnDefinition() {
     return {
         id: "bpmn",
 
         shapes: bpmnShapes,
+        defaultTheme: BPMN_THEME,
 
         // ── Node type catalogue ──────────────────────────────
         nodeTypes: {
 
             // Events — generated from EVENT_TYPES, all drawn by the generic "event" shape
             ...Object.fromEntries(Object.entries(EVENT_TYPES).map(([type, def]) => [
-                type, { defaultLabel: def.label, colors: EVENT_COLORS[def.kind], shape: "event" }
+                type, { defaultLabel: def.label, shape: "event" }
             ])),
 
             // Tasks
-            task:              { defaultLabel: "Task",                colors: { fill: "#FDF7E7", stroke: "#0d2d44" }, shape: "task"               },
-            userTask:          { defaultLabel: "User task",           colors: { fill: "#EDF7FD", stroke: "#1B5278" }, shape: "userTask"           },
-            serviceTask:       { defaultLabel: "Service task",        colors: { fill: "#F3EDF7", stroke: "#6C3483" }, shape: "serviceTask"        },
-            sendTask:          { defaultLabel: "Send task",           colors: { fill: "#EBF5EC", stroke: "#1E8449" }, shape: "sendTask"           },
-            receiveTask:       { defaultLabel: "Receive task",        colors: { fill: "#EBF5EC", stroke: "#1E8449" }, shape: "receiveTask"        },
-            scriptTask:        { defaultLabel: "Script task",         colors: { fill: "#FDF7E7", stroke: "#7D6608" }, shape: "scriptTask"         },
-            manualTask:        { defaultLabel: "Manual task",         colors: { fill: "#FDF7E7", stroke: "#0d2d44" }, shape: "manualTask"         },
-            businessRuleTask:  { defaultLabel: "Business rule task",  colors: { fill: "#FDF7E7", stroke: "#7D6608" }, shape: "businessRuleTask"   },
-            callActivity:      { defaultLabel: "Call activity",       colors: { fill: "#FDF7E7", stroke: "#0d2d44" }, shape: "callActivity"       },
-            subProcess:        { defaultLabel: "Sub-process",         colors: { fill: "#F8F9FA", stroke: "#566573" }, shape: "subProcess"         },
+            task:              { defaultLabel: "Task",                shape: "task"               },
+            userTask:          { defaultLabel: "User task",           shape: "userTask"           },
+            serviceTask:       { defaultLabel: "Service task",        shape: "serviceTask"        },
+            sendTask:          { defaultLabel: "Send task",           shape: "sendTask"           },
+            receiveTask:       { defaultLabel: "Receive task",        shape: "receiveTask"        },
+            scriptTask:        { defaultLabel: "Script task",         shape: "scriptTask"         },
+            manualTask:        { defaultLabel: "Manual task",         shape: "manualTask"         },
+            businessRuleTask:  { defaultLabel: "Business rule task",  shape: "businessRuleTask"   },
+            callActivity:      { defaultLabel: "Call activity",       shape: "callActivity"       },
+            subProcess:        { defaultLabel: "Sub-process",         shape: "subProcess"         },
 
             // Gateways
-            gateway:           { defaultLabel: "Gateway",             colors: { fill: "#FFF4E8", stroke: "#F57100" }, shape: "gateway"            },
-            exclusiveGateway:  { defaultLabel: "Exclusive (XOR)",     colors: { fill: "#FFF4E8", stroke: "#F57100" }, shape: "exclusiveGateway"   },
-            parallelGateway:   { defaultLabel: "Parallel (AND)",      colors: { fill: "#EBF5EC", stroke: "#1E8449" }, shape: "parallelGateway"    },
-            inclusiveGateway:  { defaultLabel: "Inclusive (OR)",      colors: { fill: "#EAF4FB", stroke: "#1B5278" }, shape: "inclusiveGateway"   },
+            gateway:           { defaultLabel: "Gateway",             shape: "gateway"            },
+            exclusiveGateway:  { defaultLabel: "Exclusive (XOR)",     shape: "exclusiveGateway"   },
+            parallelGateway:   { defaultLabel: "Parallel (AND)",      shape: "parallelGateway"    },
+            inclusiveGateway:  { defaultLabel: "Inclusive (OR)",      shape: "inclusiveGateway"   },
 
             // Artifacts & data
-            dataObject:        { defaultLabel: "Data object",         colors: { fill: "#FDFEFE", stroke: "#717D7E" }, shape: "dataObject"         },
-            dataStore:         { defaultLabel: "Data store",          colors: { fill: "#EAF4FB", stroke: "#1B5278" }, shape: "dataStore"          },
-            annotation:        { defaultLabel: "Annotation",          colors: { fill: "#FFFDE7", stroke: "#999999" }, shape: "annotation"         },
+            dataObject:        { defaultLabel: "Data object",         shape: "dataObject"         },
+            dataStore:         { defaultLabel: "Data store",          shape: "dataStore"          },
+            annotation:        { defaultLabel: "Annotation",          shape: "annotation"         },
 
             // Containers — rendered behind regular nodes
             // The header strip is filled with the stroke colour and carries white text: a generic theme
             // text colour must not make it unreadable (theme.nodeTypes.pool / swimlane may still change it).
-            swimlane:          { defaultLabel: "Lane",                colors: { fill: "#F4F6F7", stroke: "#85929E" }, shape: "swimlane", isContainer: true, fixedStyle: { textColor: "#ffffff" } },
-            pool:              { defaultLabel: "Pool",                colors: { fill: "#FDFEFE", stroke: "#2C3E50" }, shape: "pool",      isContainer: true, fixedStyle: { textColor: "#ffffff" } },
+            swimlane:          { defaultLabel: "Lane",                shape: "swimlane", isContainer: true, fixedStyle: { textColor: "#ffffff" } },
+            pool:              { defaultLabel: "Pool",                shape: "pool",      isContainer: true, fixedStyle: { textColor: "#ffffff" } },
         },
 
         // Palette shown in the side panel (curated subset)

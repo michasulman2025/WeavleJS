@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Added
+- **Definition default themes, styles step 5** (ARCHITECTURE.md 7.4): flowchart, BPMN and Ishikawa keep their
+  colours in `diagram.defaultTheme` (same shape as a theme) instead of `nodeTypes[type].colors` — one readable
+  table per diagram type. `getDefaultTheme()` (OutSystems `controller.getDefaultTheme()`, JSON) returns it as a
+  starting point for a house style; `getPresets()` merges definition and theme presets. `colors` still works for
+  custom definitions. No visible change: exports and toolbar icons of all samples, with and without the sample
+  theme, are identical.
 - **"Stijl" in the node tools, styles step 4** (ARCHITECTURE.md 7.9): a built-in tool with "Standaard" and the
   theme's presets, each with a swatch of how the node would look (fill, line, "Aa" in the text colour); with
   `options.allowCustomStyles` also colour inputs for fill, line and text. Applies to the whole selection (one

@@ -224,7 +224,7 @@ ports: [
 
 ## 7. Styling and themes (design)
 
-Status: steps 1–4 of 7.10 are built; step 5 is design. Goal: organisations can apply their house style to every diagram, and users can
+Status: built (steps 1–5 of 7.10); open points in 7.11 and the backlog (edge tools). Goal: organisations can apply their house style to every diagram, and users can
 mark individual nodes and edges — without visual inline styles, and with the same result on screen and in
 `exportSvg()`.
 
@@ -312,8 +312,12 @@ new WeavleJS(container, {
 - The theme is not part of the model, not part of undo and not reported in `weavle:modelchanged`.
 - API: `setTheme(theme)` (re-renders, no undo step), `getTheme()`. OutSystems: `options.theme` (JSON) and
   `controller.setTheme(themeJson)`.
-- Definitions may ship a default theme (`diagram.defaultTheme`, same shape) — e.g. BPMN's current colours move
-  there from `nodeTypes[type].colors`. `colors` keeps working as a shorthand for `{ fill, stroke }`.
+- Definitions ship their own colours as `diagram.defaultTheme` (`node`, `nodeTypes`, `edge`, `edgeTypes`, `presets`;
+  not `ui` / `font`, which belong to the editor): flowchart `FLOWCHART_THEME`, BPMN `BPMN_THEME` (events per kind
+  from `EVENT_COLORS`), Ishikawa `ISHIKAWA_THEME`. It is part of layer 2 of 7.6, so any `options.theme` overrides it.
+  `getDefaultTheme()` (OutSystems: `controller.getDefaultTheme()`, JSON) returns it as a starting point for a house
+  style; `getPresets()` merges its presets with the theme's. `nodeTypes[type].colors` keeps working as a shorthand
+  for `{ fill, stroke }` (custom definitions).
 
 ### 7.5 Per-item style (`node.style`, `edge.style`)
 
@@ -414,14 +418,16 @@ Each step is usable on its own and changes nothing for existing diagrams without
    sample house style).
 3. ✅ **Per-item style:** `node.style` / `edge.style` with presets and `allowCustomStyles`; export check.
 4. ✅ **"Stijl" in the node tools** and `canStyleNode` (edges: backlog).
-5. **Definition defaults:** move BPMN / flowchart / Ishikawa colours into `defaultTheme`.
+5. ✅ **Definition defaults:** move BPMN / flowchart / Ishikawa colours into `defaultTheme`.
 
 ### 7.11 Open questions
 
-1. **Free colours:** presets only by default — or should users get a colour picker unless the theme forbids it?
-2. **Per-diagram-type overrides:** is `theme.diagrams` needed in practice, or is one style per type name enough?
-3. **Dark mode:** a second theme the host switches with `setTheme`, or `theme.dark` inside one theme?
-4. **Fonts:** only the family in the theme — or also a base size (which changes how much text fits a node)?
+Built with these defaults; revisit when real users ask:
+
+1. **Free colours:** presets only by default (`allowCustomStyles: false`); colour pickers are opt-in.
+2. **Per-diagram-type overrides:** `theme.diagrams[id]` is built (the sample theme uses it for Ishikawa).
+3. **Dark mode:** a second theme the host switches with `setTheme` (nothing built in).
+4. **Fonts:** only the family in the theme; no base size (it would change how much text fits a node).
 
 ---
 

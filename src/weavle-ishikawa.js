@@ -323,6 +323,17 @@ function layoutFishbone(engine, routes) {
     }
 }
 
+// The definition's own colours (ARCHITECTURE.md 7.4): the bottom layer under any theme. Same shape as
+// options.theme; an organisation's theme overrides what it names. getDefaultTheme() returns it.
+const ISHIKAWA_THEME = {
+    nodeTypes: {
+        effect:   { fill: "#FDE8E7", stroke: "#B42318" },
+        category: { fill: "#EAF4FB", stroke: "#1B5278" },
+        cause:    TEXT_NODE,
+        subCause: TEXT_NODE
+    }
+};
+
 // ── Definition ──────────────────────────────────────────────
 
 /**
@@ -336,13 +347,14 @@ export function createIshikawaDefinition() {
     return {
         id: "ishikawa",
         shapes: ishikawaShapes,
+        defaultTheme: ISHIKAWA_THEME,
 
         nodeTypes: {
-            effect:   { defaultLabel: "Probleem",   title: "Probleem (gevolg)", colors: { fill: "#FDE8E7", stroke: "#B42318" }, shape: "effect" },
-            category: { defaultLabel: "Categorie",  colors: { fill: "#EAF4FB", stroke: "#1B5278" }, shape: "category" },
+            effect:   { defaultLabel: "Probleem",   title: "Probleem (gevolg)", shape: "effect" },
+            category: { defaultLabel: "Categorie",  shape: "category" },
             // Causes are text on a line: a generic theme must not give them a box.
-            cause:    { defaultLabel: "Oorzaak",    colors: TEXT_NODE, fixedStyle: TEXT_NODE, shape: "text" },
-            subCause: { defaultLabel: "Suboorzaak", colors: TEXT_NODE, fixedStyle: TEXT_NODE, shape: "text" }
+            cause:    { defaultLabel: "Oorzaak",    fixedStyle: TEXT_NODE, shape: "text" },
+            subCause: { defaultLabel: "Suboorzaak", fixedStyle: TEXT_NODE, shape: "text" }
         },
 
         // Nothing to place freely: the toolbar adds categories, the node tools do the rest.
