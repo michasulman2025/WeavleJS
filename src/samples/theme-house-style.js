@@ -63,6 +63,14 @@ export const houseStyleTheme = {
         }
     },
 
+    // Named styles users can give a node or edge (node.style = { preset: "critical" }); label = menu name.
+    presets: {
+        accent:   { label: "Accent",   fill: NAVY,  stroke: DEEP_NAVY, textColor: WHITE },
+        warning:  { label: "Let op",   fill: WARM,  stroke: ORANGE,    textColor: DEEP_NAVY },
+        critical: { label: "Kritiek",  fill: ORANGE, stroke: ORANGE,   textColor: WHITE, fontWeight: "bold" },
+        muted:    { label: "Gedempt",  fill: LIGHT, stroke: BLUE_GREY, textColor: NAVY, dash: "4,3" }
+    },
+
     // Editor chrome: orange selection and highlights, navy handles, a light grey canvas.
     ui: {
         selection:        ORANGE,

@@ -141,7 +141,10 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
   Ishikawa causes), then `theme.nodeTypes` / `.edgeTypes` (+ per diagram). Arrowheads per colour (`getMarkerId`);
   SVG chrome colours from `getUiColors()`; `theme.ui` → CSS custom properties on the container (`applyThemeUi`,
   `THEME_UI_CSS_VARS`); `theme.font.family` on the SVG. Sample: `src/samples/theme-house-style.js` (playground
-  "Theme" select). Next: `node.style` / `edge.style` with presets.
+  "Theme" select). Step 3 built: `node.style` / `edge.style` = `{ preset }` from `theme.presets` (+ own properties,
+  shown only with `options.allowCustomStyles`), resolved last (`getItemStyleLayers`); `setNodeStyle(ids, style)`,
+  `setEdgeStyle(id, style)` (one undo step); classes `weavle-node--preset-{name}` / `weavle-edge--preset-{name}`;
+  label measuring takes fontWeight / fontStyle (`measureLabelText(text, size, font)`). Next: "Stijl" in the node tools.
 
 ## Conventions
 

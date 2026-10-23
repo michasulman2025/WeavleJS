@@ -162,7 +162,7 @@ ports: [
 | Derived mode: `toGraph(data)` | Pedigree | – |
 | Layout hook with options and animation | Pedigree, Ishikawa | Partly: `layoutDiagram` ✅ (without options and animation) |
 | Expanding and lazy loading via events | Pedigree | – |
-| Themes (house style) and per-item styles | All (organisations) | Partly: style resolver, type classes and themes ✅ (section 7) |
+| Themes (house style) and per-item styles | All (organisations) | Partly: style resolver, type classes, themes and per-item styles ✅ (section 7) |
 
 ### Couplings that are still on the wrong side
 
@@ -224,7 +224,7 @@ ports: [
 
 ## 7. Styling and themes (design)
 
-Status: steps 1–2 of 7.10 are built; the rest is design. Goal: organisations can apply their house style to every diagram, and users can
+Status: steps 1–3 of 7.10 are built; the rest is design. Goal: organisations can apply their house style to every diagram, and users can
 mark individual nodes and edges — without visual inline styles, and with the same result on screen and in
 `exportSvg()`.
 
@@ -326,7 +326,13 @@ new WeavleJS(container, {
 - `preset` refers to `theme.presets`; explicit properties override the preset. An unknown preset is ignored
   (the item falls back to its type's style), so a model stays valid when the theme changes.
 - Recommended for organisations: presets only (`options.allowCustomStyles = false`, the default), so users
-  stay within the house style. Free colours are opt-in.
+  stay within the house style. Free colours are opt-in; without it, own properties stay in the model but are
+  not shown.
+- API: `setNodeStyle(nodeIds, style)` (one id or an array; one undo step), `setEdgeStyle(edgeId, style)`; `null` /
+  `{}` removes the style. Only `preset` and the style properties are stored. OutSystems:
+  `controller.setNodeStyle(nodeIdOrJsonArray, styleJson)`, `controller.setEdgeStyle(edgeId, styleJson)`.
+- Bold / italic labels are measured as such (`measureLabelText(text, size, font)`, `wrapLabel(..., font)`), so a
+  bold preset wraps correctly and Ishikawa sizes its text nodes to it.
 
 ### 7.6 How a style is resolved
 
@@ -341,8 +347,8 @@ engine.getNodeStyle(node)  /  engine.getEdgeStyle(edge)
   3. generic theme                        theme.node / theme.edge, then theme.diagrams[id].node / .edge
   4. the type's fixedStyle                (properties a generic theme must not change)
   5. theme per type                       theme.nodeTypes[type] / theme.edgeTypes[type], then theme.diagrams[id]'s
-  6. theme.presets[item.style.preset]     (planned, step 3)
-  7. item.style                           (planned, step 3; explicit properties, if allowed)
+  6. theme.presets[item.style.preset]     (unknown presets are ignored)
+  7. item.style                           (its own properties — only with options.allowCustomStyles)
 ```
 
 - **Fixed properties** protect a type against the *generic* theme layers only: `theme.node.fill` must not give an
@@ -401,7 +407,7 @@ Each step is usable on its own and changes nothing for existing diagrams without
 2. ✅ **Theme:** `options.theme`, `setTheme`, `theme.diagrams`, `fixedStyle`, markers per colour, `theme.font`,
    `theme.ui`, the remaining hard-coded colours. OutSystems `setTheme`. Playground: a theme switch (default /
    sample house style).
-3. **Per-item style:** `node.style` / `edge.style` with presets and `allowCustomStyles`; export check.
+3. ✅ **Per-item style:** `node.style` / `edge.style` with presets and `allowCustomStyles`; export check.
 4. **"Stijl" in the node tools** and `canStyleNode` / `canStyleEdge`.
 5. **Definition defaults:** move BPMN / flowchart / Ishikawa colours into `defaultTheme`.
 

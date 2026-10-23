@@ -227,6 +227,20 @@ export function mount(container, config = {}) {
             editor.setTheme(value);
         },
 
+        /**
+         * Own style of nodes: nodeIds = one id or a JSON array of ids, style = JSON text or object
+         * ({ "preset": "critical" }, or style properties with options.allowCustomStyles); "" removes it.
+         */
+        setNodeStyle(nodeIds, style) {
+            const ids = typeof nodeIds === "string" && nodeIds.trim().startsWith("[") ? JSON.parse(nodeIds) : nodeIds;
+            return editor.setNodeStyle(ids, parseJson(style));
+        },
+
+        /** Own style of an edge; see setNodeStyle. */
+        setEdgeStyle(edgeId, style) {
+            return editor.setEdgeStyle(edgeId, parseJson(style));
+        },
+
         /** Canvas toolbar placement: "top", "left", "right" or "floating" (draggable). */
         setToolbarPosition(position) {
             editorOptions.toolbarPosition = position;

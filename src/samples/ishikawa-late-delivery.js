@@ -7,11 +7,11 @@ const TREE = {
     label: "Bestellingen worden te laat geleverd",
     categories: [
         { label: "Mens", causes: [
-            { label: "Te weinig planners", subs: ["Vacatures niet ingevuld", "Ziekteverzuim"] },
+            { label: "Te weinig planners", style: { preset: "critical" }, subs: ["Vacatures niet ingevuld", "Ziekteverzuim"] },
             { label: "Onvoldoende opleiding" }
         ] },
         { label: "Machine", causes: [
-            { label: "Storingen sorteerband", subs: ["Achterstallig onderhoud"] },
+            { label: "Storingen sorteerband", style: { preset: "warning" }, subs: ["Achterstallig onderhoud"] },
             { label: "Scanners verouderd" }
         ] },
         { label: "Methode", causes: [
@@ -36,9 +36,10 @@ export function createLateDeliverySample() {
     const edges = [];
     let n = 0;
 
-    const add = (type, label, parent) => {
+    // style: a preset of the theme (shown only when the theme has it, e.g. the playground's house style).
+    const add = (type, label, parent, style) => {
         const id = `${type}-${++n}`;
-        nodes.push({ id, type, label, x: 0, y: 0, width: 0, height: 0 });
+        nodes.push({ id, type, label, x: 0, y: 0, width: 0, height: 0, ...(style ? { style } : {}) });
         if (parent) {
             edges.push({ id: `edge-${n}`, sourceNodeId: id, targetNodeId: parent, sourceHandle: "right", targetHandle: "left" });
         }
@@ -51,7 +52,7 @@ export function createLateDeliverySample() {
     for (const category of TREE.categories) {
         const categoryId = add("category", category.label, effect);
         for (const cause of category.causes || []) {
-            const causeId = add("cause", cause.label, categoryId);
+            const causeId = add("cause", cause.label, categoryId, cause.style);
             for (const sub of cause.subs || []) add("subCause", sub, causeId);
         }
     }

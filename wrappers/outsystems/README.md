@@ -176,6 +176,8 @@ model (e.g. another record loaded) is loaded normally.
 | `undo()`, `redo()`, `clear()` | |
 | `setReadOnly(bool)` | Switch without rebuilding |
 | `setToolbarPosition(position)` | `"top"`, `"left"`, `"right"` or `"floating"` |
+| `setNodeStyle(nodeIdOrJsonArray, styleJson)` | Own style of nodes, e.g. `{"preset":"critical"}` from the theme's presets; `""` removes it (one undo step) |
+| `setEdgeStyle(edgeId, styleJson)` | The same for an edge |
 | `setTheme(themeJson)` | House style (node / edge colours, font, editor colours; see ARCHITECTURE.md 7.4); `""` = none. Also as `options.theme` |
 | `addNode(type, label?)` | Adds a node on a free spot in view; returns its id |
 | `setNodeLabel(nodeId, label)` | One undo step |

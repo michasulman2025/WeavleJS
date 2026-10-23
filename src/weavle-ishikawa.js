@@ -157,8 +157,9 @@ function makeEdge(engine, child, parent) {
 /** Sizes a text node to its (wrapped) label, using the same layout the engine draws it with. */
 function fitToLabel(engine, node) {
     const layout    = LABELS[node.type];
-    const { lines } = engine.wrapLabel(node.label || "", MAX_TEXT_WIDTH[node.type], layout.maxLines, layout.fontSize);
-    const textWidth = Math.max(0, ...lines.map(line => engine.measureLabelText(line, layout.fontSize)));
+    const font      = engine.getNodeStyle(node);   // a bold preset makes the text wider
+    const { lines } = engine.wrapLabel(node.label || "", MAX_TEXT_WIDTH[node.type], layout.maxLines, layout.fontSize, font);
+    const textWidth = Math.max(0, ...lines.map(line => engine.measureLabelText(line, layout.fontSize, font)));
 
     node.width  = Math.max(MIN_WIDTH[node.type], Math.ceil(textWidth + 2 * layout.paddingX + 2));
     node.height = Math.ceil(Math.max(1, lines.length) * layout.fontSize * LINE_HEIGHT + 2 * layout.paddingY);

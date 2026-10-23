@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Added
+- **Per-item styles, styles step 3** (ARCHITECTURE.md 7.5): `node.style` / `edge.style` in the model —
+  `{ preset: "critical" }` refers to `theme.presets` (unknown presets are ignored), own properties only show with
+  `options.allowCustomStyles` (default: presets only). `setNodeStyle(nodeIds, style)` / `setEdgeStyle(edgeId,
+  style)` (one undo step; `null` removes); OutSystems `controller.setNodeStyle` / `setEdgeStyle`. Styled items get
+  `weavle-node--preset-{name}` / `weavle-edge--preset-{name}`. Bold / italic labels are measured as such. The
+  sample house style has presets (Accent, Let op, Kritiek, Gedempt); the Ishikawa sample uses two of them.
 - **Themes (house style), styles step 2** (ARCHITECTURE.md 7.4): `options.theme`, `setTheme(theme)`, `getTheme()`.
   A theme sets node / edge styles for every type (`node`, `edge`), per type (`nodeTypes`, `edgeTypes`) and per
   diagram type (`diagrams[id]`), the label font (`font.family`) and the editor colours (`ui`: selection, accent,

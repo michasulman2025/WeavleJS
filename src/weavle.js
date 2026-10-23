@@ -105,6 +105,7 @@ export class WeavleJS {
             tidyTools: true,           // "Lijnen optimaliseren" (and later "Flow optimaliseren") in the toolbar
             layoutDirection: null,     // "LR" | "TB" — flow direction; null = diagram.getLayoutConfig().direction
             theme: null,               // house style: node / edge styles, font, editor colours (ARCHITECTURE.md 7.4)
+            allowCustomStyles: false,  // node.style / edge.style may carry own colours; false = theme presets only
         }, options);
 
         // The diagram definition drives node types, port layout, routing and context actions.
@@ -961,6 +962,7 @@ export class WeavleJS {
             // Visible edge path.
             const visiblePath = this.createEdgePath(pathData, false, isSelected, this.getEdgeTypeDefinition(edge), this.getEdgeStyle(edge));
             visiblePath.setAttribute("data-edge-id", edge.id);
+            if (edge.style?.preset) visiblePath.classList.add(`weavle-edge--preset-${edge.style.preset}`);
             this.layers.edges.appendChild(visiblePath);
 
             //If edge has a label, we place it on the right spot..
@@ -1150,7 +1152,8 @@ export class WeavleJS {
         const group = document.createElementNS(NS, "g");
         group.setAttribute("data-node-id", node.id);
         group.setAttribute("data-node-type", node.type);
-        group.setAttribute("class", `weavle-node weavle-node--${node.type}`);
+        group.setAttribute("class", `weavle-node weavle-node--${node.type}` +
+            (node.style?.preset ? ` weavle-node--preset-${node.style.preset}` : ""));
 
         const isSelected = this.isNodeSelected(node.id);
         const isPrimarySelected = node.id === this.state.primarySelectedNodeId;
@@ -1349,6 +1352,7 @@ export class WeavleJS {
      */
     getNodeLabelBox(node, layoutOverride = null) {
         const layout = layoutOverride || this.getLabelLayout(node);
+        const font   = this.getNodeStyle(node);   // bold / italic text is measured as such
 
         // "auto": inside the shape if the whole label fits there, otherwise below it.
         if (layout.placement === "auto") {
@@ -1365,7 +1369,7 @@ export class WeavleJS {
             const header   = layout.headerSize;
             const width    = Math.max(10, node.height - layout.paddingX * 2);   // runs along the strip
             const maxLines = layout.maxLines ?? Math.max(1, Math.floor((header - 4) / lineHeight));
-            const wrapped  = this.wrapLabel(node.label, width, maxLines, fontSize);
+            const wrapped  = this.wrapLabel(node.label, width, maxLines, fontSize, font);
 
             return {
                 ...wrapped,
@@ -1384,7 +1388,7 @@ export class WeavleJS {
         if (layout.placement === "below-right") {
             const width    = layout.belowWidth;
             const maxLines = layout.maxLines ?? 2;
-            const wrapped  = this.wrapLabel(node.label, width, maxLines, fontSize);
+            const wrapped  = this.wrapLabel(node.label, width, maxLines, fontSize, font);
             const height   = Math.max(1, wrapped.lines.length) * lineHeight;
             const top      = node.y + node.height + layout.belowGap;
 
@@ -1399,7 +1403,7 @@ export class WeavleJS {
         if (layout.placement === "below") {
             const width    = Math.max(node.width, layout.belowWidth);
             const maxLines = layout.maxLines ?? 3;
-            const wrapped  = this.wrapLabel(node.label, width, maxLines, fontSize);
+            const wrapped  = this.wrapLabel(node.label, width, maxLines, fontSize, font);
             const height   = Math.max(1, wrapped.lines.length) * lineHeight;
             const top      = node.y + node.height + layout.belowGap;
 
@@ -1409,7 +1413,7 @@ export class WeavleJS {
         const width    = Math.max(10, node.width  * layout.widthFactor  - layout.paddingX * 2);
         const height   = Math.max(lineHeight, node.height * layout.heightFactor - layout.paddingY * 2);
         const maxLines = layout.maxLines ?? Math.max(1, Math.floor(height / lineHeight));
-        const wrapped  = this.wrapLabel(node.label, width, maxLines, fontSize);
+        const wrapped  = this.wrapLabel(node.label, width, maxLines, fontSize, font);
 
         return { ...wrapped, centerX, centerY: node.y + node.height / 2, width, height, fontSize, lineHeight };
     }
@@ -1418,8 +1422,8 @@ export class WeavleJS {
      * Word-wraps a label to maxWidth (px at fontSize). Respects explicit line breaks, splits words
      * that are longer than a line, and ends the last allowed line with "…" if the text doesn't fit.
      */
-    wrapLabel(label, maxWidth, maxLines, fontSize) {
-        const measure = s => this.measureLabelText(s, fontSize);
+    wrapLabel(label, maxWidth, maxLines, fontSize, font = null) {
+        const measure = s => this.measureLabelText(s, fontSize, font);
         const lines   = [];
 
         for (const paragraph of String(label ?? "").split(/\r?\n/)) {
@@ -1473,8 +1477,11 @@ export class WeavleJS {
         return { lines: kept, truncated: true };
     }
 
-    /** Text width in px at fontSize, using the SVG's font. Measured on a canvas and cached. */
-    measureLabelText(text, fontSize) {
+    /**
+     * Text width in px at fontSize, using the SVG's font. Measured on a canvas and cached.
+     * font (optional): { fontWeight, fontStyle } — e.g. a resolved style — for bold / italic text.
+     */
+    measureLabelText(text, fontSize, font = null) {
         if (!this.labelMeasure) {
             const ctx = document.createElement("canvas").getContext("2d");
             this.labelMeasure = { ctx, family: null, cache: new Map() };
@@ -1487,11 +1494,12 @@ export class WeavleJS {
             m.family = (this.svg && this.svg.isConnected && getComputedStyle(this.svg).fontFamily) || "sans-serif";
         }
 
-        const key = `${fontSize}|${text}`;
-        let width = m.cache.get(key);
+        const variant = `${font?.fontStyle || "normal"} ${font?.fontWeight || "normal"}`;
+        const key     = `${variant}|${fontSize}|${text}`;
+        let width     = m.cache.get(key);
 
         if (width === undefined) {
-            m.ctx.font = `${fontSize}px ${m.family}`;
+            m.ctx.font = `${variant} ${fontSize}px ${m.family}`;
             width = m.ctx.measureText(text).width;
 
             if (m.cache.size > 5000) m.cache.clear();
@@ -6887,7 +6895,8 @@ export class WeavleJS {
     //   4. the type's fixedStyle (properties a generic theme must not change, e.g. a pool's white
     //      header text or the transparent background of an Ishikawa cause)
     //   5. the theme per type: theme.nodeTypes[type] / theme.edgeTypes[type], then theme.diagrams[id]'s
-    //   (planned: presets and node.style / edge.style — see section 7.6)
+    //   6. the item's preset: theme.presets[item.style.preset] (unknown presets are ignored)
+    //   7. the item's own properties in item.style — only with options.allowCustomStyles
     //
     // Style properties: fill, stroke, strokeWidth, dash, textColor, fontWeight, fontStyle.
     // ------------------------------------------------------------
@@ -6908,7 +6917,8 @@ export class WeavleJS {
             ...definition,
             theme.node, diagram.node,
             typeDef?.fixedStyle,
-            theme.nodeTypes?.[type], diagram.nodeTypes?.[type]
+            theme.nodeTypes?.[type], diagram.nodeTypes?.[type],
+            ...this.getItemStyleLayers(node)
         );
     }
 
@@ -6923,8 +6933,63 @@ export class WeavleJS {
             def, def.style,
             theme.edge, diagram.edge,
             def.fixedStyle,
-            theme.edgeTypes?.[def.type], diagram.edgeTypes?.[def.type]
+            theme.edgeTypes?.[def.type], diagram.edgeTypes?.[def.type],
+            ...this.getItemStyleLayers(edge)
         );
+    }
+
+    /**
+     * The style layers of a node's or edge's own `style`: its preset from the theme, then (only with
+     * options.allowCustomStyles) its own properties.
+     */
+    getItemStyleLayers(item) {
+        const own = item?.style;
+        if (!own) return [];
+
+        return [
+            own.preset ? this.getTheme().presets?.[own.preset] : null,
+            this.options.allowCustomStyles ? own : null
+        ];
+    }
+
+    /**
+     * Sets the own style of one or more nodes (one undo step, emits weavle:modelchanged).
+     * style: { preset } and / or style properties (the latter only show with options.allowCustomStyles);
+     * null or {} removes it, so the node follows its type again.
+     * @param {string|string[]} nodeIds
+     * @returns {boolean} false if nothing changed
+     */
+    setNodeStyle(nodeIds, style) {
+        const nodes = [].concat(nodeIds).map(id => this.getNode(id)).filter(Boolean);
+        return this.applyItemStyle(nodes, style);
+    }
+
+    /** Sets the own style of an edge; see setNodeStyle. */
+    setEdgeStyle(edgeId, style) {
+        const edge = this.model.edges.find(e => e.id === edgeId);
+        return this.applyItemStyle(edge ? [edge] : [], style);
+    }
+
+    /** Stores a cleaned-up style (preset + known properties) on the items; one undo step if anything changed. */
+    applyItemStyle(items, style) {
+        const clean = { ...(typeof style?.preset === "string" && style.preset ? { preset: style.preset } : {}), ...pickStyle(style) };
+        const value = Object.keys(clean).length ? clean : null;
+        const key   = JSON.stringify(value);
+
+        let changed = false;
+        for (const item of items) {
+            if (JSON.stringify(item.style ?? null) === key) continue;
+            if (value) item.style = { ...value };
+            else delete item.style;
+            changed = true;
+        }
+
+        if (!changed) return false;
+
+        this.pushHistory();
+        this.emit("weavle:modelchanged", { model: this.getData() });
+        this.render();
+        return true;
     }
 
     // ------------------------------------------------------------
