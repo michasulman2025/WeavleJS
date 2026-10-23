@@ -24,6 +24,8 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
 - `src/weavle-bpmn.js` — `export function createBpmnDefinition()`.
 - `src/weavle-ishikawa.js` — `export function createIshikawaDefinition()` (fishbone, automatic layout).
 - `src/weavle-fta.js` — `export function createFtaDefinition()` (fault tree, automatic top-down layout).
+- `src/weavle-orgchart.js` — `export function createOrgChartDefinition()`, `orgChartFromList`, `orgChartToList`
+  (org chart, automatic top-down layout, flat list in / out).
 - `src/weavle-layout.js` — `computeLayeredLayout(graph, options)`, the layered layout behind "Flow optimaliseren".
 - `src/weavle-outsystems.js` — host adapter: `mount(container, config)` → controller, `getInstance`,
   `registerDiagramType`; JSON in / out and echo protection (`setModel` skips the model the editor reported).
@@ -33,7 +35,7 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
   and `example.html` simulation.
 - `src/samples/bpmn-order-process.js` — complex BPMN sample (3 pools, lanes, message flows), button
   "Load complex sample" in the playground. `src/samples/ishikawa-late-delivery.js` — the Ishikawa "Load sample".
-  `src/samples/fta-datacenter-outage.js` — the fault tree "Load sample".
+  `src/samples/fta-datacenter-outage.js` — the fault tree "Load sample". `src/samples/orgchart-acme.js` — the org chart one.
 - `index.html`, `src/demo.js`, `src/style.css` — the playground (diagram type switch, shape buttons,
   event log, selection info, model JSON).
 - `embed-test.html` — embedding tests: two editors (keyboard follows focus), `setCanvasSize` + `fitToContent` in a
@@ -138,6 +140,13 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
   `outputPoint`); boxes are sized by `fitToLabel`, leaves label below. k-out-of-n threshold in `node.k`.
   Actions `ftaAddGate`, `ftaAddInput`, `ftaAddSibling`, `ftaAddCondition`, `ftaChangeGate`, `ftaSetK`, `ftaMove`,
   `changeType` (input events only).
+- Org chart (`weavle-orgchart.js`, same pattern as FTA): `person` / `vacancy` cards, name = `label`, job title =
+  `node.role` (drawn by the shape, edited via `startInlineLabelEdit("node", id, { field: "role", box })`); report →
+  manager `reportsTo` edges; a forest is allowed (`readTree().roots`). `layoutOrgChart`: tidy tree, leaf teams of
+  ≥ `STACK_MIN` stacked on a spine (`isStacked`); `metrics` (name block height) feeds `getLabelLayout`'s `offsetY`.
+  Actions `ocAddReport`, `ocAddColleague`, `ocEditRole`, `ocAddManager`, `ocPromote`, `ocMove`, `ocRemoveOnly`,
+  `changeType`; manager changes emit `managerchanged` (queued after the action's `modelchanged`). Definition
+  `modelFromList` / `modelToList` drive the adapter's `setModelFromList` / `getList` / `onListChanged`.
 - The diagram definition is the extension point for new diagram types: shapes, nodeTypes, getPorts,
   routeEdge, getContextActions, getNodeInteractionMode, getRoutingConfig.
 

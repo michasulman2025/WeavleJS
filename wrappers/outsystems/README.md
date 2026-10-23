@@ -33,7 +33,7 @@ In the block, add the script under **Required Scripts** (O11) / **Scripts** (ODC
 
 | Name | Type | Default | |
 |---|---|---|---|
-| `DiagramType` | Text | `"bpmn"` | `"bpmn"`, `"flowchart"`, `"ishikawa"` or `"fta"` — the type for models that don’t carry their own `diagramType` |
+| `DiagramType` | Text | `"bpmn"` | `"bpmn"`, `"flowchart"`, `"ishikawa"`, `"fta"` or `"orgchart"` — the type for models that don’t carry their own `diagramType` |
 | `ModelJson` | Text | `""` | The model; empty = empty diagram |
 | `ReadOnly` | Boolean | `False` | |
 | `ToolbarPosition` | Text | `"top"` | Canvas toolbar: `"top"`, `"left"`, `"right"` or `"floating"` (draggable by its grip) |
@@ -168,6 +168,8 @@ model (e.g. another record loaded) is loaded normally.
 |---|---|
 | `setModel(jsonOrObject)` | Load a model; returns `false` when it was the editor's own model (echo). Another `diagramType` switches the editor to that type |
 | `getModel()` | Current model as JSON text, with `diagramType` |
+| `setModelFromList(listJson)` | Org chart: load a flat list `[{ id, managerId, name, role, vacancy }]` (e.g. from an Employee entity); returns `false` when it is the list the editor itself last reported (echo) |
+| `getList()` | Org chart: the current chart as that flat list (JSON text; `managerId` is `""` for the top) |
 | `getDiagramType()` | `"bpmn"`, `"flowchart"`, ... |
 | `setDiagramType(type, model?)` | Switch type with an empty (or the given) model; reported via `onModelChanged` |
 | `optimizeLayout(nodeIdsJson?)` | "Flow optimaliseren": layered layout + tidy edges; one undo step |
@@ -189,7 +191,9 @@ model (e.g. another record loaded) is loaded normally.
 `config` callbacks: `onModelChanged(json)`, `onSelectionChanged(nodeId, edgeId, selectedNodeIdsJson)`,
 `onNodeMoved(nodeJson)`, `onNodeResized(nodeJson)`, `onToolbarMoved(x, y)` (a floating toolbar was dragged —
 store it and pass it back as option `toolbarFloatingPosition: { x, y }` to keep the spot across visits),
-`onDiagramEvent(name, detailJson)` (a diagram-specific event such as `"orgchart:managerchanged"`; always in addition
-to `onModelChanged`, so handle it only when you want to store that one change — a Switch on `name` in the handler).
+`onListChanged(listJson)` (org chart: with every `onModelChanged`, the chart as a flat list — store it and pass it back
+through `setModelFromList`), `onDiagramEvent(name, detailJson)` (a diagram-specific event such as
+`"orgchart:managerchanged"` with `nodeId`, `oldManagerId`, `newManagerId`; always in addition to `onModelChanged`, so
+handle it only when you want to store that one change — a Switch on `name` in the handler).
 
 Extra diagram types: `Weavle.registerDiagramType("myType", createMyDefinition)` before mounting.

@@ -1345,6 +1345,7 @@ export class WeavleJS {
      *   heightFactor
      *   belowWidth    minimum wrap width for labels below the shape
      *   maxLines      line limit (default: whatever fits inside, 3 below)
+     *   offsetX/Y     shift of the label box centre for "inside" (e.g. a name in the top part of a card)
      */
     getLabelLayout(node) {
         const defaults = {
@@ -1359,7 +1360,9 @@ export class WeavleJS {
             color:        null,
             fontSize:     14,
             lineHeight:   1.25,
-            maxLines:     null
+            maxLines:     null,
+            offsetX:      0,
+            offsetY:      0
         };
 
         const custom = typeof this.diagram.getLabelLayout === "function"
@@ -1439,7 +1442,12 @@ export class WeavleJS {
         const maxLines = layout.maxLines ?? Math.max(1, Math.floor(height / lineHeight));
         const wrapped  = this.wrapLabel(node.label, width, maxLines, fontSize, font);
 
-        return { ...wrapped, centerX, centerY: node.y + node.height / 2, width, height, fontSize, lineHeight };
+        return {
+            ...wrapped,
+            centerX: centerX + layout.offsetX,
+            centerY: node.y + node.height / 2 + layout.offsetY,
+            width, height, fontSize, lineHeight
+        };
     }
 
     /**
@@ -4827,6 +4835,16 @@ export class WeavleJS {
             // Two tidy orthogonal connectors with a small sparkle: "make the lines neat".
             add("path", { d: "M 6 12 L 18 12 L 18 28 L 30 28 M 6 20 L 12 20 L 12 34 L 26 34", fill: "none", stroke: "currentColor", "stroke-width": 2.2, "stroke-linejoin": "round" });
             add("path", { d: "M 31 5 L 32.5 9.5 L 37 11 L 32.5 12.5 L 31 17 L 29.5 12.5 L 25 11 L 29.5 9.5 Z", fill: "currentColor", stroke: "none" });
+        } else if (icon === "edit") {
+            // A pencil: "edit this text".
+            add("path", {
+                d: "M 9 31 L 11 24 L 26 9 L 31 14 L 16 29 Z M 23 12 L 28 17",
+                fill: "none", stroke: "currentColor", "stroke-width": 2.2, "stroke-linejoin": "round"
+            });
+        } else if (icon === "moveUpLevel") {
+            // An arrow up out of a box: "report one level higher".
+            add("rect", { x: 9, y: 22, width: 22, height: 12, rx: 2, fill: "none", stroke: "currentColor", "stroke-width": 2.2 });
+            add("path", { d: "M 20 27 L 20 6 M 13 13 L 20 6 L 27 13", fill: "none", stroke: "currentColor", "stroke-width": 2.5, "stroke-linecap": "round", "stroke-linejoin": "round" });
         } else if (icon === "plus") {
             add("path", { d: "M 20 10 L 20 30 M 10 20 L 30 20", fill: "none", stroke: "currentColor", "stroke-width": 3, "stroke-linecap": "round" });
         } else if (icon === "style") {
@@ -5154,8 +5172,11 @@ export class WeavleJS {
      * Commits on Enter or blur; cancels on Escape.
      * @param {string} type  "node" or "edge"
      * @param {string} id    Id of the element to edit.
+     * @param {object} [options]  For nodes: `field` — the text property to edit (default "label"; e.g. an
+     *                            org chart card's "role"), `box` — where it is drawn ({ centerX, centerY,
+     *                            width, height, fontSize, lineHeight }; default the label box).
      */
-    startInlineLabelEdit(type, id) {
+    startInlineLabelEdit(type, id, { field = "label", box: fieldBox = null } = {}) {
 
         this.cancelInlineLabelEdit();
 
@@ -5170,9 +5191,9 @@ export class WeavleJS {
             if (!node) return;
 
             // Edit in the same box the label is drawn in, with room for at least two lines.
-            const box = this.getNodeLabelBox(node);
+            const box = fieldBox || this.getNodeLabelBox(node);
 
-            value    = node.label || "";
+            value    = node[field] || "";
             modelPos = { x: box.centerX, y: box.centerY };
             fontSize = box.fontSize;
             width    = Math.max(box.width + 12, 80);
@@ -5208,7 +5229,7 @@ export class WeavleJS {
 
         this.uiLayer.appendChild(input);
 
-        this.state.editingLabel = { type, id, element: input };
+        this.state.editingLabel = { type, id, element: input, field: type === "node" ? field : "label" };
 
         // The edit usually starts inside a mousedown (double-click). The browser's own handling of
         // that mousedown moves the focus to the canvas right after this, so focus again once the
@@ -5264,12 +5285,13 @@ export class WeavleJS {
         edit.element.remove();
 
         // Unchanged text: just close the editor (no undo step, no change event).
-        if (!target || (target.label || "") === value) {
+        const field = edit.field || "label";
+        if (!target || (target[field] || "") === value) {
             this.render();
             return;
         }
 
-        target.label = value;
+        target[field] = value;
 
         this.pushHistory();
         this.emit("weavle:modelchanged", {

@@ -37,12 +37,14 @@ import { createBpmnDefinition } from "./weavle-bpmn.js";
 import { createFlowchartDefinition } from "./weavle-flowchart.js";
 import { createIshikawaDefinition } from "./weavle-ishikawa.js";
 import { createFtaDefinition } from "./weavle-fta.js";
+import { createOrgChartDefinition } from "./weavle-orgchart.js";
 
 const DIAGRAM_TYPES = {
     bpmn:      createBpmnDefinition,
     flowchart: createFlowchartDefinition,
     ishikawa:  createIshikawaDefinition,
-    fta:       createFtaDefinition
+    fta:       createFtaDefinition,
+    orgchart:  createOrgChartDefinition
 };
 
 const EMPTY_MODEL = { nodes: [], edges: [] };
@@ -67,7 +69,7 @@ export function getInstance(container) {
  * so getInstance() finds it again). Mounting twice on the same container replaces the old editor.
  *
  * config:
- *   diagramType         "bpmn" | "flowchart" | "ishikawa" | "fta" | a registered name | a definition factory function
+ *   diagramType         "bpmn" | "flowchart" | "ishikawa" | "fta" | "orgchart" | a registered name | a definition factory function
  *                       (the type for models without their own diagramType)
  *   model               JSON text or { diagramType?, nodes, edges } (default: empty)
  *   options             editor options, object or JSON text (snapToGrid, readOnly, gridType, ...)
@@ -76,6 +78,8 @@ export function getInstance(container) {
  *   onNodeMoved         (nodeJson) => void
  *   onNodeResized       (nodeJson) => void
  *   onToolbarMoved      (x, y) => void          — a floating toolbar was dragged (e.g. to remember the spot)
+ *   onListChanged       (listJson) => void      — with onModelChanged, for diagram types with a flat list form
+ *                       (org chart: [{ id, managerId, name, role, vacancy }]); see setModelFromList
  *   onDiagramEvent      (name, detailJson) => void — a diagram-specific event, name like "orgchart:managerchanged"
  *                       (always on top of onModelChanged; detailJson carries diagramType and name too)
  *
@@ -113,10 +117,19 @@ export function mount(container, config = {}) {
     // The model as the host sees it: the editor's data with its diagram type.
     const typed = (data) => ({ diagramType, ...data });
 
+    // Flat list form of the model, for definitions that have one (org chart: people with a managerId).
+    const toList = (data) => typeof editor.diagram.modelToList === "function" ? editor.diagram.modelToList(data) : null;
+
+    // Canonical JSON of the flat list the editor last reported (see setModelFromList).
+    let lastList = null;
+
     const listeners = {
         "weavle:modelchanged": e => {
             const model = typed(e.detail.model);
             lastModel = canonical(model);
+            const list = toList(e.detail.model);
+            lastList = list ? canonical(list) : null;
+            if (list) config.onListChanged?.(JSON.stringify(list));
             config.onModelChanged?.(JSON.stringify(model));
         },
         "weavle:selectionchanged": e => {
@@ -182,6 +195,30 @@ export function mount(container, config = {}) {
         /** The current model as JSON text (with its diagramType). */
         getModel() {
             return JSON.stringify(typed(editor.getData()));
+        },
+
+        /**
+         * Loads a flat list (JSON text or array) into a diagram type that has one — org chart:
+         * [{ id, managerId, name, role, vacancy }]. Like setModel, it skips the list the editor itself
+         * last reported (getList()), so a list stored from onModelChanged can be passed straight back.
+         * Returns false when it did nothing (same list, or the diagram type has no list form).
+         */
+        setModelFromList(list) {
+            if (typeof editor.diagram.modelFromList !== "function") return false;
+
+            const items = (typeof list === "string" ? parseJson(list) : list) || [];
+            const key   = canonical(items);
+            if (key === lastList) return false;
+
+            lastList = key;
+            load(editor.diagram.modelFromList(items));
+            lastModel = canonical(typed(editor.getData()));
+            return true;
+        },
+
+        /** The current model as a flat list in JSON text ("[]" for diagram types without a list form). */
+        getList() {
+            return JSON.stringify(toList(editor.getData()) || []);
         },
 
         /** The current diagram type name ("bpmn", "flowchart", ...). */

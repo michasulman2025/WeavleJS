@@ -18,6 +18,7 @@ export { createBpmnDefinition } from "./weavle-bpmn.js";
 export { createFlowchartDefinition } from "./weavle-flowchart.js";
 export { createIshikawaDefinition } from "./weavle-ishikawa.js";
 export { createFtaDefinition } from "./weavle-fta.js";
+export { createOrgChartDefinition, orgChartFromList, orgChartToList } from "./weavle-orgchart.js";
 export { mount, getInstance, registerDiagramType, getDiagramTypes } from "./weavle-outsystems.js";
 
 export const version = "0.9.0";

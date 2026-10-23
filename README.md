@@ -1,7 +1,7 @@
 # 🧶 Weavle
 
 A lightweight, dependency-free SVG diagram editor for the browser. One engine, many diagram types:
-flowcharts, BPMN, Ishikawa (fishbone) and fault tree (FTA) diagrams today, more to come. Built with OutSystems in mind, but it runs anywhere you have a DOM.
+flowcharts, BPMN, Ishikawa (fishbone), fault tree (FTA) and org chart diagrams today, more to come. Built with OutSystems in mind, but it runs anywhere you have a DOM.
 
 The engine knows nothing about "gateways" or "decisions". Everything that makes a diagram type what it is —
 shapes, colours, ports, edge types, sizes, labels, rules — lives in a **diagram definition** (an add-in).
@@ -41,6 +41,14 @@ from the node tools; the tree arranges itself.
 
 ![Fault tree: why a data centre goes down](docs/images/fta.svg)
 
+### Org chart
+
+People and vacancies in a reporting tree with automatic layout: teams without sub-teams are stacked, so wide teams
+don't make the chart wide. Add reports, colleagues or a manager above, promote, reorder and turn a card into a
+vacancy from the node tools. Loads from and reports a flat list (`id`, `managerId`, `name`, `role`).
+
+![Org chart: a small company with three departments and two vacancies](docs/images/orgchart.svg)
+
 ### Themes and styles
 
 The same diagram with a house-style theme (`options.theme`): colours per node type, line colour, editor colours, and
@@ -53,7 +61,7 @@ presets users can pick per node ("Kritiek" and "Let op" here).
 ## Features
 
 - Zero runtime dependencies, plain ES modules
-- Pluggable diagram definitions — flowchart, BPMN, Ishikawa and fault tree included
+- Pluggable diagram definitions — flowchart, BPMN, Ishikawa, fault tree and org chart included
 - Flowchart: all 26 standard (ISO 5807) shapes in five groups, incl. on-page / off-page connectors and comments
 - BPMN: 23 event types (start / intermediate catch & throw / end), 10 activity types, gateways, data,
   annotations, pools & lanes — with "change type" in the node tools
@@ -75,6 +83,8 @@ presets users can pick per node ("Kritiek" and "Let op" here).
 - Containers: BPMN pools and lanes hold their contents, stack lanes and move as one
 - Ishikawa (fishbone): problem → categories → causes → sub-causes, laid out automatically; starts with the 6M
 - Fault tree (FTA): top event → gates → events, laid out automatically top-down; six gate types, k-out-of-n threshold
+- Org chart: name + job title cards and vacancies, laid out automatically (stacked leaf teams); flat list in / out and
+  a `managerchanged` event
 - Themes for a house style (`options.theme` / `setTheme()`): node and edge styles per type, font, editor colours —
   also in `exportSvg()`; presets users can give single nodes ("Stijl" in the node tools)
 - Read-only mode
@@ -92,6 +102,7 @@ presets users can pick per node ("Kritiek" and "Let op" here).
 | `src/weavle-bpmn.js` | BPMN definition — `export function createBpmnDefinition()` |
 | `src/weavle-ishikawa.js` | Ishikawa definition — `export function createIshikawaDefinition()` |
 | `src/weavle-fta.js` | Fault tree definition — `export function createFtaDefinition()` |
+| `src/weavle-orgchart.js` | Org chart definition — `createOrgChartDefinition()`, `orgChartFromList()`, `orgChartToList()` |
 | `src/samples/` | Sample diagrams and the sample house-style theme used by the playground |
 | `dist/weavle.iife.js` | Single-file build for a `<script>` tag — global `Weavle` (engine, definitions, OutSystems adapter) |
 | `dist/weavle.es.js` | Same as an ES module |

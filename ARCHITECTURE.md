@@ -211,6 +211,22 @@ ports: [
 - **Later:** probabilities on basic events and the computed probability per gate / top event; minimal cut sets;
   collapsing subtrees; transfer events that link to another tree.
 
+### Org chart (automatic layout)
+
+- **Model:** cards `person` / `vacancy` (name = `label`, job title = `node.role`) with `reportsTo` edges from report
+  to manager; several trees side by side are allowed. Sibling order = order in `model.nodes`. Host apps keep a flat
+  list (`id`, `managerId`, `name`, `role`, `vacancy`): `modelFromList` / `modelToList` on the definition
+  (`orgChartFromList` / `orgChartToList`), OutSystems `setModelFromList` / `getList` / `onListChanged`.
+- **Layout:** tidy tree top-down; the first tree's top keeps its place, further trees follow on the right. A manager
+  with at least three reports that have no reports of their own gets them stacked below each other on a spine
+  ("hanging" layout), so wide teams don't make the chart wide. Cards have a fixed width and grow with name and role.
+- **Interaction:** as FTA — no connecting, dragging moves the whole chart. Node tools: add a report or colleague
+  (person or vacancy), edit the job title (inline, field `role`), vacancy ↔ person, insert a manager above, one level
+  higher, reorder, remove only this person (the team moves up) or with the team. Manager changes dispatch
+  `weavle:orgchart:managerchanged { nodeId, oldManagerId, newManagerId }` after the action's `modelchanged`.
+- **Later:** reassigning by dragging a card onto another; collapsing teams with a "+n" badge; assistants beside
+  their manager; dotted-line (matrix) reporting; photo / initials, department colours and counts on the card.
+
 ### Node editor (free drawing, Blender style)
 
 - Nodes with a header and a list of inputs (left) and outputs (right), each with a label and a data type.

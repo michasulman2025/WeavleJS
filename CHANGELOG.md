@@ -3,6 +3,16 @@
 ## Unreleased
 
 ### Added
+- **Org chart (organogram) diagram type** (`createOrgChartDefinition()` in `src/weavle-orgchart.js`, OutSystems
+  `diagramType: "orgchart"`): cards with name and job title, and vacancies (dashed), in a reporting tree laid out
+  automatically top-down; teams without sub-teams (three or more people) are stacked below their manager. Node tools:
+  add a report or colleague, edit the job title, vacancy ↔ person, insert a manager above, one level higher, reorder,
+  remove only this person (the team moves up) or with the team. Flat list in / out: `orgChartFromList()` /
+  `orgChartToList()`, OutSystems `setModelFromList(listJson)` (with echo protection), `getList()` and
+  `onListChanged(listJson)`. Manager changes dispatch `weavle:orgchart:managerchanged`. Playground: "Organogram"
+  with a sample (`src/samples/orgchart-acme.js`).
+- Engine: label layouts take `offsetX` / `offsetY` (shift of an inside label); `startInlineLabelEdit(type, id,
+  { field, box })` edits another text property of a node; action icons `edit` and `moveUpLevel`.
 - **Diagram-specific events**: `engine.emitDiagramEvent(name, payload)` for definitions dispatches
   `weavle:<definition id>:<name>` (e.g. `weavle:orgchart:managerchanged`) plus the generic `weavle:diagramevent`,
   detail `{ diagramType, name, ...payload }`. Core events keep their generic names. OutSystems: callback

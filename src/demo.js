@@ -11,6 +11,8 @@ import { createIshikawaDefinition } from "./weavle-ishikawa.js";
 import { createLateDeliverySample } from "./samples/ishikawa-late-delivery.js";
 import { createFtaDefinition } from "./weavle-fta.js";
 import { createDatacenterOutageSample } from "./samples/fta-datacenter-outage.js";
+import { createOrgChartDefinition } from "./weavle-orgchart.js";
+import { createAcmeOrgChartSample } from "./samples/orgchart-acme.js";
 import { houseStyleTheme } from "./samples/theme-house-style.js";
 import { createOrderProcessSample } from "./samples/bpmn-order-process.js";
 
@@ -80,6 +82,8 @@ function getDiagramDefinition(key) {
       return createIshikawaDefinition();
     case "fta":
       return createFtaDefinition();
+    case "orgchart":
+      return createOrgChartDefinition();
     case "flowchart":
     default:
       return createFlowchartDefinition();
@@ -93,6 +97,10 @@ function getSampleForDiagram(key) {
 
   if (key === "fta") {
     return createDatacenterOutageSample();
+  }
+
+  if (key === "orgchart") {
+    return createAcmeOrgChartSample();
   }
 
   if (key === "bpmn") {
