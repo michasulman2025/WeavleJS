@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Added
+- **"Stijl" in the node tools, styles step 4** (ARCHITECTURE.md 7.9): a built-in tool with "Standaard" and the
+  theme's presets, each with a swatch of how the node would look (fill, line, "Aa" in the text colour); with
+  `options.allowCustomStyles` also colour inputs for fill, line and text. Applies to the whole selection (one
+  undo step). Shown when the theme has presets or custom styles are allowed, unless `diagram.canStyleNode(node)`
+  returns false. Submenus support colour-input children (`{ input: "color", property, value }`). Playground:
+  "Custom styles" checkbox.
 - **Per-item styles, styles step 3** (ARCHITECTURE.md 7.5): `node.style` / `edge.style` in the model —
   `{ preset: "critical" }` refers to `theme.presets` (unknown presets are ignored), own properties only show with
   `options.allowCustomStyles` (default: presets only). `setNodeStyle(nodeIds, style)` / `setEdgeStyle(edgeId,

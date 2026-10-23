@@ -224,7 +224,7 @@ ports: [
 
 ## 7. Styling and themes (design)
 
-Status: steps 1–3 of 7.10 are built; the rest is design. Goal: organisations can apply their house style to every diagram, and users can
+Status: steps 1–4 of 7.10 are built; step 5 is design. Goal: organisations can apply their house style to every diagram, and users can
 mark individual nodes and edges — without visual inline styles, and with the same result on screen and in
 `exportSvg()`.
 
@@ -391,12 +391,17 @@ engine.getNodeStyle(node)  /  engine.getEdgeStyle(edge)
 
 ### 7.9 Node tools: "Stijl"
 
-- A built-in context action `setStyle` ("Stijl", icon: a palette) with a submenu: the theme's presets (each
-  shown as a small swatch of the type's real shape, like the type menus) and "Standaard" (removes `style`).
-  With `allowCustomStyles`: fill / line / text colour pickers as well.
-- Works on the whole selection (one undo step) and on a selected edge.
-- Shown only when the theme has presets (or custom styles are allowed) and the definition allows it:
-  `diagram.canStyleNode(node)` / `canStyleEdge(edge)`, default yes (Ishikawa: not for edges, which are bones).
+- A built-in context action `setStyle` ("Stijl", icon: a palette; `getStyleAction`, added after the definition's
+  actions by `getNodeContextActions`) with a submenu: "Standaard" (removes `style`) and the theme's presets.
+  Each entry shows a swatch (`appendStyleSwatch`): a card in the resolved fill / line of this node type with that
+  style and "Aa" in its text colour and weight — readable for text-only types (Ishikawa causes) too, where a
+  scaled-down real shape would be invisible. The current choice is marked active.
+- With `allowCustomStyles`: a heading "Eigen kleuren" with colour inputs for fill, line and text (submenu children
+  `{ input: "color", property, value }`), starting from the resolved colour.
+- Works on the whole selection when the node is part of it (one undo step, via `setNodeStyle`).
+- Shown only when the theme has presets (or custom styles are allowed) and `diagram.canStyleNode(node)` does not
+  return false.
+- Edges: style via the API only (`setEdgeStyle`) — there are no edge tools yet (backlog).
 
 ### 7.10 Steps
 
@@ -408,7 +413,7 @@ Each step is usable on its own and changes nothing for existing diagrams without
    `theme.ui`, the remaining hard-coded colours. OutSystems `setTheme`. Playground: a theme switch (default /
    sample house style).
 3. ✅ **Per-item style:** `node.style` / `edge.style` with presets and `allowCustomStyles`; export check.
-4. **"Stijl" in the node tools** and `canStyleNode` / `canStyleEdge`.
+4. ✅ **"Stijl" in the node tools** and `canStyleNode` (edges: backlog).
 5. **Definition defaults:** move BPMN / flowchart / Ishikawa colours into `defaultTheme`.
 
 ### 7.11 Open questions
@@ -449,6 +454,7 @@ After step 5 the pedigree may come before the node editor, if it has more priori
 - **Live preview while reordering lanes** (now you only see the result after releasing).
 - **Nested lanes** (lanes within lanes).
 - **Ishikawa hybrid mode:** drag causes and categories along their bone (offsets kept in the model).
+- **Edge tools:** a tool surface for a selected edge (style, label, type), with `canStyleEdge(edge)`.
 
 ## 10. Open questions (pedigree)
 

@@ -44,6 +44,14 @@ function pickStyle(source) {
     return style;
 }
 
+/** A colour as #rrggbb for <input type="color"> (#rgb is expanded; anything else becomes black). */
+function toHexColor(color) {
+    const value = String(color || "").trim();
+    if (/^#[0-9a-f]{6}$/i.test(value)) return value.toLowerCase();
+    if (/^#[0-9a-f]{3}$/i.test(value)) return "#" + [...value.slice(1)].map(c => c + c).join("").toLowerCase();
+    return "#000000";
+}
+
 /** Merges style layers over the defaults (which name every property); later layers win. A fresh object. */
 function mergeStyles(defaults, ...layers) {
     return Object.assign({}, defaults, ...layers.map(pickStyle));
@@ -4716,6 +4724,27 @@ export class WeavleJS {
                 continue;
             }
 
+            // A colour input child: picking a colour runs the action with { value }.
+            if (child.input === "color") {
+                const row = document.createElement("label");
+                row.className = "weavle-tool-menu-item weavle-tool-menu-item--input";
+
+                const text = document.createElement("span");
+                text.className   = "weavle-tool-menu-label";
+                text.textContent = child.label || child.property;
+
+                const input = document.createElement("input");
+                input.type      = "color";
+                input.className = "weavle-tool-color";
+                input.value     = child.value || "#000000";
+                input.addEventListener("click", e => e.stopPropagation());
+                input.addEventListener("change", () => runAction({ ...child, value: input.value }));
+
+                row.append(text, input);
+                menu.appendChild(row);
+                continue;
+            }
+
             const row = document.createElement("button");
             row.type      = "button";
             row.className = "weavle-tool-menu-item";
@@ -4784,6 +4813,17 @@ export class WeavleJS {
             add("path", { d: "M 31 5 L 32.5 9.5 L 37 11 L 32.5 12.5 L 31 17 L 29.5 12.5 L 25 11 L 29.5 9.5 Z", fill: "currentColor", stroke: "none" });
         } else if (icon === "plus") {
             add("path", { d: "M 20 10 L 20 30 M 10 20 L 30 20", fill: "none", stroke: "currentColor", "stroke-width": 3, "stroke-linecap": "round" });
+        } else if (icon === "style") {
+            // A painter's palette: "change the look".
+            add("path", {
+                d: "M 20 6 C 11 6 5 12 5 20 C 5 28 11 34 18 34 C 21 34 21 31 20 29 C 19 27 20 25 23 25 L 27 25 C 32 25 35 22 35 18 C 35 11 28 6 20 6 Z",
+                fill: "none", stroke: "currentColor", "stroke-width": 2.2, "stroke-linejoin": "round"
+            });
+            add("circle", { cx: 13, cy: 18, r: 2.4, fill: "currentColor" });
+            add("circle", { cx: 19, cy: 12, r: 2.4, fill: "currentColor" });
+            add("circle", { cx: 27, cy: 14, r: 2.4, fill: "currentColor" });
+        } else if (action.stylePreview) {
+            this.appendStyleSwatch(svg, action.stylePreview);
         } else if (icon === "branch") {
             // A line with a slanted twig and a small plus: "add a sub-item".
             add("path", { d: "M 4 30 L 36 30 M 12 30 L 4 16", fill: "none", stroke: "currentColor", "stroke-width": 2.5, "stroke-linecap": "round" });
@@ -4798,6 +4838,34 @@ export class WeavleJS {
         }
 
         return svg;
+    }
+
+    /**
+     * A style swatch (viewBox 0 0 40 40): a card in the resolved fill / line of the node type with that
+     * style, and "Aa" in its text colour and weight — readable for text-only types as well.
+     */
+    appendStyleSwatch(svg, { type, style }) {
+        const NS   = "http://www.w3.org/2000/svg";
+        const look = this.getNodeStyle({ id: "__preview__", type, label: "", style });
+
+        const rect = document.createElementNS(NS, "rect");
+        rect.setAttribute("x", 3);  rect.setAttribute("y", 7);
+        rect.setAttribute("width", 34); rect.setAttribute("height", 26); rect.setAttribute("rx", 4);
+        rect.setAttribute("fill", look.fill);
+        rect.setAttribute("stroke", look.stroke);
+        rect.setAttribute("stroke-width", 2);
+        if (look.dash) rect.setAttribute("stroke-dasharray", look.dash);
+        svg.appendChild(rect);
+
+        const text = document.createElementNS(NS, "text");
+        text.setAttribute("x", 20); text.setAttribute("y", 25);
+        text.setAttribute("text-anchor", "middle");
+        text.setAttribute("font-size", 13);
+        text.setAttribute("fill", look.textColor || "currentColor");
+        if (look.fontWeight) text.setAttribute("font-weight", look.fontWeight);
+        if (look.fontStyle)  text.setAttribute("font-style", look.fontStyle);
+        text.textContent = "Aa";
+        svg.appendChild(text);
     }
 
     /**
@@ -4926,11 +4994,52 @@ export class WeavleJS {
     }
 
     getNodeContextActions(node) {
-        if (this.diagram && typeof this.diagram.getContextActions === "function") {
-            return this.diagram.getContextActions(node, this) || [];
+        const actions = this.diagram && typeof this.diagram.getContextActions === "function"
+            ? this.diagram.getContextActions(node, this) || []
+            : [];
+
+        // Built in: "Stijl" (theme presets, own colours) for every node the definition lets be styled.
+        const style = this.getStyleAction(node);
+        return style ? [...actions, style] : actions;
+    }
+
+    /**
+     * The "Stijl" node tool (ARCHITECTURE.md 7.9): "Standaard" plus the theme's presets, each with a swatch
+     * of how this node would look; with options.allowCustomStyles also colour pickers for fill, line and
+     * text. Null when there is nothing to choose or diagram.canStyleNode(node) says no.
+     */
+    getStyleAction(node) {
+        if (typeof this.diagram.canStyleNode === "function" && this.diagram.canStyleNode(node, this) === false) return null;
+
+        const presets = Object.entries(this.getTheme().presets || {});
+        const custom  = !!this.options.allowCustomStyles;
+        if (!presets.length && !custom) return null;
+
+        const own      = node.style || {};
+        const ownProps = Object.keys(pickStyle(own)).length > 0;
+
+        const children = [
+            { type: "setStyle", style: null, label: "Standaard", stylePreview: { type: node.type }, active: !node.style },
+            ...presets.map(([name, preset]) => ({
+                type:         "setStyle",
+                style:        { preset: name },
+                label:        preset.label || name,
+                stylePreview: { type: node.type, style: { preset: name } },
+                active:       own.preset === name && !ownProps
+            }))
+        ];
+
+        if (custom) {
+            const resolved = this.getNodeStyle(node);
+            children.push(
+                { type: "heading", label: "Eigen kleuren" },
+                ...[["fill", "Vulling"], ["stroke", "Lijn"], ["textColor", "Tekst"]].map(([property, label]) => ({
+                    type: "setStyle", input: "color", property, label, value: toHexColor(resolved[property])
+                }))
+            );
         }
 
-        return [];
+        return { type: "group", label: "Stijl", icon: "style", children };
     }
 
     getNodeToolRenderer(node) {
@@ -4955,6 +5064,17 @@ export class WeavleJS {
             this.pushHistory();
             this.emit("weavle:modelchanged", { model: this.getData() });
             this.render();
+            return;
+        }
+
+        if (action.type === "setStyle") {
+            const ids   = this.isNodeSelected(node.id) ? this.getSelectedNodeIds() : [node.id];
+            const style = action.property
+                ? { ...(node.style || {}), [action.property]: action.value }
+                : action.style;
+
+            // setNodeStyle records the undo step, notifies (which rebuilds the tools) and renders.
+            this.setNodeStyle(ids, style);
             return;
         }
 

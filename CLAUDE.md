@@ -144,7 +144,11 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
   "Theme" select). Step 3 built: `node.style` / `edge.style` = `{ preset }` from `theme.presets` (+ own properties,
   shown only with `options.allowCustomStyles`), resolved last (`getItemStyleLayers`); `setNodeStyle(ids, style)`,
   `setEdgeStyle(id, style)` (one undo step); classes `weavle-node--preset-{name}` / `weavle-edge--preset-{name}`;
-  label measuring takes fontWeight / fontStyle (`measureLabelText(text, size, font)`). Next: "Stijl" in the node tools.
+  label measuring takes fontWeight / fontStyle (`measureLabelText(text, size, font)`). Step 4 built: the built-in
+  node tool "Stijl" (`getStyleAction`, appended in `getNodeContextActions`; `setStyle` in `handleContextAction`,
+  whole selection) — "Standaard" + presets with swatches (`appendStyleSwatch`), colour inputs with
+  `allowCustomStyles` (submenu children `{ input: "color" }`); `diagram.canStyleNode(node)`. Playground checkbox
+  "Custom styles". Next (step 5): definition colours into `defaultTheme`.
 
 ## Conventions
 

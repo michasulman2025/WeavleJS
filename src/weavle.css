@@ -252,6 +252,22 @@
     background: var(--weavle-ui-active-bg);
 }
 
+/* A menu row with a colour input ("Stijl" → own colours): label left, swatch right. */
+.weavle-tool-menu-item--input {
+    justify-content: space-between;
+    cursor: default;
+}
+
+.weavle-tool-color {
+    width: 32px;
+    height: 20px;
+    padding: 0;
+    border: 1px solid var(--weavle-ui-border);
+    border-radius: 4px;
+    background: none;
+    cursor: pointer;
+}
+
 /* ── Canvas toolbar (insert shapes; shown while nothing is selected) ── */
 
 .weavle-toolbar-anchor {

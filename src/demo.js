@@ -30,6 +30,7 @@ const jsonOutputEl = document.getElementById("jsonOutput");
 const statusTextEl = document.getElementById("statusText");
 
 const chkReadonly = document.getElementById("chkReadonly");
+const chkCustomStyles = document.getElementById("chkCustomStyles");
 const chkSnap = document.getElementById("chkSnap");
 const rngCornerRadius = document.getElementById("rngCornerRadius");
 const lblCornerRadius = document.getElementById("lblCornerRadius");
@@ -225,6 +226,7 @@ function createEditor() {
       height: 1000,
       snapToGrid: chkSnap.checked,
       readOnly: chkReadonly.checked,
+      allowCustomStyles: chkCustomStyles.checked,
       edgeCornerRadius: Number(rngCornerRadius.value),
       gridType: selGridType.value,
       theme: THEMES[selTheme.value] || null,
@@ -595,6 +597,7 @@ document.getElementById("btnLoadComplex").addEventListener("click", () => {
 document.getElementById("btnClearLog").addEventListener("click", clearLog);
 
 chkReadonly.addEventListener("change", rebuildEditorPreserveModel);
+chkCustomStyles.addEventListener("change", rebuildEditorPreserveModel);
 chkSnap.addEventListener("change", rebuildEditorPreserveModel);
 selGridType.addEventListener("change", rebuildEditorPreserveModel);
 
