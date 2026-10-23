@@ -1,6 +1,7 @@
 /*
   Sample org chart for the playground: a small company as a flat list (as a host app would keep it),
-  with a vacancy, a team that is stacked (only leaf reports) and one that is laid out in a row.
+  with an assistant, a dotted line, vacancies, teams that are stacked (only leaf reports) and one that
+  is laid out in a row.
   Positions don't matter — the org chart definition lays everything out on load.
 */
 
@@ -8,6 +9,7 @@ import { orgChartFromList } from "../weavle-orgchart.js";
 
 const PEOPLE = [
     { id: "ceo",   name: "Sanne de Vries",   role: "Algemeen directeur" },
+    { id: "pa",    managerId: "ceo", name: "Yara Bos",    role: "Directiesecretaresse", assistant: true },
 
     { id: "cfo",   managerId: "ceo", name: "Ahmed El Amrani", role: "Financieel directeur" },
     { id: "fin1",  managerId: "cfo", name: "Lotte Bakker",    role: "Controller" },
@@ -23,7 +25,7 @@ const PEOPLE = [
     { id: "ops22", managerId: "ops2", vacancy: true,          role: "Operator" },
 
     { id: "cto",   managerId: "ceo", name: "Mila Peters",     role: "Hoofd IT" },
-    { id: "it1",   managerId: "cto", name: "Ruben Koster",    role: "Ontwikkelaar" },
+    { id: "it1",   managerId: "cto", name: "Ruben Koster",    role: "Ontwikkelaar", dottedManagerIds: ["ops2"] },
     { id: "it2",   managerId: "cto", name: "Sophie Meijer",   role: "Ontwikkelaar" },
     { id: "it3",   managerId: "cto", name: "Bram van Dijk",   role: "Beheerder" },
     { id: "it4",   managerId: "cto", vacancy: true,           role: "Security officer" }

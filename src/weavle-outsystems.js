@@ -79,7 +79,8 @@ export function getInstance(container) {
  *   onNodeResized       (nodeJson) => void
  *   onToolbarMoved      (x, y) => void          — a floating toolbar was dragged (e.g. to remember the spot)
  *   onListChanged       (listJson) => void      — with onModelChanged, for diagram types with a flat list form
- *                       (org chart: [{ id, managerId, name, role, vacancy }]); see setModelFromList
+ *                       (org chart: [{ id, managerId, name, role, vacancy, assistant, dottedManagerIds }]);
+ *                       see setModelFromList
  *   onDiagramEvent      (name, detailJson) => void — a diagram-specific event, name like "orgchart:managerchanged"
  *                       (always on top of onModelChanged; detailJson carries diagramType and name too)
  *
@@ -199,7 +200,7 @@ export function mount(container, config = {}) {
 
         /**
          * Loads a flat list (JSON text or array) into a diagram type that has one — org chart:
-         * [{ id, managerId, name, role, vacancy }]. Like setModel, it skips the list the editor itself
+         * [{ id, managerId, name, role, vacancy, assistant, dottedManagerIds }]. Like setModel, it skips the list the editor itself
          * last reported (getList()), so a list stored from onModelChanged can be passed straight back.
          * Returns false when it did nothing (same list, or the diagram type has no list form).
          */

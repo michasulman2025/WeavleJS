@@ -214,18 +214,28 @@ ports: [
 ### Org chart (automatic layout)
 
 - **Model:** cards `person` / `vacancy` (name = `label`, job title = `node.role`) with `reportsTo` edges from report
-  to manager; several trees side by side are allowed. Sibling order = order in `model.nodes`. Host apps keep a flat
-  list (`id`, `managerId`, `name`, `role`, `vacancy`): `modelFromList` / `modelToList` on the definition
-  (`orgChartFromList` / `orgChartToList`), OutSystems `setModelFromList` / `getList` / `onListChanged`.
+  to manager; several trees side by side are allowed. `dottedLine` edges (report → second manager) are functional /
+  matrix lines outside the tree. `node.assistant` marks a report without reports of its own as an assistant;
+  `node.collapsed` hides everything below a card (view state). Sibling order = order in `model.nodes`. Host apps keep
+  a flat list (`id`, `managerId`, `name`, `role`, `vacancy`, `assistant`, `dottedManagerIds`): `modelFromList` /
+  `modelToList` on the definition (`orgChartFromList` / `orgChartToList`), OutSystems `setModelFromList` / `getList` /
+  `onListChanged`.
 - **Layout:** tidy tree top-down; the first tree's top keeps its place, further trees follow on the right. A manager
-  with at least three reports that have no reports of their own gets them stacked below each other on a spine
-  ("hanging" layout), so wide teams don't make the chart wide. Cards have a fixed width and grow with name and role.
-- **Interaction:** as FTA — no connecting, dragging moves the whole chart. Node tools: add a report or colleague
-  (person or vacancy), edit the job title (inline, field `role`), vacancy ↔ person, insert a manager above, one level
-  higher, reorder, remove only this person (the team moves up) or with the team. Manager changes dispatch
-  `weavle:orgchart:managerchanged { nodeId, oldManagerId, newManagerId }` after the action's `modelchanged`.
-- **Later:** reassigning by dragging a card onto another; collapsing teams with a "+n" badge; assistants beside
-  their manager; dotted-line (matrix) reporting; photo / initials, department colours and counts on the card.
+  with at least three reports that have no reports of their own (and no assistants) gets them stacked below each
+  other on a spine ("hanging" layout), so wide teams don't make the chart wide. Assistants sit in rows of two beside
+  the line under their manager, above the team. A collapsed card shows "+n" and its subtree is hidden (engine hook
+  `isNodeHidden`). Dotted lines use the engine's orthogonal router between facing sides. Cards have a fixed width and
+  grow with name and role.
+- **Interaction:** no connecting or edge selection. Dragging a card drags its team; dropping it onto another card
+  (highlighted) makes that card its manager, with Alt it adds a dotted line instead; dropped elsewhere it goes back
+  (engine hooks `getDropTarget` / `onNodeDrop`). Node tools: add a report, assistant or colleague (person or vacancy),
+  collapse / expand the team, edit the job title (inline, field `role`), vacancy ↔ person, assistant on / off, insert
+  a manager above, one level higher, add a dotted line (then click the other card: engine `startNodePick`) or remove
+  one, reorder, remove only this person (the team moves up) or with the team. Diagram events after the action's
+  `modelchanged`: `managerchanged { nodeId, oldManagerId, newManagerId }`, `dottedlineadded` / `dottedlineremoved
+  { nodeId, managerId }`.
+- **Later:** expand / collapse by clicking the "+n" badge; photo / initials, department colours and counts on the
+  card; a search that opens collapsed teams and focuses a card.
 
 ### Node editor (free drawing, Blender style)
 

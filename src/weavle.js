@@ -570,7 +570,7 @@ export class WeavleJS {
             try { add(layer.getBBox()); } catch (e) { /* not rendered */ }
         }
         if (!box) {
-            this.model.nodes.forEach(n => add({ x: n.x, y: n.y, width: n.width, height: n.height }));
+            this.model.nodes.filter(n => !this.isNodeHidden(n)).forEach(n => add({ x: n.x, y: n.y, width: n.width, height: n.height }));
             this.model.edges.forEach(e => (e.routePoints || []).forEach(p => add({ x: p.x, y: p.y, width: 0.01, height: 0.01 })));
         }
         return box && { x: box.x, y: box.y, width: box.x2 - box.x, height: box.y2 - box.y };
@@ -931,6 +931,7 @@ export class WeavleJS {
 
             if (!sourceNode || !targetNode) return;
             if (!edge.sourceHandle || !edge.targetHandle) return;
+            if (this.isNodeHidden(sourceNode) || this.isNodeHidden(targetNode)) return;
 
             // A dragged node hovers over this edge: show the two halves it would become instead.
             if (edge.id === this.state.splitEdgeId && (this.state.draggingNodeId || this.state.creatingNodeType)) {
@@ -1820,8 +1821,13 @@ export class WeavleJS {
         return fromDefinition || this.diagram.defaultEdgeType || null;
     }
 
-    /** Re-derives edge.type from its current endpoints (after creating or reconnecting it). */
+    /**
+     * Re-derives edge.type from its current endpoints (after creating or reconnecting it). A type marked
+     * `fixed` in the definition's edgeTypes is chosen on purpose, not derived (org chart dotted line): kept.
+     */
     assignEdgeType(edge) {
+        if (edge.type && this.diagram.edgeTypes?.[edge.type]?.fixed) return edge;
+
         const type = this.resolveEdgeType(
             this.getNode(edge.sourceNodeId),
             this.getNode(edge.targetNodeId),
@@ -4845,6 +4851,16 @@ export class WeavleJS {
             // An arrow up out of a box: "report one level higher".
             add("rect", { x: 9, y: 22, width: 22, height: 12, rx: 2, fill: "none", stroke: "currentColor", "stroke-width": 2.2 });
             add("path", { d: "M 20 27 L 20 6 M 13 13 L 20 6 L 27 13", fill: "none", stroke: "currentColor", "stroke-width": 2.5, "stroke-linecap": "round", "stroke-linejoin": "round" });
+        } else if (icon === "collapse" || icon === "expand") {
+            // A box with a branch below it, and a minus (collapse) or plus (expand).
+            add("rect", { x: 12, y: 5, width: 16, height: 10, rx: 2, fill: "none", stroke: "currentColor", "stroke-width": 2.2 });
+            add("path", { d: "M 20 15 L 20 21 M 10 27 L 10 21 L 30 21 L 30 27", fill: "none", stroke: "currentColor", "stroke-width": 2.2, "stroke-linejoin": "round" });
+            add("path", { d: icon === "collapse" ? "M 14 33 L 26 33" : "M 14 33 L 26 33 M 20 27 L 20 39", fill: "none", stroke: "currentColor", "stroke-width": 3, "stroke-linecap": "round" });
+        } else if (icon === "dottedLine") {
+            // Two boxes joined by a dashed line: "dotted-line reporting".
+            add("rect", { x: 3, y: 6, width: 13, height: 9, rx: 2, fill: "none", stroke: "currentColor", "stroke-width": 2 });
+            add("rect", { x: 24, y: 25, width: 13, height: 9, rx: 2, fill: "none", stroke: "currentColor", "stroke-width": 2 });
+            add("path", { d: "M 9.5 15 L 9.5 29.5 L 24 29.5", fill: "none", stroke: "currentColor", "stroke-width": 2.2, "stroke-dasharray": "3,3" });
         } else if (icon === "plus") {
             add("path", { d: "M 20 10 L 20 30 M 10 20 L 30 20", fill: "none", stroke: "currentColor", "stroke-width": 3, "stroke-linecap": "round" });
         } else if (icon === "style") {
@@ -6476,12 +6492,66 @@ export class WeavleJS {
         const regular  = this.model.nodes.filter(n => !this.isContainer(n) && !n.attachedToId);
         const attached = this.model.nodes.filter(n => !this.isContainer(n) && n.attachedToId);
 
-        return [...containers, ...regular, ...attached];
+        // Hidden nodes (e.g. a collapsed org chart team) are neither drawn nor hit.
+        return [...containers, ...regular, ...attached].filter(n => !this.isNodeHidden(n));
     }
 
-    /** Nodes that edges must route around: everything except containers. */
+    /**
+     * Whether the node is hidden: diagram.isNodeHidden(node, engine), default no. A hidden node stays in
+     * the model but is not drawn, hit, selected by a marquee or routed around; neither are its edges.
+     */
+    isNodeHidden(node) {
+        return typeof this.diagram.isNodeHidden === "function" && !!this.diagram.isNodeHidden(node, this);
+    }
+
+    /** Nodes that edges must route around: everything except containers (and hidden nodes). */
     getObstacleNodes() {
-        return this.model.nodes.filter(n => !this.isContainer(n));
+        return this.model.nodes.filter(n => !this.isContainer(n) && !this.isNodeHidden(n));
+    }
+
+    /**
+     * What a dragged node would be dropped onto: diagram.getDropTarget(node, engine, { pos, draggedIds })
+     * when the definition has it (org chart: the card under the mouse becomes the new manager), otherwise
+     * the container under the node. Highlighted while dragging; passed to diagram.onNodeDrop on release.
+     */
+    findDropTargetFor(node, pos) {
+        if (typeof this.diagram.getDropTarget === "function") {
+            const draggedIds = this.state.draggingNodeIds || [node.id];
+            return this.diagram.getDropTarget(node, this, { pos, draggedIds }) || null;
+        }
+        return this.findContainerFor(node);
+    }
+
+    /** Lets the definition act on a finished drag: diagram.onNodeDrop(node, target, engine, { altKey, shiftKey }). */
+    notifyNodeDrop(node, target, evt) {
+        if (node && typeof this.diagram.onNodeDrop === "function") {
+            this.diagram.onNodeDrop(node, target || null, this, { altKey: !!evt?.altKey, shiftKey: !!evt?.shiftKey });
+        }
+    }
+
+    /**
+     * Starts picking a node: the next click on a node that passes `filter` calls onPick(node); a click
+     * elsewhere or Escape calls onCancel(). Valid nodes are highlighted under the mouse.
+     * @param {{ filter?: (node) => boolean, onPick: (node) => void, onCancel?: () => void }} options
+     */
+    startNodePick({ filter = () => true, onPick, onCancel = null }) {
+        this.cancelNodePick();
+        this.clearNodeToolSurface();
+        this.state.nodePick = { filter, onPick, onCancel };
+        this.svg.classList.add("is-picking");
+        this.render();
+    }
+
+    /** Ends a node pick without picking (calls its onCancel). */
+    cancelNodePick() {
+        const pick = this.state.nodePick;
+        if (!pick) return;
+
+        this.state.nodePick     = null;
+        this.state.dropTargetId = null;
+        this.svg.classList.remove("is-picking");
+        pick.onCancel?.();
+        this.render();
     }
 
     /**
@@ -7473,7 +7543,7 @@ export class WeavleJS {
 
     selectNodesInRect(rect, additive = false) {
         const hits = this.model.nodes
-            .filter(node => this.isNodeInsideRect(node, rect))
+            .filter(node => !this.isNodeHidden(node) && this.isNodeInsideRect(node, rect))
             .map(node => node.id);
 
         if (additive) {
@@ -7515,6 +7585,24 @@ export class WeavleJS {
         // (Clicks inside the editor itself don't get here: it stops their propagation.)
         if (this.state.editingLabel) {
             this.commitInlineLabelEdit();
+            return;
+        }
+
+        // Picking a node (startNodePick): a valid node completes the pick, anything else cancels it.
+        if (this.state.nodePick && evt.button === 0) {
+            const pick   = this.state.nodePick;
+            const at     = this.getMousePosition(evt);
+            const picked = this.findNodeAt(at.x, at.y);
+            if (picked && pick.filter(picked)) {
+                this.state.nodePick     = null;
+                this.state.dropTargetId = null;
+                this.svg.classList.remove("is-picking");
+                pick.onPick(picked);
+                this.render();
+            } else {
+                this.cancelNodePick();
+            }
+            evt.preventDefault();
             return;
         }
 
@@ -7798,6 +7886,17 @@ export class WeavleJS {
             return;
         }
 
+        // Picking a node: highlight a valid one under the mouse.
+        if (this.state.nodePick) {
+            const hovered = this.findNodeAt(pos.x, pos.y);
+            const id      = hovered && this.state.nodePick.filter(hovered) ? hovered.id : null;
+            if (id !== this.state.dropTargetId) {
+                this.state.dropTargetId = id;
+                this.render();
+            }
+            return;
+        }
+
         // Placing a new node: the ghost follows the mouse.
         if (this.state.creatingNodeType) {
             this.state.creationPreviewX = pos.x;
@@ -7958,8 +8057,8 @@ export class WeavleJS {
                 node.y = start.y + dy;
             });
 
-            // Highlight the container the group would be dropped into.
-            this.state.dropTargetId = primaryNode ? (this.findContainerFor(primaryNode)?.id || null) : null;
+            // Highlight the container (or definition drop target) the group would be dropped onto.
+            this.state.dropTargetId = primaryNode ? (this.findDropTargetFor(primaryNode, pos)?.id || null) : null;
 
             // Containers don't snap to the centres of regular nodes.
             if (primaryNode && !this.isContainer(primaryNode)) {
@@ -8031,8 +8130,8 @@ export class WeavleJS {
 
             Object.assign(node, this.constrainNodePosition(node, node.x, node.y));
 
-            // Highlight the container the node would be dropped into.
-            this.state.dropTargetId = this.findContainerFor(node)?.id || null;
+            // Highlight the container (or definition drop target) the node would be dropped onto.
+            this.state.dropTargetId = this.findDropTargetFor(node, pos)?.id || null;
 
             // Over an edge it may join: preview inserting the node into it.
             this.state.splitEdgeId = this.findSplitEdgeFor(node)?.id || null;
@@ -8272,6 +8371,8 @@ export class WeavleJS {
             const rootIds      = this.state.dragRootIds || movedNodeIds;
             const startPositions = this.state.dragStartPositions || {};
             const moved        = this.didNodesMove(this.state.dragStartPositions);
+            const primaryNode  = this.getNode(this.state.dragPrimaryId);
+            const dropTarget   = this.getNode(this.state.dropTargetId);
 
             this.state.draggingNodeIds = null;
             this.state.dragStartPositions = null;
@@ -8288,6 +8389,9 @@ export class WeavleJS {
                 this.render();
                 return;
             }
+
+            // A single grabbed node (with what it drags along): the definition may act on the drop.
+            if (primaryNode) this.notifyNodeDrop(primaryNode, dropTarget, evt);
 
             // The grabbed nodes may have landed in (or left) a container; their contents just follow.
             // applyContainment also lets containers re-arrange and reroutes the edges.
@@ -8312,6 +8416,7 @@ export class WeavleJS {
         const splitEdge = moved && this.state.splitEdgeId
             ? this.model.edges.find(e => e.id === this.state.splitEdgeId)
             : null;
+        const dropTarget = this.getNode(this.state.dropTargetId);
 
         this.state.draggingNodeId = null;
         this.state.splitEdgeId = null;
@@ -8333,6 +8438,8 @@ export class WeavleJS {
             if (splitEdge && this.canSplitEdgeWith(splitEdge, node)) {
                 this.splitEdgeWithNode(splitEdge, node);
             }
+
+            this.notifyNodeDrop(node, dropTarget, evt);
 
             // Dropped into / out of a container; also reroutes the edges.
             this.applyContainment([node], this.moveContext([node], startPositions));
@@ -8408,6 +8515,11 @@ export class WeavleJS {
 
             if (this.state.connectingNodeId) {
                 this.resetConnectionState();
+                didCancel = true;
+            }
+
+            if (this.state.nodePick) {
+                this.cancelNodePick();
                 didCancel = true;
             }
 

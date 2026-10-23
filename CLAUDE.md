@@ -140,13 +140,25 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
   `outputPoint`); boxes are sized by `fitToLabel`, leaves label below. k-out-of-n threshold in `node.k`.
   Actions `ftaAddGate`, `ftaAddInput`, `ftaAddSibling`, `ftaAddCondition`, `ftaChangeGate`, `ftaSetK`, `ftaMove`,
   `changeType` (input events only).
-- Org chart (`weavle-orgchart.js`, same pattern as FTA): `person` / `vacancy` cards, name = `label`, job title =
+- Org chart (`weavle-orgchart.js`, automatic layout like FTA): `person` / `vacancy` cards, name = `label`, job title =
   `node.role` (drawn by the shape, edited via `startInlineLabelEdit("node", id, { field: "role", box })`); report →
-  manager `reportsTo` edges; a forest is allowed (`readTree().roots`). `layoutOrgChart`: tidy tree, leaf teams of
-  ≥ `STACK_MIN` stacked on a spine (`isStacked`); `metrics` (name block height) feeds `getLabelLayout`'s `offsetY`.
-  Actions `ocAddReport`, `ocAddColleague`, `ocEditRole`, `ocAddManager`, `ocPromote`, `ocMove`, `ocRemoveOnly`,
-  `changeType`; manager changes emit `managerchanged` (queued after the action's `modelchanged`). Definition
-  `modelFromList` / `modelToList` drive the adapter's `setModelFromList` / `getList` / `onListChanged`.
+  manager `reportsTo` edges (the tree) plus `dottedLine` edges (edge type `fixed: true`, orthogonal router); a forest
+  is allowed (`readTree().roots`). `node.assistant` (leaf report → beside the manager's line), `node.collapsed`
+  (subtree hidden via `isNodeHidden`, "+n" badge). `layoutOrgChart`: tidy tree, leaf teams of ≥ `STACK_MIN` stacked on
+  a spine (`isStacked`), assistants in rows of two; `metrics` (name block height, hidden count) feeds
+  `getLabelLayout`'s `offsetY` and the badge. Drag a card onto another = new manager, Alt = dotted line
+  (`getDropTarget` / `onNodeDrop`). Actions `ocAddReport`, `ocAddAssistant`, `ocAddColleague`, `ocToggleCollapse`,
+  `ocToggleAssistant`, `ocEditRole`, `ocAddDotted` (`startNodePick`), `ocRemoveDotted`, `ocAddManager`, `ocPromote`,
+  `ocMove`, `ocRemoveOnly`, `changeType`; events `managerchanged`, `dottedlineadded`, `dottedlineremoved` (queued after
+  the action's `modelchanged`). Definition `modelFromList` / `modelToList` drive the adapter's `setModelFromList` /
+  `getList` / `onListChanged`.
+- Engine hooks for definitions (generic): `isNodeHidden(node, engine)` (not drawn, hit, marquee-selected or routed
+  around; nor its edges), `getDropTarget(node, engine, { pos, draggedIds })` (highlighted while dragging; default the
+  container) + `onNodeDrop(node, target, engine, { altKey, shiftKey })` on release, `edgeTypes[type].fixed` (kept by
+  `assignEdgeType`), `engine.startNodePick({ filter, onPick, onCancel })` / `cancelNodePick()` (next click picks a node;
+  Escape or a click elsewhere cancels; CSS `.weavle-canvas.is-picking`).
+- Build banner: `vite.config.js` puts `/*! WeavleJS v<package.json version> | built <UTC time> | ... */` on the first
+  line of `dist/weavle.iife.js` and `weavle.es.js`.
 - The diagram definition is the extension point for new diagram types: shapes, nodeTypes, getPorts,
   routeEdge, getContextActions, getNodeInteractionMode, getRoutingConfig.
 

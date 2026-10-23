@@ -1,1 +1,242 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1260" height="430" class="weavle-export" viewBox="0 0 1260 430" font-family="&quot;Segoe UI&quot;, Arial, sans-serif"><g data-viewport="true" transform="translate(20, -44)"><g data-layer="edges"><path d="M 86 152 L 86 140 Q 86 132 94 132 L 602 132 Q 610 132 610 124 L 610 112" class="weavle-edge weavle-edge--reportsTo" stroke="#8A94A3" stroke-width="1.5" fill="none"/><path d="M 20 246 L 14 246 Q 8 246 8 240 L 8 204" class="weavle-edge weavle-edge--reportsTo" stroke="#8A94A3" stroke-width="1.5" fill="none"/><path d="M 20 308 L 14 308 Q 8 308 8 302 L 8 204" class="weavle-edge weavle-edge--reportsTo" stroke="#8A94A3" stroke-width="1.5" fill="none"/><path d="M 20 370 L 14 370 Q 8 370 8 364 L 8 204" class="weavle-edge weavle-edge--reportsTo" stroke="#8A94A3" stroke-width="1.5" fill="none"/><path d="M 610 152 L 610 112" class="weavle-edge weavle-edge--reportsTo" stroke="#8A94A3" stroke-width="1.5" fill="none"/><path d="M 410 244 L 410 232 Q 410 224 418 224 L 602 224 Q 610 224 610 216 L 610 204" class="weavle-edge weavle-edge--reportsTo" stroke="#8A94A3" stroke-width="1.5" fill="none"/><path d="M 310 336 L 310 324 Q 310 316 318 316 L 402 316 Q 410 316 410 308 L 410 296" class="weavle-edge weavle-edge--reportsTo" stroke="#8A94A3" stroke-width="1.5" fill="none"/><path d="M 510 336 L 510 324 Q 510 316 502 316 L 418 316 Q 410 316 410 308 L 410 296" class="weavle-edge weavle-edge--reportsTo" stroke="#8A94A3" stroke-width="1.5" fill="none"/><path d="M 810 244 L 810 232 Q 810 224 802 224 L 618 224 Q 610 224 610 216 L 610 204" class="weavle-edge weavle-edge--reportsTo" stroke="#8A94A3" stroke-width="1.5" fill="none"/><path d="M 710 336 L 710 324 Q 710 316 718 316 L 802 316 Q 810 316 810 308 L 810 296" class="weavle-edge weavle-edge--reportsTo" stroke="#8A94A3" stroke-width="1.5" fill="none"/><path d="M 910 336 L 910 324 Q 910 316 902 316 L 818 316 Q 810 316 810 308 L 810 296" class="weavle-edge weavle-edge--reportsTo" stroke="#8A94A3" stroke-width="1.5" fill="none"/><path d="M 1110 152 L 1110 140 Q 1110 132 1102 132 L 618 132 Q 610 132 610 124 L 610 112" class="weavle-edge weavle-edge--reportsTo" stroke="#8A94A3" stroke-width="1.5" fill="none"/><path d="M 1044 246 L 1038 246 Q 1032 246 1032 240 L 1032 204" class="weavle-edge weavle-edge--reportsTo" stroke="#8A94A3" stroke-width="1.5" fill="none"/><path d="M 1044 308 L 1038 308 Q 1032 308 1032 302 L 1032 204" class="weavle-edge weavle-edge--reportsTo" stroke="#8A94A3" stroke-width="1.5" fill="none"/><path d="M 1044 370 L 1038 370 Q 1032 370 1032 364 L 1032 204" class="weavle-edge weavle-edge--reportsTo" stroke="#8A94A3" stroke-width="1.5" fill="none"/><path d="M 1044 432 L 1038 432 Q 1032 432 1032 426 L 1032 204" class="weavle-edge weavle-edge--reportsTo" stroke="#8A94A3" stroke-width="1.5" fill="none"/></g><g data-layer="nodes"><g class="weavle-node weavle-node--person"><g><rect x="520" y="60" width="180" height="52" rx="6" fill="#FFFFFF" stroke="#1B5278" stroke-width="1.5" class="weavle-node-shape"/><rect x="521" y="61" width="178" height="4" rx="3" fill="#1B5278" class="weavle-orgchart-accent"/><text text-anchor="middle" font-size="11" fill="#1F2933" fill-opacity="0.75" class="weavle-orgchart-role"><tspan x="610" y="100.975">Algemeen directeur</tspan></text></g><text text-anchor="middle" class="weavle-node-label" font-size="13" fill="#1F2933" font-weight="600"><tspan x="610" y="84.675">Sanne de Vries</tspan></text></g><g class="weavle-node weavle-node--person"><g><rect x="-4" y="152" width="180" height="52" rx="6" fill="#FFFFFF" stroke="#1B5278" stroke-width="1.5" class="weavle-node-shape"/><rect x="-3" y="153" width="178" height="4" rx="3" fill="#1B5278" class="weavle-orgchart-accent"/><text text-anchor="middle" font-size="11" fill="#1F2933" fill-opacity="0.75" class="weavle-orgchart-role"><tspan x="86" y="192.975">Financieel directeur</tspan></text></g><text text-anchor="middle" class="weavle-node-label" font-size="13" fill="#1F2933" font-weight="600"><tspan x="86" y="176.675">Ahmed El Amrani</tspan></text></g><g class="weavle-node weavle-node--person"><g><rect x="20" y="220" width="180" height="52" rx="6" fill="#FFFFFF" stroke="#1B5278" stroke-width="1.5" class="weavle-node-shape"/><rect x="21" y="221" width="178" height="4" rx="3" fill="#1B5278" class="weavle-orgchart-accent"/><text text-anchor="middle" font-size="11" fill="#1F2933" fill-opacity="0.75" class="weavle-orgchart-role"><tspan x="110" y="260.975">Controller</tspan></text></g><text text-anchor="middle" class="weavle-node-label" font-size="13" fill="#1F2933" font-weight="600"><tspan x="110" y="244.675">Lotte Bakker</tspan></text></g><g class="weavle-node weavle-node--person"><g><rect x="20" y="282" width="180" height="52" rx="6" fill="#FFFFFF" stroke="#1B5278" stroke-width="1.5" class="weavle-node-shape"/><rect x="21" y="283" width="178" height="4" rx="3" fill="#1B5278" class="weavle-orgchart-accent"/><text text-anchor="middle" font-size="11" fill="#1F2933" fill-opacity="0.75" class="weavle-orgchart-role"><tspan x="110" y="322.975">Boekhouder</tspan></text></g><text text-anchor="middle" class="weavle-node-label" font-size="13" fill="#1F2933" font-weight="600"><tspan x="110" y="306.675">Tim Jansen</tspan></text></g><g class="weavle-node weavle-node--person"><g><rect x="20" y="344" width="180" height="52" rx="6" fill="#FFFFFF" stroke="#1B5278" stroke-width="1.5" class="weavle-node-shape"/><rect x="21" y="345" width="178" height="4" rx="3" fill="#1B5278" class="weavle-orgchart-accent"/><text text-anchor="middle" font-size="11" fill="#1F2933" fill-opacity="0.75" class="weavle-orgchart-role"><tspan x="110" y="384.975">Salarisadministratie</tspan></text></g><text text-anchor="middle" class="weavle-node-label" font-size="13" fill="#1F2933" font-weight="600"><tspan x="110" y="368.675">Priya Ramdin</tspan></text></g><g class="weavle-node weavle-node--person"><g><rect x="520" y="152" width="180" height="52" rx="6" fill="#FFFFFF" stroke="#1B5278" stroke-width="1.5" class="weavle-node-shape"/><rect x="521" y="153" width="178" height="4" rx="3" fill="#1B5278" class="weavle-orgchart-accent"/><text text-anchor="middle" font-size="11" fill="#1F2933" fill-opacity="0.75" class="weavle-orgchart-role"><tspan x="610" y="192.975">Operationeel directeur</tspan></text></g><text text-anchor="middle" class="weavle-node-label" font-size="13" fill="#1F2933" font-weight="600"><tspan x="610" y="176.675">Joost Visser</tspan></text></g><g class="weavle-node weavle-node--person"><g><rect x="320" y="244" width="180" height="52" rx="6" fill="#FFFFFF" stroke="#1B5278" stroke-width="1.5" class="weavle-node-shape"/><rect x="321" y="245" width="178" height="4" rx="3" fill="#1B5278" class="weavle-orgchart-accent"/><text text-anchor="middle" font-size="11" fill="#1F2933" fill-opacity="0.75" class="weavle-orgchart-role"><tspan x="410" y="284.975">Teamleider logistiek</tspan></text></g><text text-anchor="middle" class="weavle-node-label" font-size="13" fill="#1F2933" font-weight="600"><tspan x="410" y="268.675">Emma Smit</tspan></text></g><g class="weavle-node weavle-node--person"><g><rect x="220" y="336" width="180" height="52" rx="6" fill="#FFFFFF" stroke="#1B5278" stroke-width="1.5" class="weavle-node-shape"/><rect x="221" y="337" width="178" height="4" rx="3" fill="#1B5278" class="weavle-orgchart-accent"/><text text-anchor="middle" font-size="11" fill="#1F2933" fill-opacity="0.75" class="weavle-orgchart-role"><tspan x="310" y="376.975">Planner</tspan></text></g><text text-anchor="middle" class="weavle-node-label" font-size="13" fill="#1F2933" font-weight="600"><tspan x="310" y="360.675">Daan Mulder</tspan></text></g><g class="weavle-node weavle-node--person"><g><rect x="420" y="336" width="180" height="52" rx="6" fill="#FFFFFF" stroke="#1B5278" stroke-width="1.5" class="weavle-node-shape"/><rect x="421" y="337" width="178" height="4" rx="3" fill="#1B5278" class="weavle-orgchart-accent"/><text text-anchor="middle" font-size="11" fill="#1F2933" fill-opacity="0.75" class="weavle-orgchart-role"><tspan x="510" y="376.975">Magazijnmedewerker</tspan></text></g><text text-anchor="middle" class="weavle-node-label" font-size="13" fill="#1F2933" font-weight="600"><tspan x="510" y="360.675">Noor Hendriks</tspan></text></g><g class="weavle-node weavle-node--person"><g><rect x="720" y="244" width="180" height="52" rx="6" fill="#FFFFFF" stroke="#1B5278" stroke-width="1.5" class="weavle-node-shape"/><rect x="721" y="245" width="178" height="4" rx="3" fill="#1B5278" class="weavle-orgchart-accent"/><text text-anchor="middle" font-size="11" fill="#1F2933" fill-opacity="0.75" class="weavle-orgchart-role"><tspan x="810" y="284.975">Teamleider productie</tspan></text></g><text text-anchor="middle" class="weavle-node-label" font-size="13" fill="#1F2933" font-weight="600"><tspan x="810" y="268.675">Kees de Boer</tspan></text></g><g class="weavle-node weavle-node--person"><g><rect x="620" y="336" width="180" height="52" rx="6" fill="#FFFFFF" stroke="#1B5278" stroke-width="1.5" class="weavle-node-shape"/><rect x="621" y="337" width="178" height="4" rx="3" fill="#1B5278" class="weavle-orgchart-accent"/><text text-anchor="middle" font-size="11" fill="#1F2933" fill-opacity="0.75" class="weavle-orgchart-role"><tspan x="710" y="376.975">Operator</tspan></text></g><text text-anchor="middle" class="weavle-node-label" font-size="13" fill="#1F2933" font-weight="600"><tspan x="710" y="360.675">Fatima Yilmaz</tspan></text></g><g class="weavle-node weavle-node--vacancy"><g><rect x="820" y="336" width="180" height="52" rx="6" fill="#F7F8FA" stroke="#8A94A3" stroke-width="1.5" stroke-dasharray="5,4" class="weavle-node-shape"/><rect x="821" y="337" width="178" height="4" rx="3" fill="#8A94A3" class="weavle-orgchart-accent"/><text text-anchor="middle" font-size="11" fill="#5B6573" fill-opacity="0.75" class="weavle-orgchart-role"><tspan x="910" y="376.975">Operator</tspan></text></g><text text-anchor="middle" class="weavle-node-label" font-size="13" fill="#5B6573" font-weight="600"><tspan x="910" y="360.675">Vacature</tspan></text></g><g class="weavle-node weavle-node--person"><g><rect x="1020" y="152" width="180" height="52" rx="6" fill="#FFFFFF" stroke="#1B5278" stroke-width="1.5" class="weavle-node-shape"/><rect x="1021" y="153" width="178" height="4" rx="3" fill="#1B5278" class="weavle-orgchart-accent"/><text text-anchor="middle" font-size="11" fill="#1F2933" fill-opacity="0.75" class="weavle-orgchart-role"><tspan x="1110" y="192.975">Hoofd IT</tspan></text></g><text text-anchor="middle" class="weavle-node-label" font-size="13" fill="#1F2933" font-weight="600"><tspan x="1110" y="176.675">Mila Peters</tspan></text></g><g class="weavle-node weavle-node--person"><g><rect x="1044" y="220" width="180" height="52" rx="6" fill="#FFFFFF" stroke="#1B5278" stroke-width="1.5" class="weavle-node-shape"/><rect x="1045" y="221" width="178" height="4" rx="3" fill="#1B5278" class="weavle-orgchart-accent"/><text text-anchor="middle" font-size="11" fill="#1F2933" fill-opacity="0.75" class="weavle-orgchart-role"><tspan x="1134" y="260.975">Ontwikkelaar</tspan></text></g><text text-anchor="middle" class="weavle-node-label" font-size="13" fill="#1F2933" font-weight="600"><tspan x="1134" y="244.675">Ruben Koster</tspan></text></g><g class="weavle-node weavle-node--person"><g><rect x="1044" y="282" width="180" height="52" rx="6" fill="#FFFFFF" stroke="#1B5278" stroke-width="1.5" class="weavle-node-shape"/><rect x="1045" y="283" width="178" height="4" rx="3" fill="#1B5278" class="weavle-orgchart-accent"/><text text-anchor="middle" font-size="11" fill="#1F2933" fill-opacity="0.75" class="weavle-orgchart-role"><tspan x="1134" y="322.975">Ontwikkelaar</tspan></text></g><text text-anchor="middle" class="weavle-node-label" font-size="13" fill="#1F2933" font-weight="600"><tspan x="1134" y="306.675">Sophie Meijer</tspan></text></g><g class="weavle-node weavle-node--person"><g><rect x="1044" y="344" width="180" height="52" rx="6" fill="#FFFFFF" stroke="#1B5278" stroke-width="1.5" class="weavle-node-shape"/><rect x="1045" y="345" width="178" height="4" rx="3" fill="#1B5278" class="weavle-orgchart-accent"/><text text-anchor="middle" font-size="11" fill="#1F2933" fill-opacity="0.75" class="weavle-orgchart-role"><tspan x="1134" y="384.975">Beheerder</tspan></text></g><text text-anchor="middle" class="weavle-node-label" font-size="13" fill="#1F2933" font-weight="600"><tspan x="1134" y="368.675">Bram van Dijk</tspan></text></g><g class="weavle-node weavle-node--vacancy"><g><rect x="1044" y="406" width="180" height="52" rx="6" fill="#F7F8FA" stroke="#8A94A3" stroke-width="1.5" stroke-dasharray="5,4" class="weavle-node-shape"/><rect x="1045" y="407" width="178" height="4" rx="3" fill="#8A94A3" class="weavle-orgchart-accent"/><text text-anchor="middle" font-size="11" fill="#5B6573" fill-opacity="0.75" class="weavle-orgchart-role"><tspan x="1134" y="446.975">Security officer</tspan></text></g><text text-anchor="middle" class="weavle-node-label" font-size="13" fill="#5B6573" font-weight="600"><tspan x="1134" y="430.675">Vacature</tspan></text></g></g></g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="1260" height="496" class="weavle-export" viewBox="0 0 1260 496" font-family="&quot;Segoe UI&quot;, Arial, sans-serif">
+<g data-viewport="true" transform="translate(20, -44)">
+<g data-layer="edges">
+<path d="M 630 152 L 618 152 Q 610 152 610 144 L 610 112" class="weavle-edge weavle-edge--reportsTo" stroke="#8A94A3" stroke-width="1.5" fill="none"/>
+<path d="M 86 218 L 86 206 Q 86 198 94 198 L 602 198 Q 610 198 610 190 L 610 112" class="weavle-edge weavle-edge--reportsTo" stroke="#8A94A3" stroke-width="1.5" fill="none"/>
+<path d="M 20 312 L 14 312 Q 8 312 8 306 L 8 270" class="weavle-edge weavle-edge--reportsTo" stroke="#8A94A3" stroke-width="1.5" fill="none"/>
+<path d="M 20 374 L 14 374 Q 8 374 8 368 L 8 270" class="weavle-edge weavle-edge--reportsTo" stroke="#8A94A3" stroke-width="1.5" fill="none"/>
+<path d="M 20 436 L 14 436 Q 8 436 8 430 L 8 270" class="weavle-edge weavle-edge--reportsTo" stroke="#8A94A3" stroke-width="1.5" fill="none"/>
+<path d="M 610 218 L 610 112" class="weavle-edge weavle-edge--reportsTo" stroke="#8A94A3" stroke-width="1.5" fill="none"/>
+<path d="M 410 310 L 410 298 Q 410 290 418 290 L 602 290 Q 610 290 610 282 L 610 270" class="weavle-edge weavle-edge--reportsTo" stroke="#8A94A3" stroke-width="1.5" fill="none"/>
+<path d="M 310 402 L 310 390 Q 310 382 318 382 L 402 382 Q 410 382 410 374 L 410 362" class="weavle-edge weavle-edge--reportsTo" stroke="#8A94A3" stroke-width="1.5" fill="none"/>
+<path d="M 510 402 L 510 390 Q 510 382 502 382 L 418 382 Q 410 382 410 374 L 410 362" class="weavle-edge weavle-edge--reportsTo" stroke="#8A94A3" stroke-width="1.5" fill="none"/>
+<path d="M 810 310 L 810 298 Q 810 290 802 290 L 618 290 Q 610 290 610 282 L 610 270" class="weavle-edge weavle-edge--reportsTo" stroke="#8A94A3" stroke-width="1.5" fill="none"/>
+<path d="M 710 402 L 710 390 Q 710 382 718 382 L 802 382 Q 810 382 810 374 L 810 362" class="weavle-edge weavle-edge--reportsTo" stroke="#8A94A3" stroke-width="1.5" fill="none"/>
+<path d="M 910 402 L 910 390 Q 910 382 902 382 L 818 382 Q 810 382 810 374 L 810 362" class="weavle-edge weavle-edge--reportsTo" stroke="#8A94A3" stroke-width="1.5" fill="none"/>
+<path d="M 1110 218 L 1110 206 Q 1110 198 1102 198 L 618 198 Q 610 198 610 190 L 610 112" class="weavle-edge weavle-edge--reportsTo" stroke="#8A94A3" stroke-width="1.5" fill="none"/>
+<path d="M 1044 312 L 1038 312 Q 1032 312 1032 306 L 1032 270" class="weavle-edge weavle-edge--reportsTo" stroke="#8A94A3" stroke-width="1.5" fill="none"/>
+<path d="M 1044 312 L 980 312 Q 972 312 972 320 L 972 328 Q 972 336 964 336 L 900 336" class="weavle-edge weavle-edge--dottedLine" stroke="#7A5AB8" stroke-width="1.5" fill="none" stroke-dasharray="5,4"/>
+<path d="M 1044 374 L 1038 374 Q 1032 374 1032 368 L 1032 270" class="weavle-edge weavle-edge--reportsTo" stroke="#8A94A3" stroke-width="1.5" fill="none"/>
+<path d="M 1044 436 L 1038 436 Q 1032 436 1032 430 L 1032 270" class="weavle-edge weavle-edge--reportsTo" stroke="#8A94A3" stroke-width="1.5" fill="none"/>
+<path d="M 1044 498 L 1038 498 Q 1032 498 1032 492 L 1032 270" class="weavle-edge weavle-edge--reportsTo" stroke="#8A94A3" stroke-width="1.5" fill="none"/>
+</g>
+<g data-layer="nodes">
+<g class="weavle-node weavle-node--person">
+<g>
+<rect x="520" y="60" width="180" height="52" rx="6" fill="#FFFFFF" stroke="#1B5278" stroke-width="1.5" class="weavle-node-shape"/>
+<rect x="521" y="61" width="178" height="4" rx="3" fill="#1B5278" class="weavle-orgchart-accent"/>
+<text text-anchor="middle" font-size="11" fill="#1F2933" fill-opacity="0.75" class="weavle-orgchart-role">
+<tspan x="610" y="100.975">Algemeen directeur</tspan>
+</text>
+</g>
+<text text-anchor="middle" class="weavle-node-label" font-size="13" fill="#1F2933" font-weight="600">
+<tspan x="610" y="84.675">Sanne de Vries</tspan>
+</text>
+</g>
+<g class="weavle-node weavle-node--person">
+<g>
+<rect x="630" y="126" width="180" height="52" rx="6" fill="#FFFFFF" stroke="#1B5278" stroke-width="1.5" class="weavle-node-shape"/>
+<rect x="631" y="127" width="178" height="4" rx="3" fill="#1B5278" class="weavle-orgchart-accent"/>
+<text text-anchor="middle" font-size="11" fill="#1F2933" fill-opacity="0.75" class="weavle-orgchart-role">
+<tspan x="720" y="166.975">Directiesecretaresse</tspan>
+</text>
+</g>
+<text text-anchor="middle" class="weavle-node-label" font-size="13" fill="#1F2933" font-weight="600">
+<tspan x="720" y="150.675">Yara Bos</tspan>
+</text>
+</g>
+<g class="weavle-node weavle-node--person">
+<g>
+<rect x="-4" y="218" width="180" height="52" rx="6" fill="#FFFFFF" stroke="#1B5278" stroke-width="1.5" class="weavle-node-shape"/>
+<rect x="-3" y="219" width="178" height="4" rx="3" fill="#1B5278" class="weavle-orgchart-accent"/>
+<text text-anchor="middle" font-size="11" fill="#1F2933" fill-opacity="0.75" class="weavle-orgchart-role">
+<tspan x="86" y="258.975">Financieel directeur</tspan>
+</text>
+</g>
+<text text-anchor="middle" class="weavle-node-label" font-size="13" fill="#1F2933" font-weight="600">
+<tspan x="86" y="242.675">Ahmed El Amrani</tspan>
+</text>
+</g>
+<g class="weavle-node weavle-node--person">
+<g>
+<rect x="20" y="286" width="180" height="52" rx="6" fill="#FFFFFF" stroke="#1B5278" stroke-width="1.5" class="weavle-node-shape"/>
+<rect x="21" y="287" width="178" height="4" rx="3" fill="#1B5278" class="weavle-orgchart-accent"/>
+<text text-anchor="middle" font-size="11" fill="#1F2933" fill-opacity="0.75" class="weavle-orgchart-role">
+<tspan x="110" y="326.975">Controller</tspan>
+</text>
+</g>
+<text text-anchor="middle" class="weavle-node-label" font-size="13" fill="#1F2933" font-weight="600">
+<tspan x="110" y="310.675">Lotte Bakker</tspan>
+</text>
+</g>
+<g class="weavle-node weavle-node--person">
+<g>
+<rect x="20" y="348" width="180" height="52" rx="6" fill="#FFFFFF" stroke="#1B5278" stroke-width="1.5" class="weavle-node-shape"/>
+<rect x="21" y="349" width="178" height="4" rx="3" fill="#1B5278" class="weavle-orgchart-accent"/>
+<text text-anchor="middle" font-size="11" fill="#1F2933" fill-opacity="0.75" class="weavle-orgchart-role">
+<tspan x="110" y="388.975">Boekhouder</tspan>
+</text>
+</g>
+<text text-anchor="middle" class="weavle-node-label" font-size="13" fill="#1F2933" font-weight="600">
+<tspan x="110" y="372.675">Tim Jansen</tspan>
+</text>
+</g>
+<g class="weavle-node weavle-node--person">
+<g>
+<rect x="20" y="410" width="180" height="52" rx="6" fill="#FFFFFF" stroke="#1B5278" stroke-width="1.5" class="weavle-node-shape"/>
+<rect x="21" y="411" width="178" height="4" rx="3" fill="#1B5278" class="weavle-orgchart-accent"/>
+<text text-anchor="middle" font-size="11" fill="#1F2933" fill-opacity="0.75" class="weavle-orgchart-role">
+<tspan x="110" y="450.975">Salarisadministratie</tspan>
+</text>
+</g>
+<text text-anchor="middle" class="weavle-node-label" font-size="13" fill="#1F2933" font-weight="600">
+<tspan x="110" y="434.675">Priya Ramdin</tspan>
+</text>
+</g>
+<g class="weavle-node weavle-node--person">
+<g>
+<rect x="520" y="218" width="180" height="52" rx="6" fill="#FFFFFF" stroke="#1B5278" stroke-width="1.5" class="weavle-node-shape"/>
+<rect x="521" y="219" width="178" height="4" rx="3" fill="#1B5278" class="weavle-orgchart-accent"/>
+<text text-anchor="middle" font-size="11" fill="#1F2933" fill-opacity="0.75" class="weavle-orgchart-role">
+<tspan x="610" y="258.975">Operationeel directeur</tspan>
+</text>
+</g>
+<text text-anchor="middle" class="weavle-node-label" font-size="13" fill="#1F2933" font-weight="600">
+<tspan x="610" y="242.675">Joost Visser</tspan>
+</text>
+</g>
+<g class="weavle-node weavle-node--person">
+<g>
+<rect x="320" y="310" width="180" height="52" rx="6" fill="#FFFFFF" stroke="#1B5278" stroke-width="1.5" class="weavle-node-shape"/>
+<rect x="321" y="311" width="178" height="4" rx="3" fill="#1B5278" class="weavle-orgchart-accent"/>
+<text text-anchor="middle" font-size="11" fill="#1F2933" fill-opacity="0.75" class="weavle-orgchart-role">
+<tspan x="410" y="350.975">Teamleider logistiek</tspan>
+</text>
+</g>
+<text text-anchor="middle" class="weavle-node-label" font-size="13" fill="#1F2933" font-weight="600">
+<tspan x="410" y="334.675">Emma Smit</tspan>
+</text>
+</g>
+<g class="weavle-node weavle-node--person">
+<g>
+<rect x="220" y="402" width="180" height="52" rx="6" fill="#FFFFFF" stroke="#1B5278" stroke-width="1.5" class="weavle-node-shape"/>
+<rect x="221" y="403" width="178" height="4" rx="3" fill="#1B5278" class="weavle-orgchart-accent"/>
+<text text-anchor="middle" font-size="11" fill="#1F2933" fill-opacity="0.75" class="weavle-orgchart-role">
+<tspan x="310" y="442.975">Planner</tspan>
+</text>
+</g>
+<text text-anchor="middle" class="weavle-node-label" font-size="13" fill="#1F2933" font-weight="600">
+<tspan x="310" y="426.675">Daan Mulder</tspan>
+</text>
+</g>
+<g class="weavle-node weavle-node--person">
+<g>
+<rect x="420" y="402" width="180" height="52" rx="6" fill="#FFFFFF" stroke="#1B5278" stroke-width="1.5" class="weavle-node-shape"/>
+<rect x="421" y="403" width="178" height="4" rx="3" fill="#1B5278" class="weavle-orgchart-accent"/>
+<text text-anchor="middle" font-size="11" fill="#1F2933" fill-opacity="0.75" class="weavle-orgchart-role">
+<tspan x="510" y="442.975">Magazijnmedewerker</tspan>
+</text>
+</g>
+<text text-anchor="middle" class="weavle-node-label" font-size="13" fill="#1F2933" font-weight="600">
+<tspan x="510" y="426.675">Noor Hendriks</tspan>
+</text>
+</g>
+<g class="weavle-node weavle-node--person">
+<g>
+<rect x="720" y="310" width="180" height="52" rx="6" fill="#FFFFFF" stroke="#1B5278" stroke-width="1.5" class="weavle-node-shape"/>
+<rect x="721" y="311" width="178" height="4" rx="3" fill="#1B5278" class="weavle-orgchart-accent"/>
+<text text-anchor="middle" font-size="11" fill="#1F2933" fill-opacity="0.75" class="weavle-orgchart-role">
+<tspan x="810" y="350.975">Teamleider productie</tspan>
+</text>
+</g>
+<text text-anchor="middle" class="weavle-node-label" font-size="13" fill="#1F2933" font-weight="600">
+<tspan x="810" y="334.675">Kees de Boer</tspan>
+</text>
+</g>
+<g class="weavle-node weavle-node--person">
+<g>
+<rect x="620" y="402" width="180" height="52" rx="6" fill="#FFFFFF" stroke="#1B5278" stroke-width="1.5" class="weavle-node-shape"/>
+<rect x="621" y="403" width="178" height="4" rx="3" fill="#1B5278" class="weavle-orgchart-accent"/>
+<text text-anchor="middle" font-size="11" fill="#1F2933" fill-opacity="0.75" class="weavle-orgchart-role">
+<tspan x="710" y="442.975">Operator</tspan>
+</text>
+</g>
+<text text-anchor="middle" class="weavle-node-label" font-size="13" fill="#1F2933" font-weight="600">
+<tspan x="710" y="426.675">Fatima Yilmaz</tspan>
+</text>
+</g>
+<g class="weavle-node weavle-node--vacancy">
+<g>
+<rect x="820" y="402" width="180" height="52" rx="6" fill="#F7F8FA" stroke="#8A94A3" stroke-width="1.5" stroke-dasharray="5,4" class="weavle-node-shape"/>
+<rect x="821" y="403" width="178" height="4" rx="3" fill="#8A94A3" class="weavle-orgchart-accent"/>
+<text text-anchor="middle" font-size="11" fill="#5B6573" fill-opacity="0.75" class="weavle-orgchart-role">
+<tspan x="910" y="442.975">Operator</tspan>
+</text>
+</g>
+<text text-anchor="middle" class="weavle-node-label" font-size="13" fill="#5B6573" font-weight="600">
+<tspan x="910" y="426.675">Vacature</tspan>
+</text>
+</g>
+<g class="weavle-node weavle-node--person">
+<g>
+<rect x="1020" y="218" width="180" height="52" rx="6" fill="#FFFFFF" stroke="#1B5278" stroke-width="1.5" class="weavle-node-shape"/>
+<rect x="1021" y="219" width="178" height="4" rx="3" fill="#1B5278" class="weavle-orgchart-accent"/>
+<text text-anchor="middle" font-size="11" fill="#1F2933" fill-opacity="0.75" class="weavle-orgchart-role">
+<tspan x="1110" y="258.975">Hoofd IT</tspan>
+</text>
+</g>
+<text text-anchor="middle" class="weavle-node-label" font-size="13" fill="#1F2933" font-weight="600">
+<tspan x="1110" y="242.675">Mila Peters</tspan>
+</text>
+</g>
+<g class="weavle-node weavle-node--person">
+<g>
+<rect x="1044" y="286" width="180" height="52" rx="6" fill="#FFFFFF" stroke="#1B5278" stroke-width="1.5" class="weavle-node-shape"/>
+<rect x="1045" y="287" width="178" height="4" rx="3" fill="#1B5278" class="weavle-orgchart-accent"/>
+<text text-anchor="middle" font-size="11" fill="#1F2933" fill-opacity="0.75" class="weavle-orgchart-role">
+<tspan x="1134" y="326.975">Ontwikkelaar</tspan>
+</text>
+</g>
+<text text-anchor="middle" class="weavle-node-label" font-size="13" fill="#1F2933" font-weight="600">
+<tspan x="1134" y="310.675">Ruben Koster</tspan>
+</text>
+</g>
+<g class="weavle-node weavle-node--person">
+<g>
+<rect x="1044" y="348" width="180" height="52" rx="6" fill="#FFFFFF" stroke="#1B5278" stroke-width="1.5" class="weavle-node-shape"/>
+<rect x="1045" y="349" width="178" height="4" rx="3" fill="#1B5278" class="weavle-orgchart-accent"/>
+<text text-anchor="middle" font-size="11" fill="#1F2933" fill-opacity="0.75" class="weavle-orgchart-role">
+<tspan x="1134" y="388.975">Ontwikkelaar</tspan>
+</text>
+</g>
+<text text-anchor="middle" class="weavle-node-label" font-size="13" fill="#1F2933" font-weight="600">
+<tspan x="1134" y="372.675">Sophie Meijer</tspan>
+</text>
+</g>
+<g class="weavle-node weavle-node--person">
+<g>
+<rect x="1044" y="410" width="180" height="52" rx="6" fill="#FFFFFF" stroke="#1B5278" stroke-width="1.5" class="weavle-node-shape"/>
+<rect x="1045" y="411" width="178" height="4" rx="3" fill="#1B5278" class="weavle-orgchart-accent"/>
+<text text-anchor="middle" font-size="11" fill="#1F2933" fill-opacity="0.75" class="weavle-orgchart-role">
+<tspan x="1134" y="450.975">Beheerder</tspan>
+</text>
+</g>
+<text text-anchor="middle" class="weavle-node-label" font-size="13" fill="#1F2933" font-weight="600">
+<tspan x="1134" y="434.675">Bram van Dijk</tspan>
+</text>
+</g>
+<g class="weavle-node weavle-node--vacancy">
+<g>
+<rect x="1044" y="472" width="180" height="52" rx="6" fill="#F7F8FA" stroke="#8A94A3" stroke-width="1.5" stroke-dasharray="5,4" class="weavle-node-shape"/>
+<rect x="1045" y="473" width="178" height="4" rx="3" fill="#8A94A3" class="weavle-orgchart-accent"/>
+<text text-anchor="middle" font-size="11" fill="#5B6573" fill-opacity="0.75" class="weavle-orgchart-role">
+<tspan x="1134" y="512.975">Security officer</tspan>
+</text>
+</g>
+<text text-anchor="middle" class="weavle-node-label" font-size="13" fill="#5B6573" font-weight="600">
+<tspan x="1134" y="496.675">Vacature</tspan>
+</text>
+</g>
+</g>
+</g>
+</svg>

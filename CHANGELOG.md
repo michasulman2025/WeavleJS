@@ -3,6 +3,17 @@
 ## Unreleased
 
 ### Added
+- **Org chart, step 2**: drag a card onto another card to make that its manager (the target is highlighted; with
+  Alt it adds a dotted line instead; dropped elsewhere the card goes back). Collapse / expand a team ("+n" on the
+  card). Assistants beside the line under their manager (node tool "Assistent maken", or "Medewerker toevoegen" →
+  "Assistent"). Dotted-line (matrix) reporting: "Stippellijn toevoegen" then click the other card, "Stippellijn
+  verwijderen". The flat list gains `assistant` and `dottedManagerIds`; new events `weavle:orgchart:dottedlineadded`
+  / `dottedlineremoved { nodeId, managerId }`. The sample has an assistant and a dotted line.
+- Engine hooks: `diagram.isNodeHidden(node, engine)`, `diagram.getDropTarget(...)` + `diagram.onNodeDrop(...)`,
+  `edgeTypes[type].fixed` (type kept instead of re-derived), `engine.startNodePick({ filter, onPick, onCancel })` /
+  `cancelNodePick()`; action icons `collapse`, `expand`, `dottedLine`.
+- Build: the first line of `dist/weavle.iife.js` and `dist/weavle.es.js` now carries the version and build time
+  (`/*! WeavleJS v0.9.0 | built 2026-10-23 14:23 UTC | ... */`).
 - **Org chart (organogram) diagram type** (`createOrgChartDefinition()` in `src/weavle-orgchart.js`, OutSystems
   `diagramType: "orgchart"`): cards with name and job title, and vacancies (dashed), in a reporting tree laid out
   automatically top-down; teams without sub-teams (three or more people) are stacked below their manager. Node tools:

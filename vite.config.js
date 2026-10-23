@@ -5,6 +5,12 @@
  */
 
 import { defineConfig } from "vite";
+import { readFileSync } from "node:fs";
+
+// Version (package.json) and build time on the first line of every built file, so a copy taken into
+// an OutSystems app shows which build it is.
+const { version } = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8"));
+const builtAt     = new Date().toISOString().slice(0, 16).replace("T", " ") + " UTC";
 
 // npm run dev         → playground (index.html)
 // npm run build       → library in dist/: weavle.iife.js (script tag, global "Weavle"),
@@ -32,9 +38,10 @@ export default defineConfig(({ mode }) => {
                 fileName: format => (format === "iife" ? "weavle.iife.js" : "weavle.es.js"),
                 cssFileName: "weavle"
             },
-            // Keep the copyright notice at the top of the built files (also in the minified IIFE).
+            // Keep the version, build time and copyright notice at the top of the built files (also in the
+            // minified IIFE).
             rollupOptions: {
-                output: { postBanner: "/*! WeavleJS | (c) 2026 Micha Sulman | MIT License */" }
+                output: { postBanner: `/*! WeavleJS v${version} | built ${builtAt} | (c) 2026 Micha Sulman | MIT License */` }
             }
         }
     };

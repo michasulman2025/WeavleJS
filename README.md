@@ -44,8 +44,9 @@ from the node tools; the tree arranges itself.
 ### Org chart
 
 People and vacancies in a reporting tree with automatic layout: teams without sub-teams are stacked, so wide teams
-don't make the chart wide. Add reports, colleagues or a manager above, promote, reorder and turn a card into a
-vacancy from the node tools. Loads from and reports a flat list (`id`, `managerId`, `name`, `role`).
+don't make the chart wide; assistants sit beside their manager, dotted lines show matrix reporting. Drag a card onto
+another to give it a new manager, collapse teams, and add reports, colleagues or a manager above from the node tools.
+Loads from and reports a flat list (`id`, `managerId`, `name`, `role`, ...).
 
 ![Org chart: a small company with three departments and two vacancies](docs/images/orgchart.svg)
 
@@ -83,8 +84,8 @@ presets users can pick per node ("Kritiek" and "Let op" here).
 - Containers: BPMN pools and lanes hold their contents, stack lanes and move as one
 - Ishikawa (fishbone): problem → categories → causes → sub-causes, laid out automatically; starts with the 6M
 - Fault tree (FTA): top event → gates → events, laid out automatically top-down; six gate types, k-out-of-n threshold
-- Org chart: name + job title cards and vacancies, laid out automatically (stacked leaf teams); flat list in / out and
-  a `managerchanged` event
+- Org chart: name + job title cards and vacancies, laid out automatically (stacked leaf teams, assistants); drag to
+  reassign, collapsible teams, dotted-line reporting; flat list in / out and `managerchanged` / dotted line events
 - Themes for a house style (`options.theme` / `setTheme()`): node and edge styles per type, font, editor colours —
   also in `exportSvg()`; presets users can give single nodes ("Stijl" in the node tools)
 - Read-only mode

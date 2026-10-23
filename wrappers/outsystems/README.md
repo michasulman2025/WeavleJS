@@ -168,7 +168,7 @@ model (e.g. another record loaded) is loaded normally.
 |---|---|
 | `setModel(jsonOrObject)` | Load a model; returns `false` when it was the editor's own model (echo). Another `diagramType` switches the editor to that type |
 | `getModel()` | Current model as JSON text, with `diagramType` |
-| `setModelFromList(listJson)` | Org chart: load a flat list `[{ id, managerId, name, role, vacancy }]` (e.g. from an Employee entity); returns `false` when it is the list the editor itself last reported (echo) |
+| `setModelFromList(listJson)` | Org chart: load a flat list `[{ id, managerId, name, role, vacancy, assistant, dottedManagerIds }]` (e.g. from an Employee entity; `dottedManagerIds` an array or `"id1,id2"`); returns `false` when it is the list the editor itself last reported (echo) |
 | `getList()` | Org chart: the current chart as that flat list (JSON text; `managerId` is `""` for the top) |
 | `getDiagramType()` | `"bpmn"`, `"flowchart"`, ... |
 | `setDiagramType(type, model?)` | Switch type with an empty (or the given) model; reported via `onModelChanged` |
@@ -193,7 +193,8 @@ model (e.g. another record loaded) is loaded normally.
 store it and pass it back as option `toolbarFloatingPosition: { x, y }` to keep the spot across visits),
 `onListChanged(listJson)` (org chart: with every `onModelChanged`, the chart as a flat list — store it and pass it back
 through `setModelFromList`), `onDiagramEvent(name, detailJson)` (a diagram-specific event such as
-`"orgchart:managerchanged"` with `nodeId`, `oldManagerId`, `newManagerId`; always in addition to `onModelChanged`, so
+`"orgchart:managerchanged"` with `nodeId`, `oldManagerId`, `newManagerId`, or `"orgchart:dottedlineadded"` /
+`"orgchart:dottedlineremoved"` with `nodeId`, `managerId`; always in addition to `onModelChanged`, so
 handle it only when you want to store that one change — a Switch on `name` in the handler).
 
 Extra diagram types: `Weavle.registerDiagramType("myType", createMyDefinition)` before mounting.

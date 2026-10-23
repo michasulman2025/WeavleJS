@@ -60,6 +60,12 @@
     cursor: grabbing;
 }
 
+/* startNodePick(): the next click picks a node (e.g. the other end of an org chart dotted line). */
+.weavle-canvas.is-picking,
+.weavle-canvas.is-picking .weavle-node {
+    cursor: crosshair;
+}
+
 .weavle-grid-dot {
     fill: var(--weavle-grid-color);
     r: var(--weavle-grid-dot-radius);
