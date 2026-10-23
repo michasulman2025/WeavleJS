@@ -76,6 +76,8 @@ export function getInstance(container) {
  *   onNodeMoved         (nodeJson) => void
  *   onNodeResized       (nodeJson) => void
  *   onToolbarMoved      (x, y) => void          — a floating toolbar was dragged (e.g. to remember the spot)
+ *   onDiagramEvent      (name, detailJson) => void — a diagram-specific event, name like "orgchart:managerchanged"
+ *                       (always on top of onModelChanged; detailJson carries diagramType and name too)
  *
  * Models describe themselves: the JSON the editor reports carries "diagramType", and setModel() with a
  * model of another type rebuilds the editor for that type (same container, callbacks and options).
@@ -129,7 +131,8 @@ export function mount(container, config = {}) {
         "weavle:toolbarmoved": e => {
             editorOptions.toolbarFloatingPosition = { x: e.detail.x, y: e.detail.y };
             config.onToolbarMoved?.(e.detail.x, e.detail.y);
-        }
+        },
+        "weavle:diagramevent": e => config.onDiagramEvent?.(e.detail.name, JSON.stringify(e.detail))
     };
 
     // On the container, so they keep working when the editor is rebuilt for another type.

@@ -453,6 +453,22 @@ export class WeavleJS {
         );
     }
 
+    /**
+     * Dispatches a diagram-specific (domain) event, for use by diagram definitions.
+     * The name is namespaced with the definition id: emitDiagramEvent("managerchanged", ...) in the
+     * "orgchart" definition dispatches "weavle:orgchart:managerchanged". The same detail also goes out as
+     * the generic "weavle:diagramevent", so hosts can listen to every domain event with one listener.
+     * Domain events come on top of weavle:modelchanged, never instead of it.
+     * @param {string} name     Event name without namespace, e.g. "managerchanged"
+     * @param {object} payload  Merged into event.detail next to { diagramType, name }
+     */
+    emitDiagramEvent(name, payload = {}) {
+        const diagramType = this.diagram?.id || "custom";
+        const detail = { diagramType, name: `${diagramType}:${name}`, ...payload };
+        this.emit(`weavle:${diagramType}:${name}`, detail);
+        this.emit("weavle:diagramevent", detail);
+    }
+
     emitModelChanged() {
     this.emit("weavle:modelchanged", { model: this.getData() });
 }

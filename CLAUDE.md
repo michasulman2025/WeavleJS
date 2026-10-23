@@ -50,7 +50,10 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
   a click without movement does neither. `addNode()` without x/y auto-places the node on a free spot in the
   visible area (`findFreePosition`); `createConnectedNode()` picks a free spot with a working route.
 - Events: `CustomEvent`s dispatched on the container via `emit()`: `weavle:modelchanged`,
-  `weavle:nodemoved`, `weavle:noderesized`, `weavle:selectionchanged`.
+  `weavle:nodemoved`, `weavle:noderesized`, `weavle:selectionchanged`, `weavle:toolbarmoved`. Core events stay
+  generic; definitions dispatch domain events with `engine.emitDiagramEvent(name, payload)` →
+  `weavle:<definition id>:<name>` + generic `weavle:diagramevent` (detail `{ diagramType, name, ...payload }`;
+  OutSystems `onDiagramEvent(name, detailJson)`), always in addition to `weavle:modelchanged`.
 - Resizing: corner handles on a single selected node (side midpoints are connection ports). Shift keeps the
   ratio, Alt resizes from the centre, Escape cancels. With snap on, sizes change in steps of 2 × gridSize and
   the centre stays on the grid. Rules per type via the definition: `getResizeRules(node)` or

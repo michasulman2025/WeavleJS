@@ -188,6 +188,8 @@ model (e.g. another record loaded) is loaded normally.
 
 `config` callbacks: `onModelChanged(json)`, `onSelectionChanged(nodeId, edgeId, selectedNodeIdsJson)`,
 `onNodeMoved(nodeJson)`, `onNodeResized(nodeJson)`, `onToolbarMoved(x, y)` (a floating toolbar was dragged —
-store it and pass it back as option `toolbarFloatingPosition: { x, y }` to keep the spot across visits).
+store it and pass it back as option `toolbarFloatingPosition: { x, y }` to keep the spot across visits),
+`onDiagramEvent(name, detailJson)` (a diagram-specific event such as `"orgchart:managerchanged"`; always in addition
+to `onModelChanged`, so handle it only when you want to store that one change — a Switch on `name` in the handler).
 
 Extra diagram types: `Weavle.registerDiagramType("myType", createMyDefinition)` before mounting.

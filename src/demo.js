@@ -362,7 +362,7 @@ function addNode(type) {
 
 /**
  * Attach listeners to the host container.
- * If your class emits other custom events, add them here.
+ * Diagram-specific events (weavle:<type>:<name>) all arrive through weavle:diagramevent.
  */
 function attachEditorEventListeners() {
   const eventNames = [
@@ -370,9 +370,8 @@ function attachEditorEventListeners() {
     "weavle:nodemoved",
     "weavle:noderesized",
     "weavle:selectionchanged",
-    "weavle:edgecreated",
-    "weavle:edgereconnected",
-    "weavle:labelchanged"
+    "weavle:toolbarmoved",
+    "weavle:diagramevent"
   ];
 
   eventNames.forEach(eventName => {

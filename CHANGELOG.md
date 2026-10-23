@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Added
+- **Diagram-specific events**: `engine.emitDiagramEvent(name, payload)` for definitions dispatches
+  `weavle:<definition id>:<name>` (e.g. `weavle:orgchart:managerchanged`) plus the generic `weavle:diagramevent`,
+  detail `{ diagramType, name, ...payload }`. Core events keep their generic names. OutSystems: callback
+  `onDiagramEvent(name, detailJson)`. The playground no longer listens to the never-emitted `edgecreated`,
+  `edgereconnected` and `labelchanged`, and now logs `toolbarmoved` and diagram events.
 - **Fault tree (FTA, foutenboom) diagram type** (`createFtaDefinition()` in `src/weavle-fta.js`, OutSystems
   `diagramType: "fta"`): top event → gates → events, stored as nodes with child → parent edges and laid out
   automatically top-down (tidy tree; the lines from a gate's inputs meet in a shared bus). Gates: OR, AND, XOR,

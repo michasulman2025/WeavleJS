@@ -2718,6 +2718,14 @@ var pe = class {
 	emit(e, t) {
 		this.container && (e === "weavle:modelchanged" && this.refreshNodeToolSurface(), this.container.dispatchEvent(new CustomEvent(e, { detail: t })));
 	}
+	emitDiagramEvent(e, t = {}) {
+		let n = this.diagram?.id || "custom", r = {
+			diagramType: n,
+			name: `${n}:${e}`,
+			...t
+		};
+		this.emit(`weavle:${n}:${e}`, r), this.emit("weavle:diagramevent", r);
+	}
 	emitModelChanged() {
 		this.emit("weavle:modelchanged", { model: this.getData() });
 	}
@@ -7478,7 +7486,8 @@ function ft(e, t = {}) {
 				x: e.detail.x,
 				y: e.detail.y
 			}, t.onToolbarMoved?.(e.detail.x, e.detail.y);
-		}
+		},
+		"weavle:diagramevent": (e) => t.onDiagramEvent?.(e.detail.name, JSON.stringify(e.detail))
 	};
 	for (let [e, t] of Object.entries(u)) n.addEventListener(e, t);
 	let d = () => s.emit("weavle:modelchanged", { model: s.getData() }), f = (e) => {
