@@ -33,6 +33,8 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
   "Load complex sample" in the playground.
 - `index.html`, `src/demo.js`, `src/style.css` — the playground (diagram type switch, shape buttons,
   event log, selection info, model JSON).
+- `embed-test.html` — embedding tests: two editors (keyboard follows focus), `setCanvasSize` + `fitToContent` in a
+  resizable box (ResizeObserver), `exportSvg` preview / download. Linked from the playground; also in `build:demo`.
 
 ## Architecture (class WeavleJS)
 

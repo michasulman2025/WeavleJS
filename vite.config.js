@@ -12,7 +12,13 @@ import { defineConfig } from "vite";
 // npm run build:demo  → static build of the playground in dist-demo/
 export default defineConfig(({ mode }) => {
     if (mode === "demo") {
-        return { build: { outDir: "dist-demo" } };
+        // Both pages: the playground and the embedding tests.
+        return {
+            build: {
+                outDir: "dist-demo",
+                rollupOptions: { input: { main: "index.html", embed: "embed-test.html" } }
+            }
+        };
     }
 
     return {

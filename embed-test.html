@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WeavleJS — embedding tests</title>
+  <style>
+    :root { color-scheme: light; }
+    body { margin: 0; padding: 16px 20px 40px; font: 13px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #1e293b; background: #f8fafc; }
+    h1 { font-size: 18px; margin: 0 0 4px; }
+    h2 { font-size: 15px; margin: 0 0 4px; }
+    p.hint { margin: 0 0 10px; color: #475569; max-width: 900px; }
+    a { color: #1d4ed8; }
+    section { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; margin-top: 16px; }
+    .row { display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-start; }
+    .controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+    button { font: inherit; padding: 4px 10px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; cursor: pointer; }
+    button:hover { background: #f1f5f9; }
+    .editor-box { flex: 1 1 380px; min-width: 300px; }
+    .editor-box h3 { font-size: 13px; margin: 0 0 6px; display: flex; gap: 8px; align-items: center; }
+    .host { height: 300px; overflow: auto; border: 1px solid #cbd5e1; border-radius: 8px; background: #fafafa; }
+    .badge { font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 999px; background: #e2e8f0; color: #475569; }
+    .badge.on { background: #dcfce7; color: #166534; }
+    #fitHost { width: 520px; height: 280px; resize: both; overflow: hidden; border: 2px dashed #94a3b8; border-radius: 8px; background: #fff; position: relative; }
+    .out { font-family: ui-monospace, Consolas, monospace; font-size: 12px; color: #334155; background: #f1f5f9; border-radius: 6px; padding: 6px 8px; margin-top: 8px; white-space: pre-wrap; max-width: 900px; }
+    #exportPreview { border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px; background: repeating-conic-gradient(#f1f5f9 0% 25%, #fff 0% 50%) 50% / 16px 16px; max-width: 100%; overflow: auto; }
+    #exportPreview img { display: block; max-width: 100%; }
+    label { display: inline-flex; gap: 4px; align-items: center; }
+  </style>
+</head>
+<body>
+  <h1>WeavleJS — embedding tests</h1>
+  <p class="hint">Losse testpagina voor commit 58a9970: toetsenbord per editor, inpassen en SVG-export.
+    Terug naar de <a href="./index.html">playground</a>.</p>
+
+  <!-- 1. Keyboard scope -->
+  <section>
+    <h2>1. Toetsenbord alleen in de editor met focus</h2>
+    <p class="hint">Klik in een editor, selecteer een node en druk op <b>Delete</b> of <b>Ctrl+Z</b>: alleen de editor
+      met het groene label mag reageren. Typ ook eens in het tekstveld: dat mag geen node verwijderen.</p>
+    <div class="controls">
+      <label><input type="checkbox" id="chkGlobal" /> keyboardScope: "global" (oude gedrag, beide reageren)</label>
+      <button id="btnResetKeys">Beide opnieuw laden</button>
+      <input type="text" placeholder="Typ hier (Delete / Backspace)" style="font:inherit;padding:4px 8px;width:220px" />
+    </div>
+    <div class="row">
+      <div class="editor-box">
+        <h3>Editor A (BPMN) <span class="badge" id="badgeA">geen focus</span></h3>
+        <div class="host" id="hostA"></div>
+      </div>
+      <div class="editor-box">
+        <h3>Editor B (flowchart) <span class="badge" id="badgeB">geen focus</span></h3>
+        <div class="host" id="hostB"></div>
+      </div>
+    </div>
+    <div class="out" id="keyLog">Laatste wijziging: —</div>
+  </section>
+
+  <!-- 2. Fit to content -->
+  <section>
+    <h2>2. Inpassen: setCanvasSize + fitToContent</h2>
+    <p class="hint">Versleep de rechteronderhoek van het gestippelde vak. Met "Volg grootte" krijgt het canvas steeds
+      de maat van het vak en wordt het diagram opnieuw ingepast (ResizeObserver).</p>
+    <div class="controls">
+      <button id="btnFit">fitToContent()</button>
+      <button id="btnFitZoom">fitToContent({ maxZoom: 2 })</button>
+      <button id="btnSize">setCanvasSize(vak)</button>
+      <label><input type="checkbox" id="chkFollow" checked /> Volg grootte</label>
+      <button id="btnLoadSmall">Klein diagram</button>
+      <button id="btnLoadLarge">Groot diagram (3 pools)</button>
+    </div>
+    <div id="fitHost"></div>
+    <div class="out" id="fitOut">—</div>
+  </section>
+
+  <!-- 3. Export -->
+  <section>
+    <h2>3. exportSvg()</h2>
+    <p class="hint">Exporteert het diagram uit vak 2 als losse SVG: bijgesneden, zonder raster, selectie of handvatten.
+      Selecteer eerst een node in vak 2 om te zien dat de selectie niet meekomt.</p>
+    <div class="controls">
+      <button id="btnExport">exportSvg()</button>
+      <button id="btnExportBg">exportSvg({ background: "#ffffff", padding: 32 })</button>
+      <a id="lnkDownload" download="weavle-diagram.svg" hidden>Download SVG</a>
+    </div>
+    <div id="exportPreview"><span style="color:#64748b">Nog niets geëxporteerd.</span></div>
+    <div class="out" id="exportOut">—</div>
+  </section>
+
+  <script type="module">
+    import "./src/weavle.css";
+    import { WeavleJS } from "./src/weavle.js";
+    import { createBpmnDefinition } from "./src/weavle-bpmn.js";
+    import { createFlowchartDefinition } from "./src/weavle-flowchart.js";
+    import { createOrderProcessSample } from "./src/samples/bpmn-order-process.js";
+
+    const smallBpmn = {
+      nodes: [
+        { id: "s", type: "startEvent", label: "Start", x: 40, y: 60, width: 60, height: 60 },
+        { id: "t", type: "userTask", label: "Aanvraag beoordelen", x: 160, y: 50, width: 140, height: 80 },
+        { id: "g", type: "exclusiveGateway", label: "Akkoord?", x: 360, y: 45, width: 90, height: 90 },
+        { id: "e", type: "endEvent", label: "Klaar", x: 520, y: 60, width: 60, height: 60 }
+      ],
+      edges: [
+        { id: "1", sourceNodeId: "s", targetNodeId: "t", sourceHandle: "right", targetHandle: "left" },
+        { id: "2", sourceNodeId: "t", targetNodeId: "g", sourceHandle: "right", targetHandle: "left" },
+        { id: "3", sourceNodeId: "g", targetNodeId: "e", sourceHandle: "right", targetHandle: "left", label: "ja" }
+      ]
+    };
+
+    const smallFlow = {
+      nodes: [
+        { id: "a", type: "terminator", label: "Start", x: 40, y: 40, width: 140, height: 60 },
+        { id: "b", type: "process", label: "Verwerken", x: 40, y: 160, width: 140, height: 70 },
+        { id: "c", type: "decision", label: "Klaar?", x: 50, y: 290, width: 120, height: 90 }
+      ],
+      edges: [
+        { id: "1", sourceNodeId: "a", targetNodeId: "b", sourceHandle: "bottom", targetHandle: "top" },
+        { id: "2", sourceNodeId: "b", targetNodeId: "c", sourceHandle: "bottom", targetHandle: "top" }
+      ]
+    };
+
+    const clone = o => JSON.parse(JSON.stringify(o));
+
+    // ── 1. Keyboard scope ────────────────────────────────────────────────
+    let editorA, editorB;
+    const keyLog = document.getElementById("keyLog");
+
+    function createKeyEditors() {
+      editorA?.destroy();
+      editorB?.destroy();
+      const keyboardScope = document.getElementById("chkGlobal").checked ? "global" : "focus";
+      editorA = new WeavleJS("#hostA", { width: 1000, height: 600, toolbar: false, keyboardScope }, createBpmnDefinition());
+      editorB = new WeavleJS("#hostB", { width: 1000, height: 600, toolbar: false, keyboardScope }, createFlowchartDefinition());
+      editorA.load(clone(smallBpmn));
+      editorB.load(clone(smallFlow));
+      keyLog.textContent = `Laatste wijziging: — (keyboardScope: "${keyboardScope}")`;
+    }
+
+    const report = (name) => (e) => {
+      keyLog.textContent = `Laatste wijziging: editor ${name} — ${e.detail.model.nodes.length} nodes, ${e.detail.model.edges.length} edges (${new Date().toLocaleTimeString()})`;
+    };
+    document.getElementById("hostA").addEventListener("weavle:modelchanged", report("A"));
+    document.getElementById("hostB").addEventListener("weavle:modelchanged", report("B"));
+
+    const badges = () => {
+      for (const [id, badge] of [["hostA", "badgeA"], ["hostB", "badgeB"]]) {
+        const has = document.getElementById(id).contains(document.activeElement);
+        const el = document.getElementById(badge);
+        el.textContent = has ? "focus" : "geen focus";
+        el.classList.toggle("on", has);
+      }
+    };
+    document.addEventListener("focusin", badges);
+    document.addEventListener("focusout", () => setTimeout(badges));
+
+    document.getElementById("chkGlobal").onchange = createKeyEditors;
+    document.getElementById("btnResetKeys").onclick = createKeyEditors;
+    createKeyEditors();
+
+    // ── 2. Fit to content ────────────────────────────────────────────────
+    const fitHost = document.getElementById("fitHost");
+    const fitOut  = document.getElementById("fitOut");
+    const fitEditor = new WeavleJS(fitHost, { width: fitHost.clientWidth, height: fitHost.clientHeight, toolbar: false }, createBpmnDefinition());
+    fitEditor.load(clone(smallBpmn));
+
+    const showFit = (what) => {
+      const b = fitEditor.getContentBounds();
+      fitOut.textContent =
+        `${what}\ncanvas: ${fitEditor.options.width} × ${fitEditor.options.height}   ` +
+        `zoom: ${fitEditor.state.zoom.toFixed(3)}   pan: ${Math.round(fitEditor.state.panX)}, ${Math.round(fitEditor.state.panY)}\n` +
+        `getContentBounds(): ${b ? `x ${Math.round(b.x)}, y ${Math.round(b.y)}, ${Math.round(b.width)} × ${Math.round(b.height)}` : "null"}`;
+    };
+
+    const sizeToHost = () => fitEditor.setCanvasSize(fitHost.clientWidth, fitHost.clientHeight);
+
+    document.getElementById("btnFit").onclick     = () => { fitEditor.fitToContent(); showFit("fitToContent()"); };
+    document.getElementById("btnFitZoom").onclick = () => { fitEditor.fitToContent({ maxZoom: 2 }); showFit("fitToContent({ maxZoom: 2 })"); };
+    document.getElementById("btnSize").onclick    = () => { sizeToHost(); showFit("setCanvasSize(vak)"); };
+    document.getElementById("btnLoadSmall").onclick = () => { fitEditor.load(clone(smallBpmn)); fitEditor.fitToContent({ maxZoom: 2 }); showFit("klein diagram + fitToContent"); };
+    document.getElementById("btnLoadLarge").onclick = () => { fitEditor.load(createOrderProcessSample()); fitEditor.fitToContent(); showFit("groot diagram + fitToContent"); };
+
+    new ResizeObserver(() => {
+      if (!document.getElementById("chkFollow").checked) return;
+      sizeToHost();
+      fitEditor.fitToContent({ maxZoom: 2 });
+      showFit("ResizeObserver → setCanvasSize + fitToContent");
+    }).observe(fitHost);
+
+    // ── 3. Export ────────────────────────────────────────────────────────
+    const preview = document.getElementById("exportPreview");
+    const exportOut = document.getElementById("exportOut");
+    const link = document.getElementById("lnkDownload");
+    let lastUrl = null;
+
+    const doExport = (options, label) => {
+      const svgText = fitEditor.exportSvg(options);
+      if (lastUrl) URL.revokeObjectURL(lastUrl);
+      lastUrl = URL.createObjectURL(new Blob([svgText], { type: "image/svg+xml" }));
+
+      preview.innerHTML = "";
+      const img = new Image();
+      img.alt = "Geëxporteerd diagram";
+      img.src = lastUrl;
+      preview.appendChild(img);
+
+      link.href = lastUrl;
+      link.hidden = false;
+
+      const doc = new DOMParser().parseFromString(svgText, "image/svg+xml");
+      const root = doc.documentElement;
+      exportOut.textContent =
+        `${label}\n${(svgText.length / 1024).toFixed(1)} kB   size: ${root.getAttribute("width")} × ${root.getAttribute("height")}\n` +
+        `grid / overlay leeg: ${[...doc.querySelectorAll('[data-layer="grid"], [data-layer="overlay"]')].every(l => !l.children.length)}   ` +
+        `selectie / handvatten / hit-paden: ${doc.querySelectorAll(".is-selected, .weavle-resize-handle, .weavle-port, .weavle-edge-hit").length}`;
+    };
+
+    document.getElementById("btnExport").onclick   = () => doExport({}, "exportSvg()");
+    document.getElementById("btnExportBg").onclick = () => doExport({ background: "#ffffff", padding: 32 }, 'exportSvg({ background: "#ffffff", padding: 32 })');
+
+    // For poking around in the console (editors A / B are recreated when the scope changes).
+    window.embedTest = { get editorA() { return editorA; }, get editorB() { return editorB; }, fitEditor };
+  </script>
+</body>
+</html>

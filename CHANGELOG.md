@@ -3,6 +3,8 @@
 ## Unreleased
 
 ### Added
+- `embed-test.html`: test page for keyboard scope, `fitToContent` / `setCanvasSize` and `exportSvg`
+  (linked from the playground, included in `npm run build:demo`).
 - **Embedding in documents** (first user: ScrivleJS, the rich text editor): `fitToContent({ padding, maxZoom,
   minZoom })` zooms and pans so the whole diagram is in view; `getContentBounds()` returns what is drawn;
   `setCanvasSize(width, height)` lets the canvas follow its host element; `exportSvg({ padding, background })`
