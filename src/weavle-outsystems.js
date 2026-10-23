@@ -78,6 +78,8 @@ export function getInstance(container) {
  *   onNodeMoved         (nodeJson) => void
  *   onNodeResized       (nodeJson) => void
  *   onToolbarMoved      (x, y) => void          — a floating toolbar was dragged (e.g. to remember the spot)
+ *   onConnectionRefused (reason, detailJson) => void — the diagram's rules refused a connection the user tried
+ *                       to make (detailJson: sourceNodeId, targetNodeId, sourceHandle, targetHandle, edgeId, reason)
  *   onListChanged       (listJson) => void      — with onModelChanged, for diagram types with a flat list form
  *                       (org chart: [{ id, managerId, name, role, vacancy, assistant, dottedManagerIds }]);
  *                       see setModelFromList
@@ -146,6 +148,7 @@ export function mount(container, config = {}) {
             editorOptions.toolbarFloatingPosition = { x: e.detail.x, y: e.detail.y };
             config.onToolbarMoved?.(e.detail.x, e.detail.y);
         },
+        "weavle:connectionrefused": e => config.onConnectionRefused?.(e.detail.reason || "", JSON.stringify(e.detail)),
         "weavle:diagramevent": e => config.onDiagramEvent?.(e.detail.name, JSON.stringify(e.detail))
     };
 

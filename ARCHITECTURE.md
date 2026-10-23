@@ -79,6 +79,10 @@ These are the hooks the engine uses today:
 | `createInitialModel()` | What an empty diagram starts with (Ishikawa: problem + 6M) |
 | `interaction` | `{ dragNodes, connect, selectEdges }` — switches interactions off per add-in |
 | `canDeleteNode(node)` / `getDependentNodes(node)` | Not deletable / deleted (and dragged) along with the node |
+| `canConnect({ source, target, sourceHandle, targetHandle, edgeType, edge }, engine)` | Connection rules: true / false / a reason (string) / `{ ok, reason }`; `edge` = the edge being reconnected |
+| `palette`, `getDefaultSize(type)` | Toolbar entries (groups allowed) and the size of a new node |
+| `nodeTypes[type].outline` / `getNodeOutline(node)` | Outline for highlights: `"rect"`, `"pill"`, `"diamond"`, `"ellipse"` |
+| `nodeTypes[type].extraObstacleMargin` | Extra clearance edges keep around this type |
 
 ### 4.2 Where we are heading
 
@@ -150,7 +154,7 @@ ports: [
 | Label placement and wrapping per type | All | ✅ `getLabelLayout` |
 | Interaction on/off per add-in | Pedigree, Ishikawa | ✅ `interaction` (dragging, connecting, selecting edges) |
 | Actions as events (`weavle:action`) | Pedigree, integration with OutSystems | – |
-| Connection rules with feedback | Flowchart, BPMN, node editor | – |
+| Connection rules with feedback | Flowchart, BPMN, node editor | ✅ `canConnect`, `weavle:connectionrefused` |
 | Flexible ports (name, position, data type, maximum) | Node editor, pedigree | – |
 | Edge types with router, arrowhead and style | All | ✅ `edgeTypes`, `defaultEdgeType`, `getEdgeTypeForConnection` |
 | Routers: elbow, bezier, straight (besides orthogonal) | Pedigree, node editor | Partly: straight ✅ |
@@ -166,12 +170,12 @@ ports: [
 
 ### Couplings that are still on the wrong side
 
-- `"decision"` is hard-coded in the engine (shape exception and extra obstacle margin in `getNodeObstacleBox`).
-- Four ports (top, right, bottom, left) are assumed everywhere.
-- Palette and default sizes are in the demo (`palette`, `getDefaultNodeSize`), not in the add-in.
-- `createConnectedNode` and `startNodeCreation` use fixed sizes (140×60).
+- Four ports (top, right, bottom, left) are assumed everywhere (roadmap step 4).
 - Nodes only have a `label`, no structured data.
-- Colours of selection, ports, handles, guides and edges are hard-coded in the engine (see 7.2).
+
+Solved in step 1: the `decision` exceptions (now `outline` and `extraObstacleMargin` per type), palette and
+default sizes (definition `palette` / `getDefaultSize`; the engine's 140×60 is only the fallback for definitions
+without sizes), the `"process"` shape fallback (now a plain box). UI colours come from the theme (7.2).
 
 ---
 
@@ -495,10 +499,10 @@ Built with these defaults; revisit when real users ask:
 
 Every step can be tested on its own and must not break what exists.
 
-- [ ] **1. Contract and clean-up:** pin down the add-in contract, move the palette and default sizes from the
+- [x] **1. Contract and clean-up:** pin down the add-in contract, move the palette and default sizes from the
       demo to the add-in, and remove the `decision` exceptions from the engine.
 - [ ] **2. Interaction per add-in and actions as events** (`interaction` ✅, `weavle:action`).
-- [ ] **3. Connection rules:** `canConnect` with feedback while dragging. First rules for BPMN and flowchart.
+- [x] **3. Connection rules:** `canConnect` with feedback while dragging. First rules for BPMN and flowchart.
 - [ ] **4. Flexible ports and edge types:** the port model from 4.3, `edgeTypes`, and the routers
       elbow, bezier and straight.
 - [ ] **5. HTML nodes** via `foreignObject`.

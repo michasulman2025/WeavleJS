@@ -483,11 +483,14 @@ export function createFlowchartDefinition({ direction = "TB" } = {}) {
             },
             decision: {
                 defaultLabel: "Beslissing?",
-                shape: "decision"
+                shape: "decision",
+                outline: "diamond",
+                extraObstacleMargin: 6
             },
             terminator: {
                 defaultLabel: "Start / Stop",
-                shape: "terminator"
+                shape: "terminator",
+                outline: "pill"
             },
             inputOutput: {
                 defaultLabel: "Input / Output",
@@ -524,10 +527,10 @@ export function createFlowchartDefinition({ direction = "TB" } = {}) {
             extract:             { defaultLabel: "Uitsplitsen",          shape: "extract" },
             sort:                { defaultLabel: "Sorteren",             shape: "sort" },
             collate:             { defaultLabel: "Collatie",             shape: "collate" },
-            summingJunction:     { defaultLabel: "Sommatie",             shape: "summingJunction" },
-            or:                  { defaultLabel: "Of",                   shape: "or" },
+            summingJunction:     { defaultLabel: "Sommatie",             shape: "summingJunction", outline: "ellipse" },
+            or:                  { defaultLabel: "Of",                   shape: "or", outline: "ellipse" },
 
-            onPageConnector:     { defaultLabel: "A",        title: "On-page verbinder", shape: "onPageConnector" },
+            onPageConnector:     { defaultLabel: "A",        title: "On-page verbinder", shape: "onPageConnector", outline: "ellipse" },
             offPageConnector:    { defaultLabel: "Pagina 2", title: "Off-page verbinder", shape: "offPageConnector" },
             annotation:          { defaultLabel: "Opmerking",            shape: "annotation" }
         },
@@ -545,6 +548,18 @@ export function createFlowchartDefinition({ direction = "TB" } = {}) {
 
         getEdgeTypeForConnection({ source, target }) {
             return source?.type === "annotation" || target?.type === "annotation" ? "comment" : "flow";
+        },
+
+        // Connection rules: no second line in the same direction (a line back, a loop, is fine),
+        // no comment on a comment.
+        canConnect({ source, target, edge }, engine) {
+            if (engine.getEdgesBetween(source.id, target.id, { exceptId: edge?.id }).length) {
+                return "Deze verbinding bestaat al";
+            }
+            if (source.type === "annotation" && target.type === "annotation") {
+                return "Een opmerking koppel je aan een vorm, niet aan een andere opmerking";
+            }
+            return true;
         },
 
         getPorts(node) {

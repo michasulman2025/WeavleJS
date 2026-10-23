@@ -21,6 +21,7 @@
     --weavle-port-fill:          #ffffff;
     --weavle-port-stroke:        #2ea8df;
     --weavle-port-hot:           #eb6c4c;
+    --weavle-refused-color:      #d93838;   /* a connection the diagram's rules refuse */
 
     /* Node tools (context pad) and menus */
     --weavle-ui-font:            12px/1.35 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -123,6 +124,32 @@
 
 .weavle-port--hot {
     stroke: var(--weavle-port-hot);
+}
+
+/* ── Connection rules: refused target ─────────────────────── */
+
+.weavle-port--refused {
+    fill: var(--weavle-refused-color);
+    stroke: var(--weavle-refused-color);
+}
+
+.weavle-hover-glow--refused,
+.weavle-edge-preview--refused {
+    stroke: var(--weavle-refused-color);
+}
+
+.weavle-connect-hint {
+    position: absolute;
+    z-index: 30;
+    max-width: 260px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    background: var(--weavle-refused-color);
+    color: #ffffff;
+    font: var(--weavle-ui-font);
+    white-space: normal;
+    pointer-events: none;
+    box-shadow: var(--weavle-ui-shadow);
 }
 
 /* ── Node tools (context pad) ─────────────────────────────── */

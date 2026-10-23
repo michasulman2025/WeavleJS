@@ -52,7 +52,7 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
   a click without movement does neither. `addNode()` without x/y auto-places the node on a free spot in the
   visible area (`findFreePosition`); `createConnectedNode()` picks a free spot with a working route.
 - Events: `CustomEvent`s dispatched on the container via `emit()`: `weavle:modelchanged`,
-  `weavle:nodemoved`, `weavle:noderesized`, `weavle:selectionchanged`, `weavle:toolbarmoved`. Core events stay
+  `weavle:nodemoved`, `weavle:noderesized`, `weavle:selectionchanged`, `weavle:toolbarmoved`, `weavle:connectionrefused`. Core events stay
   generic; definitions dispatch domain events with `engine.emitDiagramEvent(name, payload)` →
   `weavle:<definition id>:<name>` + generic `weavle:diagramevent` (detail `{ diagramType, name, ...payload }`;
   OutSystems `onDiagramEvent(name, detailJson)`), always in addition to `weavle:modelchanged`.
@@ -165,6 +165,18 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
   container) + `onNodeDrop(node, target, engine, { altKey, shiftKey })` on release, `edgeTypes[type].fixed` (kept by
   `assignEdgeType`), `engine.startNodePick({ filter, onPick, onCancel })` / `cancelNodePick()` (next click picks a node;
   Escape or a click elsewhere cancels; CSS `.weavle-canvas.is-picking`).
+- Connection rules (`checkConnection`, section "Connection rules" after the port geometry): `diagram.canConnect({ source,
+  target, sourceHandle, targetHandle, edgeType, edge }, engine)` → true / false / reason string / `{ ok, reason }`; self
+  connections are always refused. While dragging, `updateConnectionCheck()` (mousemove) fills `state.connectionCheck` from
+  `getPendingConnection()`; refused = red glow (`createHoverGlow(node, refused)`), red hot port, red dashed preview
+  (`markRefusedPreview`) and the reason in `.weavle-connect-hint`. Mouseup makes nothing and emits
+  `weavle:connectionrefused` (adapter `onConnectionRefused`). Also applied by `createConnectedNode`, `canSplitEdgeWith`,
+  `detachNode` and `filterConnectableActions` (drops refused "addConnectedNode" node tools; `buildCandidateNode`).
+  `getEdgesBetween(sourceId, targetId, { directed, exceptId })` helps definitions refuse duplicates. Flowchart / BPMN rules
+  live in their `canConnect`.
+- The engine names no node or shape types: highlight outlines come from `nodeTypes[type].outline` (`getNodeOutline`),
+  extra routing clearance from `nodeTypes[type].extraObstacleMargin`; a type without shape function draws
+  `createFallbackShape`. `addNode()` fills id / size / label from the definition.
 - Build banner: `vite.config.js` puts `/*! WeavleJS v<package.json version> | built <UTC time> | ... */` on the first
   line of `dist/weavle.iife.js` and `weavle.es.js`.
 - The diagram definition is the extension point for new diagram types: shapes, nodeTypes, getPorts,

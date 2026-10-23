@@ -762,7 +762,7 @@ export function createBpmnDefinition() {
 
             // Events — generated from EVENT_TYPES, all drawn by the generic "event" shape
             ...Object.fromEntries(Object.entries(EVENT_TYPES).map(([type, def]) => [
-                type, { defaultLabel: def.label, shape: "event" }
+                type, { defaultLabel: def.label, shape: "event", outline: "ellipse" }
             ])),
 
             // Tasks
@@ -778,10 +778,10 @@ export function createBpmnDefinition() {
             subProcess:        { defaultLabel: "Sub-process",         shape: "subProcess"         },
 
             // Gateways
-            gateway:           { defaultLabel: "Gateway",             shape: "gateway"            },
-            exclusiveGateway:  { defaultLabel: "Exclusive (XOR)",     shape: "exclusiveGateway"   },
-            parallelGateway:   { defaultLabel: "Parallel (AND)",      shape: "parallelGateway"    },
-            inclusiveGateway:  { defaultLabel: "Inclusive (OR)",      shape: "inclusiveGateway"   },
+            gateway:           { defaultLabel: "Gateway",             shape: "gateway", outline: "diamond" },
+            exclusiveGateway:  { defaultLabel: "Exclusive (XOR)",     shape: "exclusiveGateway", outline: "diamond" },
+            parallelGateway:   { defaultLabel: "Parallel (AND)",      shape: "parallelGateway", outline: "diamond" },
+            inclusiveGateway:  { defaultLabel: "Inclusive (OR)",      shape: "inclusiveGateway", outline: "diamond" },
 
             // Artifacts & data
             dataObject:        { defaultLabel: "Data object",         shape: "dataObject"         },
@@ -897,6 +897,40 @@ export function createBpmnDefinition() {
             if (sourcePool && targetPool && sourcePool !== targetPool) return "messageFlow";
 
             return "sequenceFlow";
+        },
+
+        // ── Connection rules (BPMN 2.0, the common cases) ────
+        canConnect({ source, target, edgeType, edge }, engine) {
+            const kindOf    = node => EVENT_TYPES[node.type]?.kind || null;
+            const isGateway = node => GATEWAY_TYPES.includes(node.type);
+            const isData    = node => node.type === "dataObject" || node.type === "dataStore";
+
+            if (engine.getEdgesBetween(source.id, target.id, { exceptId: edge?.id }).length) {
+                return "Deze verbinding bestaat al";
+            }
+
+            if (edgeType === "sequenceFlow") {
+                if (kindOf(target) === "start")    return "Een startevent heeft geen inkomende sequence flow";
+                if (kindOf(source) === "end")      return "Een eindevent heeft geen uitgaande sequence flow";
+                if (kindOf(target) === "boundary") return "Een boundary event heeft geen inkomende sequence flow";
+            }
+
+            if (edgeType === "messageFlow") {
+                if (isGateway(source) || isGateway(target)) return "Een gateway verstuurt of ontvangt geen berichten";
+                if (kindOf(source) === "start")             return "Een startevent verstuurt geen berichten";
+                if (kindOf(target) === "end")               return "Een eindevent ontvangt geen berichten";
+            }
+
+            if (edgeType === "dataAssociation") {
+                if (isData(source) && isData(target))       return "Data-elementen verbind je niet rechtstreeks met elkaar";
+                if (isGateway(source) || isGateway(target)) return "Een gateway leest of schrijft geen data";
+            }
+
+            if (source.type === "annotation" && target.type === "annotation") {
+                return "Een annotatie koppel je aan een element, niet aan een andere annotatie";
+            }
+
+            return true;
         },
 
         // ── Edge routing ─────────────────────────────────────

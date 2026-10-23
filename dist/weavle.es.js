@@ -1,4 +1,4 @@
-/*! WeavleJS v0.9.0 | built 2026-10-23 15:00 UTC | (c) 2026 Micha Sulman | MIT License */
+/*! WeavleJS v0.9.0 | built 2026-10-23 15:42 UTC | (c) 2026 Micha Sulman | MIT License */
 //#region src/weavle-flowchart.js
 var e = "http://www.w3.org/2000/svg";
 function t(t, n, r) {
@@ -385,11 +385,14 @@ function c({ direction: e = "TB" } = {}) {
 			},
 			decision: {
 				defaultLabel: "Beslissing?",
-				shape: "decision"
+				shape: "decision",
+				outline: "diamond",
+				extraObstacleMargin: 6
 			},
 			terminator: {
 				defaultLabel: "Start / Stop",
-				shape: "terminator"
+				shape: "terminator",
+				outline: "pill"
 			},
 			inputOutput: {
 				defaultLabel: "Input / Output",
@@ -465,16 +468,19 @@ function c({ direction: e = "TB" } = {}) {
 			},
 			summingJunction: {
 				defaultLabel: "Sommatie",
-				shape: "summingJunction"
+				shape: "summingJunction",
+				outline: "ellipse"
 			},
 			or: {
 				defaultLabel: "Of",
-				shape: "or"
+				shape: "or",
+				outline: "ellipse"
 			},
 			onPageConnector: {
 				defaultLabel: "A",
 				title: "On-page verbinder",
-				shape: "onPageConnector"
+				shape: "onPageConnector",
+				outline: "ellipse"
 			},
 			offPageConnector: {
 				defaultLabel: "Pagina 2",
@@ -501,6 +507,9 @@ function c({ direction: e = "TB" } = {}) {
 		},
 		getEdgeTypeForConnection({ source: e, target: t }) {
 			return e?.type === "annotation" || t?.type === "annotation" ? "comment" : "flow";
+		},
+		canConnect({ source: e, target: t, edge: n }, r) {
+			return r.getEdgesBetween(e.id, t.id, { exceptId: n?.id }).length ? "Deze verbinding bestaat al" : e.type === "annotation" && t.type === "annotation" ? "Een opmerking koppel je aan een vorm, niet aan een andere opmerking" : !0;
 		},
 		getPorts(e) {
 			let { x: t, y: n, width: r, height: i } = e;
@@ -1599,7 +1608,8 @@ function S() {
 		nodeTypes: {
 			...Object.fromEntries(Object.entries(p).map(([e, t]) => [e, {
 				defaultLabel: t.label,
-				shape: "event"
+				shape: "event",
+				outline: "ellipse"
 			}])),
 			task: {
 				defaultLabel: "Task",
@@ -1643,19 +1653,23 @@ function S() {
 			},
 			gateway: {
 				defaultLabel: "Gateway",
-				shape: "gateway"
+				shape: "gateway",
+				outline: "diamond"
 			},
 			exclusiveGateway: {
 				defaultLabel: "Exclusive (XOR)",
-				shape: "exclusiveGateway"
+				shape: "exclusiveGateway",
+				outline: "diamond"
 			},
 			parallelGateway: {
 				defaultLabel: "Parallel (AND)",
-				shape: "parallelGateway"
+				shape: "parallelGateway",
+				outline: "diamond"
 			},
 			inclusiveGateway: {
 				defaultLabel: "Inclusive (OR)",
-				shape: "inclusiveGateway"
+				shape: "inclusiveGateway",
+				outline: "diamond"
 			},
 			dataObject: {
 				defaultLabel: "Data object",
@@ -1888,6 +1902,25 @@ function S() {
 				return t || null;
 			}, a = i(e), o = i(t);
 			return a && o && a !== o ? "messageFlow" : "sequenceFlow";
+		},
+		canConnect({ source: e, target: t, edgeType: n, edge: r }, i) {
+			let a = (e) => p[e.type]?.kind || null, o = (e) => g.includes(e.type), s = (e) => e.type === "dataObject" || e.type === "dataStore";
+			if (i.getEdgesBetween(e.id, t.id, { exceptId: r?.id }).length) return "Deze verbinding bestaat al";
+			if (n === "sequenceFlow") {
+				if (a(t) === "start") return "Een startevent heeft geen inkomende sequence flow";
+				if (a(e) === "end") return "Een eindevent heeft geen uitgaande sequence flow";
+				if (a(t) === "boundary") return "Een boundary event heeft geen inkomende sequence flow";
+			}
+			if (n === "messageFlow") {
+				if (o(e) || o(t)) return "Een gateway verstuurt of ontvangt geen berichten";
+				if (a(e) === "start") return "Een startevent verstuurt geen berichten";
+				if (a(t) === "end") return "Een eindevent ontvangt geen berichten";
+			}
+			if (n === "dataAssociation") {
+				if (s(e) && s(t)) return "Data-elementen verbind je niet rechtstreeks met elkaar";
+				if (o(e) || o(t)) return "Een gateway leest of schrijft geen data";
+			}
+			return e.type === "annotation" && t.type === "annotation" ? "Een annotatie koppel je aan een element, niet aan een andere annotatie" : !0;
 		},
 		routeEdge({ sourcePoint: e, targetPoint: t, sourceHandle: n, targetHandle: r, edge: i, engine: a }) {
 			return a.buildRoutedEdgePoints(e, t, n, r, i);
@@ -2560,6 +2593,7 @@ var ce = [
 		"--weavle-ui-active-text"
 	],
 	hot: ["--weavle-port-hot"],
+	refused: ["--weavle-refused-color"],
 	canvasBackground: ["--weavle-canvas-bg"],
 	grid: ["--weavle-grid-color"],
 	uiFont: ["--weavle-ui-font"],
@@ -2733,8 +2767,10 @@ var he = class {
 		let t = this.getDefaultNodeSize(e.type);
 		if (e = {
 			...e,
+			id: e.id ?? this.generateId(),
 			width: e.width ?? t.width,
-			height: e.height ?? t.height
+			height: e.height ?? t.height,
+			label: e.label ?? this.diagram.nodeTypes?.[e.type]?.defaultLabel ?? ""
 		}, e.x == null || e.y == null) {
 			let t = this.getVisibleModelRect(), n = {
 				x: t.x + t.width / 2,
@@ -2945,14 +2981,14 @@ var he = class {
 			let r = this.getReconnectPreviewRoute(e);
 			if (!r || r.length === 0) return;
 			let i = this.buildRoundedOrthogonalPath(r, this.options.edgeCornerRadius), a = this.createEdgePath(i, !0, !0);
-			this.layers.overlay.appendChild(a);
+			this.markRefusedPreview(a), this.layers.overlay.appendChild(a);
 			return;
 		}
 		if (this.state.connectingNodeId) {
 			let e = this.getConnectionPreviewRoute();
 			if (!e || e.length === 0) return;
 			let t = this.buildRoundedOrthogonalPath(e, this.options.edgeCornerRadius), n = this.createEdgePath(t, !0);
-			this.layers.overlay.appendChild(n);
+			this.markRefusedPreview(n), this.layers.overlay.appendChild(n);
 			return;
 		}
 		if (this.state.creatingNodeType) {
@@ -2985,7 +3021,7 @@ var he = class {
 		n.setAttribute("class", `weavle-node weavle-node--${e.type}` + (r ? ` weavle-node--variant-${r}` : "") + (e.style?.preset ? ` weavle-node--preset-${e.style.preset}` : "")), this.isNodeSelected(e.id);
 		let i = e.id === this.state.primarySelectedNodeId, a = (this.state.connectingNodeId !== null || this.state.reconnectingEdgeId !== null) && e.id === this.state.hoverNodeId;
 		if (a) {
-			let t = this.createHoverGlow(e);
+			let t = this.createHoverGlow(e, this.isConnectionRefused());
 			n.appendChild(t);
 		}
 		let o = this.createNodeShape(e), s = this.createNodeText(e);
@@ -2998,7 +3034,7 @@ var he = class {
 			e.textContent = s.getAttribute("data-full-label"), n.insertBefore(e, n.firstChild);
 		}
 		if (i && this.getInteraction().connect && this.createSelectionHandles(e).forEach((e) => n.appendChild(e)), i && !this.options.readOnly && this.state.selectedNodeIds.length === 1 && !this.state.connectingNodeId && !this.state.reconnectingEdgeId && this.getResizeRules(e) && this.createResizeHandles(e).forEach((e) => n.appendChild(e)), a && this.state.hoverHandleName) {
-			let t = this.createHotHandle(e, this.state.hoverHandleName);
+			let t = this.createHotHandle(e, this.state.hoverHandleName, this.isConnectionRefused());
 			t && n.appendChild(t);
 		}
 		return n;
@@ -3065,9 +3101,12 @@ var he = class {
 		return !i || e.button !== 0 ? !1 : (e.preventDefault(), e.stopPropagation(), this.handleContextAction(i.action, r), this.render(), !0);
 	}
 	createNodeShape(e) {
-		let t = this.diagram.nodeTypes && this.diagram.nodeTypes[e.type], n = t && t.shape ? t.shape : "process", r = this.diagram.shapes && this.diagram.shapes[n];
-		if (!r) throw Error(`Unknown shape factory for shape "${n}"`);
-		return r(e, this);
+		let t = this.diagram.nodeTypes && this.diagram.nodeTypes[e.type], n = t && t.shape ? t.shape : e.type, r = this.diagram.shapes && this.diagram.shapes[n];
+		return r ? r(e, this) : (this.debug(`createNodeShape: no shape "${n}", drawing a plain box`), this.createFallbackShape(e));
+	}
+	createFallbackShape(e) {
+		let t = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+		return t.setAttribute("x", e.x), t.setAttribute("y", e.y), t.setAttribute("width", e.width), t.setAttribute("height", e.height), t.setAttribute("rx", 8), this.applyNodeStyle(t, e), t;
 	}
 	createPreviewNodeGroup(e) {
 		let t = document.createElementNS("http://www.w3.org/2000/svg", "g"), n = this.createNodeShape(e), r = this.createNodeText(e);
@@ -3275,29 +3314,41 @@ var he = class {
 			i.setAttribute("cx", r.x), i.setAttribute("cy", r.y), i.setAttribute("r", 4.5), i.setAttribute("fill", "#ffffff"), i.setAttribute("stroke", this.getUiColors().port), i.setAttribute("stroke-width", "2"), i.setAttribute("data-handle-position", e), i.setAttribute("class", "weavle-port"), i.setAttribute("cursor", "crosshair"), t.push(i);
 		}), t;
 	}
-	createHotHandle(e, t) {
-		let n = this.getPorts(e)[t];
-		if (!n) return null;
-		let r = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-		return r.setAttribute("cx", n.x), r.setAttribute("cy", n.y), r.setAttribute("r", 6.5), r.setAttribute("fill", "#ffffff"), r.setAttribute("stroke", this.getUiColors().hot), r.setAttribute("stroke-width", "2.5"), r.setAttribute("data-handle-position", t), r.setAttribute("class", "weavle-port weavle-port--hot"), r.setAttribute("cursor", "crosshair"), r;
+	createHotHandle(e, t, n = !1) {
+		let r = this.getPorts(e)[t];
+		if (!r) return null;
+		let i = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+		return i.setAttribute("cx", r.x), i.setAttribute("cy", r.y), i.setAttribute("r", 6.5), i.setAttribute("fill", n ? this.getUiColors().refused : "#ffffff"), i.setAttribute("stroke", n ? this.getUiColors().refused : this.getUiColors().hot), i.setAttribute("stroke-width", "2.5"), i.setAttribute("data-handle-position", t), i.setAttribute("class", n ? "weavle-port weavle-port--hot weavle-port--refused" : "weavle-port weavle-port--hot"), i.setAttribute("cursor", "crosshair"), i;
 	}
-	createHoverGlow(e) {
-		let t = "http://www.w3.org/2000/svg", n = this.diagram.nodeTypes && this.diagram.nodeTypes[e.type], r = n && n.shape ? n.shape : "process", i;
-		if (r === "decision") {
-			i = document.createElementNS(t, "polygon");
-			let n = e.x + e.width / 2, r = e.y + e.height / 2, a = [
-				`${n},${e.y - 4}`,
+	getNodeOutline(e) {
+		if (typeof this.diagram.getNodeOutline == "function") {
+			let t = this.diagram.getNodeOutline(e, this);
+			if (t) return t;
+		}
+		return this.diagram.nodeTypes?.[e.type]?.outline || "rect";
+	}
+	createHoverGlow(e, t = !1) {
+		let n = "http://www.w3.org/2000/svg", r = this.getNodeOutline(e), i;
+		if (r === "diamond") {
+			i = document.createElementNS(n, "polygon");
+			let t = e.x + e.width / 2, r = e.y + e.height / 2, a = [
+				`${t},${e.y - 4}`,
 				`${e.x + e.width + 4},${r}`,
-				`${n},${e.y + e.height + 4}`,
+				`${t},${e.y + e.height + 4}`,
 				`${e.x - 4},${r}`
 			].join(" ");
 			i.setAttribute("points", a);
-		} else i = document.createElementNS(t, "rect"), i.setAttribute("x", e.x - 4), i.setAttribute("y", e.y - 4), i.setAttribute("width", e.width + 8), i.setAttribute("height", e.height + 8), r === "terminator" ? i.setAttribute("rx", Math.min((e.height + 8) / 2, 34)) : i.setAttribute("rx", 12);
-		return i.setAttribute("fill", "none"), i.setAttribute("stroke", this.getUiColors().hot), i.setAttribute("stroke-width", "3"), i.setAttribute("opacity", "0.55"), i.setAttribute("filter", "url(#hover-glow)"), i.setAttribute("pointer-events", "none"), i;
+		} else r === "ellipse" ? (i = document.createElementNS(n, "ellipse"), i.setAttribute("cx", e.x + e.width / 2), i.setAttribute("cy", e.y + e.height / 2), i.setAttribute("rx", e.width / 2 + 4), i.setAttribute("ry", e.height / 2 + 4)) : (i = document.createElementNS(n, "rect"), i.setAttribute("x", e.x - 4), i.setAttribute("y", e.y - 4), i.setAttribute("width", e.width + 8), i.setAttribute("height", e.height + 8), i.setAttribute("rx", r === "pill" ? Math.min((e.height + 8) / 2, 34) : 12));
+		return i.setAttribute("class", t ? "weavle-hover-glow weavle-hover-glow--refused" : "weavle-hover-glow"), i.setAttribute("fill", "none"), i.setAttribute("stroke", t ? this.getUiColors().refused : this.getUiColors().hot), i.setAttribute("stroke-width", "3"), i.setAttribute("opacity", "0.55"), i.setAttribute("filter", "url(#hover-glow)"), i.setAttribute("pointer-events", "none"), i;
 	}
 	applyNodeStyle(e, t) {
 		let n = this.getNodeStyle(t);
 		e.setAttribute("fill", n.fill), e.setAttribute("stroke", n.stroke), e.setAttribute("stroke-width", String(n.strokeWidth)), n.dash && e.setAttribute("stroke-dasharray", n.dash), e.classList.add("weavle-node-shape"), this.isNodeSelected(t.id) && (e.classList.add("is-selected"), e.setAttribute("stroke", this.getUiColors().selection), e.setAttribute("stroke-width", "2.5"));
+	}
+	markRefusedPreview(e) {
+		if (!this.isConnectionRefused()) return;
+		let t = this.getUiColors().refused;
+		e.classList.add("weavle-edge-preview--refused"), e.setAttribute("stroke", t), e.setAttribute("stroke-dasharray", "6,4"), e.hasAttribute("marker-end") && e.setAttribute("marker-end", `url(#${this.getMarkerId("arrow", t)})`), e.removeAttribute("marker-start");
 	}
 	createEdgePath(e, t = !1, n = !1, r = null, i = null) {
 		let a = document.createElementNS("http://www.w3.org/2000/svg", "path"), o = r || this.getEdgeTypeDefinition(null), s = i || this.getEdgeStyle(null);
@@ -3953,7 +4004,7 @@ var he = class {
 		return null;
 	}
 	getNodeObstacleBox(e, t = 16) {
-		let n = e.type === "decision" ? 6 : 0;
+		let n = this.diagram.nodeTypes?.[e.type]?.extraObstacleMargin || 0;
 		return {
 			left: e.x - t - n,
 			top: e.y - t - n,
@@ -4281,6 +4332,130 @@ var he = class {
 	getEdgeAnchorPoint(e, t, n) {
 		return t ? this.getHandlePoint(e, t) : this.getEdgePoint(e, n);
 	}
+	checkConnection({ source: e, target: t, sourceHandle: n = null, targetHandle: r = null, edge: i = null }) {
+		if (!e || !t || e.id === t.id) return {
+			ok: !1,
+			reason: ""
+		};
+		if (typeof this.diagram.canConnect != "function") return {
+			ok: !0,
+			reason: ""
+		};
+		let a = this.resolveEdgeType(e, t, n, r), o = this.diagram.canConnect({
+			source: e,
+			target: t,
+			sourceHandle: n,
+			targetHandle: r,
+			edgeType: a,
+			edge: i
+		}, this);
+		return o == null || o === !0 ? {
+			ok: !0,
+			reason: ""
+		} : o === !1 ? {
+			ok: !1,
+			reason: ""
+		} : typeof o == "string" ? {
+			ok: !1,
+			reason: o
+		} : {
+			ok: o.ok !== !1,
+			reason: o.reason || ""
+		};
+	}
+	canConnect(e) {
+		return this.checkConnection(e).ok;
+	}
+	getEdgesBetween(e, t, { directed: n = !0, exceptId: r = null } = {}) {
+		return this.model.edges.filter((i) => i.id !== r && (i.sourceNodeId === e && i.targetNodeId === t || !n && i.sourceNodeId === t && i.targetNodeId === e));
+	}
+	getPendingConnection() {
+		if (this.state.connectingNodeId) {
+			let { targetNodeId: e, targetHandle: t } = this.resolveConnectionTarget(this.state.connectionPreviewX, this.state.connectionPreviewY);
+			return !e || !t || e === this.state.connectingNodeId ? null : {
+				source: this.getNode(this.state.connectingNodeId),
+				sourceHandle: this.state.connectingHandle,
+				target: this.getNode(e),
+				targetHandle: t,
+				edge: null
+			};
+		}
+		if (this.state.reconnectingEdgeId) {
+			let e = this.model.edges.find((e) => e.id === this.state.reconnectingEdgeId), t = this.state.hoverHandleNodeId, n = this.state.hoverHandleName;
+			if (!e || !t || !n) return null;
+			let r = this.state.reconnectingSide === "source", i = {
+				source: this.getNode(r ? t : e.sourceNodeId),
+				sourceHandle: r ? n : e.sourceHandle,
+				target: this.getNode(r ? e.targetNodeId : t),
+				targetHandle: r ? e.targetHandle : n,
+				edge: e
+			};
+			return i.source && i.target && i.source.id !== i.target.id ? i : null;
+		}
+		return null;
+	}
+	updateConnectionCheck() {
+		let e = this.getPendingConnection();
+		this.state.connectionCheck = e ? this.checkConnection(e) : null, this.updateConnectHint();
+	}
+	isConnectionRefused() {
+		return !!this.state.connectionCheck && !this.state.connectionCheck.ok;
+	}
+	updateConnectHint() {
+		let e = this.state.connectionCheck, t = e && !e.ok ? e.reason : "";
+		if (!t) {
+			this.connectHintEl?.remove(), this.connectHintEl = null;
+			return;
+		}
+		this.connectHintEl || (this.connectHintEl = document.createElement("div"), this.connectHintEl.className = "weavle-connect-hint", this.uiLayer.appendChild(this.connectHintEl));
+		let n = this.state.connectingNodeId ? this.state.connectionPreviewX : this.state.reconnectionPreviewX, r = this.state.connectingNodeId ? this.state.connectionPreviewY : this.state.reconnectionPreviewY, i = this.modelToView(n, r);
+		this.connectHintEl.textContent = t, this.connectHintEl.style.left = `${i.x + 14}px`, this.connectHintEl.style.top = `${i.y + 18}px`;
+	}
+	clearConnectionCheck() {
+		this.state.connectionCheck = null, this.updateConnectHint();
+	}
+	emitConnectionRefused(e, t) {
+		this.emit("weavle:connectionrefused", {
+			sourceNodeId: e.source?.id ?? null,
+			targetNodeId: e.target?.id ?? null,
+			sourceHandle: e.sourceHandle ?? null,
+			targetHandle: e.targetHandle ?? null,
+			edgeId: e.edge?.id ?? null,
+			reason: t.reason
+		});
+	}
+	filterConnectableActions(e, t) {
+		if (typeof this.diagram.canConnect != "function") return e;
+		let n = (e) => {
+			if (e.type !== "addConnectedNode") return !0;
+			let n = this.buildCandidateNode(e.nodeType, t);
+			return this.canConnect({
+				source: t,
+				target: n
+			});
+		};
+		return e.map((e) => {
+			if (!Array.isArray(e.children)) return e;
+			let t = e.children.filter(n), r = e.children.some((e) => e.type === "addConnectedNode"), i = t.some((e) => e.type === "addConnectedNode");
+			return r && !i ? null : {
+				...e,
+				children: t
+			};
+		}).filter((e) => e && n(e));
+	}
+	buildCandidateNode(e, t) {
+		let { width: n, height: r } = this.getDefaultNodeSize(e);
+		return {
+			id: "__candidate__",
+			type: e,
+			label: this.diagram.nodeTypes?.[e]?.defaultLabel ?? "",
+			x: t.x + t.width + 60,
+			y: t.y,
+			width: n,
+			height: r,
+			parentId: t.parentId ?? null
+		};
+	}
 	findNodeAt(e, t) {
 		return this.getRenderOrder().reverse().find((n) => e >= n.x && e <= n.x + n.width && t >= n.y && t <= n.y + n.height);
 	}
@@ -4395,7 +4570,15 @@ var he = class {
 		};
 	}
 	createConnectedNode(e, t) {
-		let { width: n, height: r } = this.getDefaultNodeSize(t), i = this.options.gridSize || 20, a = this.getNodeCenter(e), o = [
+		let n = this.checkConnection({
+			source: e,
+			target: this.buildCandidateNode(t, e)
+		});
+		if (!n.ok) return this.emitConnectionRefused({
+			source: e,
+			target: { id: null }
+		}, n), null;
+		let { width: r, height: i } = this.getDefaultNodeSize(t), a = this.options.gridSize || 20, o = this.getNodeCenter(e), s = [
 			{
 				dx: 1,
 				dy: 0,
@@ -4420,59 +4603,59 @@ var he = class {
 				sourceHandle: "left",
 				targetHandle: "right"
 			}
-		], s = [];
-		o.forEach((t, o) => {
-			let c = t.dx !== 0, l = c ? e.width / 2 + 60 + n / 2 : e.height / 2 + 60 + r / 2;
+		], c = [];
+		s.forEach((t, n) => {
+			let s = t.dx !== 0, l = s ? e.width / 2 + 60 + r / 2 : e.height / 2 + 60 + i / 2;
 			for (let e = 0; e <= 12; e++) for (let u = -12; u <= 12; u++) {
-				let d = l + e * i, f = u * i, p = a.x + (c ? t.dx * d : f) - n / 2, m = a.y + (c ? f : t.dy * d) - r / 2, h = p < 0 || m < 0 ? 1e4 : 0;
-				s.push({
+				let d = l + e * a, f = u * a, p = o.x + (s ? t.dx * d : f) - r / 2, m = o.y + (s ? f : t.dy * d) - i / 2, h = p < 0 || m < 0 ? 1e4 : 0;
+				c.push({
 					dir: t,
 					x: p,
 					y: m,
-					score: Math.abs(u) * i + e * i + o * 60 * 1.5 + h
+					score: Math.abs(u) * a + e * a + n * 60 * 1.5 + h
 				});
 			}
-		}), s.sort((e, t) => e.score - t.score);
-		let c = {
+		}), c.sort((e, t) => e.score - t.score);
+		let l = {
 			id: crypto.randomUUID(),
 			type: t,
 			x: 0,
 			y: 0,
-			width: n,
-			height: r,
+			width: r,
+			height: i,
 			label: this.getDefaultLabelForType(t)
-		}, l = {
+		}, u = {
 			id: crypto.randomUUID(),
 			sourceNodeId: e.id,
-			targetNodeId: c.id,
+			targetNodeId: l.id,
 			sourceHandle: "right",
 			targetHandle: "left",
 			label: ""
-		}, u = !1, d = 0;
-		this.model.nodes.push(c);
-		for (let e of s) {
-			let t = this.options.snapToGrid ? this.snapNodePosition(c, e.x, e.y) : {
+		}, d = !1, f = 0;
+		this.model.nodes.push(l);
+		for (let e of c) {
+			let t = this.options.snapToGrid ? this.snapNodePosition(l, e.x, e.y) : {
 				x: e.x,
 				y: e.y
 			};
 			this.model.nodes.pop();
-			let i = this.isAreaFree(t.x, t.y, n, r, 30);
-			if (this.model.nodes.push(c), i) {
-				if (d++ >= 25) break;
-				if (Object.assign(c, t), l.sourceHandle = e.dir.sourceHandle, l.targetHandle = e.dir.targetHandle, l.routingMeta = null, this.assignEdgeType(l), this.updateEdgeRoute(l), !this.isFallbackRoute(l)) {
-					u = !0;
+			let n = this.isAreaFree(t.x, t.y, r, i, 30);
+			if (this.model.nodes.push(l), n) {
+				if (f++ >= 25) break;
+				if (Object.assign(l, t), u.sourceHandle = e.dir.sourceHandle, u.targetHandle = e.dir.targetHandle, u.routingMeta = null, this.assignEdgeType(u), this.updateEdgeRoute(u), !this.isFallbackRoute(u)) {
+					d = !0;
 					break;
 				}
 			}
 		}
-		if (!u) {
-			let e = s[0];
-			Object.assign(c, this.options.snapToGrid ? this.snapNodePosition(c, e.x, e.y) : {
+		if (!d) {
+			let e = c[0];
+			Object.assign(l, this.options.snapToGrid ? this.snapNodePosition(l, e.x, e.y) : {
 				x: e.x,
 				y: e.y
-			}), l.sourceHandle = e.dir.sourceHandle, l.targetHandle = e.dir.targetHandle, this.assignEdgeType(l), this.updateEdgeRoute(l);
+			}), u.sourceHandle = e.dir.sourceHandle, u.targetHandle = e.dir.targetHandle, this.assignEdgeType(u), this.updateEdgeRoute(u);
 		}
-		return this.model.edges.push(l), this.applyContainment([c]), c;
+		return this.model.edges.push(u), this.applyContainment([l]), l;
 	}
 	getDefaultNodeSize(e) {
 		let t = typeof this.diagram.getDefaultSize == "function" ? this.diagram.getDefaultSize(e) : null;
@@ -4981,7 +5164,7 @@ var he = class {
 		return this.diagram && typeof this.diagram.getNodeInteractionMode == "function" ? this.diagram.getNodeInteractionMode(e, this) : null;
 	}
 	getNodeContextActions(e) {
-		let t = this.diagram && typeof this.diagram.getContextActions == "function" && this.diagram.getContextActions(e, this) || [], n = this.getStyleAction(e);
+		let t = this.diagram && typeof this.diagram.getContextActions == "function" ? this.filterConnectableActions(this.diagram.getContextActions(e, this) || [], e) : [], n = this.getStyleAction(e);
 		return n ? [...t, n] : t;
 	}
 	getStyleAction(e) {
@@ -5035,7 +5218,8 @@ var he = class {
 		if (e && t) {
 			if (e.type === "addConnectedNode") {
 				let n = this.createConnectedNode(t, e.nodeType);
-				n && (this.selectSingleNode(n.id), this.renderNodeToolSurface(n), this.emitSelectionChanged()), this.pushHistory(), this.emit("weavle:modelchanged", { model: this.getData() }), this.render();
+				if (!n) return;
+				this.selectSingleNode(n.id), this.renderNodeToolSurface(n), this.emitSelectionChanged(), this.pushHistory(), this.emit("weavle:modelchanged", { model: this.getData() }), this.render();
 				return;
 			}
 			if (e.type === "setStyle") {
@@ -5153,10 +5337,10 @@ var he = class {
 		this.state.hoverNodeId = null, this.state.hoverHandleNodeId = null, this.state.hoverHandleName = null;
 	}
 	resetConnectionState() {
-		this.state.connectingNodeId = null, this.state.connectingHandle = null, this.state.connectionPreviewX = 0, this.state.connectionPreviewY = 0, this.resetHoverState();
+		this.state.connectingNodeId = null, this.state.connectingHandle = null, this.state.connectionPreviewX = 0, this.state.connectionPreviewY = 0, this.resetHoverState(), this.clearConnectionCheck();
 	}
 	resetReconnectionState() {
-		this.state.reconnectingEdgeId = null, this.state.reconnectingSide = null, this.state.reconnectionPreviewX = 0, this.state.reconnectionPreviewY = 0, this.resetHoverState();
+		this.state.reconnectingEdgeId = null, this.state.reconnectingSide = null, this.state.reconnectionPreviewX = 0, this.state.reconnectionPreviewY = 0, this.resetHoverState(), this.clearConnectionCheck();
 	}
 	resetCreationState() {
 		this.state.creationArmed = !1, this.svg?.classList.remove("is-creating"), this.state.creatingNodeType = null, this.state.splitEdgeId = null, this.state.creationAlign = null, this.state.creatingNodeWidth = 0, this.state.creatingNodeHeight = 0, this.state.creationPreviewX = 0, this.state.creationPreviewY = 0;
@@ -5178,7 +5362,17 @@ var he = class {
 			if (e === n.id || e === r.id) return !1;
 		}
 		let a = e.type || null;
-		return this.resolveEdgeType(n, t) !== a || this.resolveEdgeType(t, r) !== a ? !1 : typeof this.diagram.canSplitEdge != "function" || this.diagram.canSplitEdge(e, t, this) !== !1;
+		return this.resolveEdgeType(n, t) !== a || this.resolveEdgeType(t, r) !== a || !this.canConnect({
+			source: n,
+			target: t,
+			sourceHandle: e.sourceHandle,
+			edge: e
+		}) || !this.canConnect({
+			source: t,
+			target: r,
+			targetHandle: e.targetHandle,
+			edge: e
+		}) ? !1 : typeof this.diagram.canSplitEdge != "function" || this.diagram.canSplitEdge(e, t, this) !== !1;
 	}
 	findSplitEdgeFor(e) {
 		if (!e) return null;
@@ -5286,8 +5480,13 @@ var he = class {
 		if (!t.length) return !1;
 		let n = t.filter((t) => t.targetNodeId === e.id), r = t.filter((t) => t.sourceNodeId === e.id);
 		if (this.model.edges = this.model.edges.filter((e) => !t.includes(e)), n.length === 1 && r.length === 1) {
-			let e = n[0], t = r[0], i = e.sourceNodeId, a = t.targetNodeId, o = this.model.edges.some((e) => e.sourceNodeId === i && e.targetNodeId === a);
-			if (i !== a && !o) {
+			let e = n[0], t = r[0], i = e.sourceNodeId, a = t.targetNodeId, o = this.model.edges.some((e) => e.sourceNodeId === i && e.targetNodeId === a), s = this.canConnect({
+				source: this.getNode(i),
+				target: this.getNode(a),
+				sourceHandle: e.sourceHandle,
+				targetHandle: t.targetHandle
+			});
+			if (i !== a && !o && s) {
 				let n = {
 					...e,
 					targetNodeId: a,
@@ -6067,6 +6266,7 @@ var he = class {
 			guide: e.accent || "#4da3ff",
 			connect: e.hot || "#eb6c4c",
 			hot: e.hot || "#f28c52",
+			refused: e.refused || "#d93838",
 			grid: e.grid || "#c3cad3"
 		};
 	}
@@ -6311,7 +6511,7 @@ var he = class {
 				let n = this.findNearestHandleOnNode(e, t.x, t.y, 18);
 				this.state.hoverHandleNodeId = n ? e.id : null, this.state.hoverHandleName = n;
 			} else this.state.hoverHandleNodeId = null, this.state.hoverHandleName = null;
-			this.state.connectionPreviewX = t.x, this.state.connectionPreviewY = t.y, this.render();
+			this.state.connectionPreviewX = t.x, this.state.connectionPreviewY = t.y, this.updateConnectionCheck(), this.render();
 			return;
 		}
 		if (this.state.reconnectingEdgeId) {
@@ -6320,7 +6520,7 @@ var he = class {
 				let n = this.findNearestHandleOnNode(e, t.x, t.y, 18);
 				this.state.hoverHandleNodeId = n ? e.id : null, this.state.hoverHandleName = n;
 			} else this.state.hoverHandleNodeId = null, this.state.hoverHandleName = null;
-			this.state.reconnectionPreviewX = t.x, this.state.reconnectionPreviewY = t.y, this.render();
+			this.state.reconnectionPreviewX = t.x, this.state.reconnectionPreviewY = t.y, this.updateConnectionCheck(), this.render();
 			return;
 		}
 		if (this.state.draggingSegmentEdgeId) {
@@ -6386,8 +6586,8 @@ var he = class {
 			return;
 		}
 		if (this.state.reconnectingEdgeId) {
-			let e = this.model.edges.find((e) => e.id === this.state.reconnectingEdgeId), t = this.state.reconnectingSide, n = this.state.hoverHandleNodeId, r = this.state.hoverHandleName;
-			this.resetReconnectionState(), e && n && r && (t === "source" ? (e.sourceNodeId = n, e.sourceHandle = r) : t === "target" && (e.targetNodeId = n, e.targetHandle = r), e.isAutoRoute = !0, this.assignEdgeType(e), e.routePoints = [], e.bendPoints = [], this.updateEdgeRoute(e), this.pushHistory(), this.emit("weavle:modelchanged", { model: this.getData() })), this.render();
+			let e = this.model.edges.find((e) => e.id === this.state.reconnectingEdgeId), t = this.state.reconnectingSide, n = this.state.hoverHandleNodeId, r = this.state.hoverHandleName, i = this.getPendingConnection(), a = i ? this.checkConnection(i) : null;
+			this.resetReconnectionState(), i && !a.ok && this.emitConnectionRefused(i, a), e && i && a.ok && (t === "source" ? (e.sourceNodeId = n, e.sourceHandle = r) : t === "target" && (e.targetNodeId = n, e.targetHandle = r), e.isAutoRoute = !0, this.assignEdgeType(e), e.routePoints = [], e.bendPoints = [], this.updateEdgeRoute(e), this.pushHistory(), this.emit("weavle:modelchanged", { model: this.getData() })), this.render();
 			return;
 		}
 		if (this.state.creatingNodeType) {
@@ -6407,7 +6607,9 @@ var he = class {
 		}
 		if (this.state.connectingNodeId) {
 			let t = this.state.connectingNodeId, n = this.state.connectingHandle, r = this.getMousePosition(e), { targetNodeId: i, targetHandle: a } = this.resolveConnectionTarget(r.x, r.y);
-			if (this.resetConnectionState(), i && a && i !== t) {
+			this.state.connectionPreviewX = r.x, this.state.connectionPreviewY = r.y;
+			let o = this.getPendingConnection(), s = o ? this.checkConnection(o) : null;
+			if (this.resetConnectionState(), o && !s.ok && this.emitConnectionRefused(o, s), o && s.ok && i && a && i !== t) {
 				let e = {
 					id: this.generateId(),
 					sourceNodeId: t,
@@ -8384,6 +8586,7 @@ function en(e, t = {}) {
 				y: e.detail.y
 			}, t.onToolbarMoved?.(e.detail.x, e.detail.y);
 		},
+		"weavle:connectionrefused": (e) => t.onConnectionRefused?.(e.detail.reason || "", JSON.stringify(e.detail)),
 		"weavle:diagramevent": (e) => t.onDiagramEvent?.(e.detail.name, JSON.stringify(e.detail))
 	};
 	for (let [e, t] of Object.entries(f)) n.addEventListener(e, t);

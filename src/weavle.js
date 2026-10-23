@@ -25,6 +25,7 @@ const THEME_UI_CSS_VARS = {
     selection:        ["--weavle-selection-color"],
     accent:           ["--weavle-handle-fill", "--weavle-port-stroke", "--weavle-ui-active-text"],
     hot:              ["--weavle-port-hot"],
+    refused:          ["--weavle-refused-color"],
     canvasBackground: ["--weavle-canvas-bg"],
     grid:             ["--weavle-grid-color"],
     uiFont:           ["--weavle-ui-font"],
@@ -478,9 +479,15 @@ export class WeavleJS {
      * Without x / y the node is placed on the nearest free spot around the centre of the visible canvas.
      */
     addNode(node) {
-        // Without a size: the default size of the type, from the diagram definition.
+        // Without an id, size or label: a new id, and the type's default size and label from the definition.
         const size = this.getDefaultNodeSize(node.type);
-        node = { ...node, width: node.width ?? size.width, height: node.height ?? size.height };
+        node = {
+            ...node,
+            id:     node.id ?? this.generateId(),
+            width:  node.width ?? size.width,
+            height: node.height ?? size.height,
+            label:  node.label ?? this.diagram.nodeTypes?.[node.type]?.defaultLabel ?? ""
+        };
 
         if (node.x == null || node.y == null) {
             const visible  = this.getVisibleModelRect();
@@ -1080,6 +1087,7 @@ export class WeavleJS {
 
             const pathData = this.buildRoundedOrthogonalPath(points, this.options.edgeCornerRadius);
             const previewPath = this.createEdgePath(pathData, true, true);
+            this.markRefusedPreview(previewPath);
             this.layers.overlay.appendChild(previewPath);
             return;
         }
@@ -1092,6 +1100,7 @@ export class WeavleJS {
 
             const pathData = this.buildRoundedOrthogonalPath(cleanPoints, this.options.edgeCornerRadius);
             const previewPath = this.createEdgePath(pathData, true);
+            this.markRefusedPreview(previewPath);
             this.layers.overlay.appendChild(previewPath);
             return;
         }
@@ -1197,7 +1206,7 @@ export class WeavleJS {
 
         // HOT glow eerst (achter de shape)
         if (isHotNode) {
-            const glow = this.createHoverGlow(node);
+            const glow = this.createHoverGlow(node, this.isConnectionRefused());
             group.appendChild(glow);
         }
         
@@ -1257,7 +1266,7 @@ export class WeavleJS {
 
         // Hot → alleen actieve port
         if (isHotNode && this.state.hoverHandleName) {
-            const hotHandle = this.createHotHandle(node, this.state.hoverHandleName);
+            const hotHandle = this.createHotHandle(node, this.state.hoverHandleName, this.isConnectionRefused());
             if (hotHandle) group.appendChild(hotHandle);
         }
 
@@ -1360,15 +1369,28 @@ export class WeavleJS {
      */
     createNodeShape(node) {
         const typeDef = this.diagram.nodeTypes && this.diagram.nodeTypes[node.type];
-        const shapeName = typeDef && typeDef.shape ? typeDef.shape : "process";
+        const shapeName = typeDef && typeDef.shape ? typeDef.shape : node.type;
 
         const shapeFactory = this.diagram.shapes && this.diagram.shapes[shapeName];
 
         if (!shapeFactory) {
-            throw new Error(`Unknown shape factory for shape "${shapeName}"`);
+            this.debug(`createNodeShape: no shape "${shapeName}", drawing a plain box`);
+            return this.createFallbackShape(node);
         }
 
         return shapeFactory(node, this);
+    }
+
+    /** A plain rounded box, for node types whose definition has no shape function. */
+    createFallbackShape(node) {
+        const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        rect.setAttribute("x", node.x);
+        rect.setAttribute("y", node.y);
+        rect.setAttribute("width", node.width);
+        rect.setAttribute("height", node.height);
+        rect.setAttribute("rx", 8);
+        this.applyNodeStyle(rect, node);
+        return rect;
     }
 
 
@@ -1750,7 +1772,7 @@ export class WeavleJS {
     }
 
 
-    createHotHandle(node, handleName) {
+    createHotHandle(node, handleName, refused = false) {
         const NS = "http://www.w3.org/2000/svg";
         const p = this.getPorts(node)[handleName];
         if (!p) return null;
@@ -1760,55 +1782,71 @@ export class WeavleJS {
         c.setAttribute("cy", p.y);
         c.setAttribute("r", 6.5);
 
-        c.setAttribute("fill", "#ffffff");
-        c.setAttribute("stroke", this.getUiColors().hot);
+        c.setAttribute("fill", refused ? this.getUiColors().refused : "#ffffff");
+        c.setAttribute("stroke", refused ? this.getUiColors().refused : this.getUiColors().hot);
         c.setAttribute("stroke-width", "2.5");
 
         c.setAttribute("data-handle-position", handleName);
-        c.setAttribute("class", "weavle-port weavle-port--hot");
+        c.setAttribute("class", refused ? "weavle-port weavle-port--hot weavle-port--refused" : "weavle-port weavle-port--hot");
         c.setAttribute("cursor", "crosshair");
 
         return c;
     }
 
 
-    createHoverGlow(node) {
+    /**
+     * The outline the engine uses for highlights around a node (the hover glow while connecting):
+     * diagram.getNodeOutline(node, engine), else nodeTypes[type].outline, else "rect".
+     * Values: "rect" (rounded corners), "pill" (fully rounded ends), "diamond", "ellipse".
+     */
+    getNodeOutline(node) {
+        if (typeof this.diagram.getNodeOutline === "function") {
+            const outline = this.diagram.getNodeOutline(node, this);
+            if (outline) return outline;
+        }
+        return this.diagram.nodeTypes?.[node.type]?.outline || "rect";
+    }
+
+    /** The glow around the node under the mouse while connecting; red when the connection is refused. */
+    createHoverGlow(node, refused = false) {
         const NS = "http://www.w3.org/2000/svg";
-        const typeDef = this.diagram.nodeTypes && this.diagram.nodeTypes[node.type];
-        const shapeName = typeDef && typeDef.shape ? typeDef.shape : "process";
+        const outline = this.getNodeOutline(node);
+        const pad = 4;
 
         let glow;
 
-        if (shapeName === "decision") {
+        if (outline === "diamond") {
             glow = document.createElementNS(NS, "polygon");
 
             const cx = node.x + node.width / 2;
             const cy = node.y + node.height / 2;
 
             const points = [
-                `${cx},${node.y - 4}`,
-                `${node.x + node.width + 4},${cy}`,
-                `${cx},${node.y + node.height + 4}`,
-                `${node.x - 4},${cy}`
+                `${cx},${node.y - pad}`,
+                `${node.x + node.width + pad},${cy}`,
+                `${cx},${node.y + node.height + pad}`,
+                `${node.x - pad},${cy}`
             ].join(" ");
 
             glow.setAttribute("points", points);
+        } else if (outline === "ellipse") {
+            glow = document.createElementNS(NS, "ellipse");
+            glow.setAttribute("cx", node.x + node.width / 2);
+            glow.setAttribute("cy", node.y + node.height / 2);
+            glow.setAttribute("rx", node.width / 2 + pad);
+            glow.setAttribute("ry", node.height / 2 + pad);
         } else {
             glow = document.createElementNS(NS, "rect");
-            glow.setAttribute("x", node.x - 4);
-            glow.setAttribute("y", node.y - 4);
-            glow.setAttribute("width", node.width + 8);
-            glow.setAttribute("height", node.height + 8);
-
-            if (shapeName === "terminator") {
-                glow.setAttribute("rx", Math.min((node.height + 8) / 2, 34));
-            } else {
-                glow.setAttribute("rx", 12);
-            }
+            glow.setAttribute("x", node.x - pad);
+            glow.setAttribute("y", node.y - pad);
+            glow.setAttribute("width", node.width + pad * 2);
+            glow.setAttribute("height", node.height + pad * 2);
+            glow.setAttribute("rx", outline === "pill" ? Math.min((node.height + pad * 2) / 2, 34) : 12);
         }
 
+        glow.setAttribute("class", refused ? "weavle-hover-glow weavle-hover-glow--refused" : "weavle-hover-glow");
         glow.setAttribute("fill", "none");
-        glow.setAttribute("stroke", this.getUiColors().hot);
+        glow.setAttribute("stroke", refused ? this.getUiColors().refused : this.getUiColors().hot);
         glow.setAttribute("stroke-width", "3");
         glow.setAttribute("opacity", "0.55");
         glow.setAttribute("filter", "url(#hover-glow)");
@@ -1853,6 +1891,18 @@ export class WeavleJS {
      * Visible edge path. edgeDef (from getEdgeTypeDefinition) sets the marker and dash pattern;
      * without it the edge is a plain solid arrow.
      */
+    /** Draws a connection preview in the refused colour while the rules refuse the pending connection. */
+    markRefusedPreview(path) {
+        if (!this.isConnectionRefused()) return;
+
+        const color = this.getUiColors().refused;
+        path.classList.add("weavle-edge-preview--refused");
+        path.setAttribute("stroke", color);
+        path.setAttribute("stroke-dasharray", "6,4");
+        if (path.hasAttribute("marker-end")) path.setAttribute("marker-end", `url(#${this.getMarkerId("arrow", color)})`);
+        path.removeAttribute("marker-start");
+    }
+
     createEdgePath(pathData, isPreview = false, isSelected = false, edgeDef = null, style = null) {
         const NS   = "http://www.w3.org/2000/svg";
         const path = document.createElementNS(NS, "path");
@@ -3356,9 +3406,13 @@ export class WeavleJS {
     }
 
 
+    /**
+     * The box edges must stay out of: the node grown by margin, plus the type's own
+     * nodeTypes[type].extraObstacleMargin (e.g. a diamond, whose ports sit on its far corners).
+     */
     getNodeObstacleBox(node, margin = 16) {
 
-        const extra = node.type === "decision" ? 6 : 0;
+        const extra = this.diagram.nodeTypes?.[node.type]?.extraObstacleMargin || 0;
 
         return {
             left: node.x - margin - extra,
@@ -3967,6 +4021,186 @@ export class WeavleJS {
         return this.getEdgePoint(node, otherNode);
     }
 
+    // ------------------------------------------------------------
+    // Connection rules: the definition answers diagram.canConnect(connection, engine); the engine asks
+    // it wherever an edge would be made (drawing, reconnecting, "add connected node", splitting an edge,
+    // detaching a node) and shows a refusal while dragging: red glow, port and preview, plus the reason.
+    // ------------------------------------------------------------
+
+    /**
+     * Whether a connection is allowed. Asks diagram.canConnect({ source, target, sourceHandle,
+     * targetHandle, edgeType, edge }, engine) — edge is the edge being reconnected, otherwise null.
+     * The answer may be true / undefined (allowed), false, a string (refused: the reason) or { ok, reason }.
+     * A connection from a node to itself is always refused.
+     * @returns {{ ok: boolean, reason: string }}
+     */
+    checkConnection({ source, target, sourceHandle = null, targetHandle = null, edge = null }) {
+        if (!source || !target || source.id === target.id) return { ok: false, reason: "" };
+        if (typeof this.diagram.canConnect !== "function") return { ok: true, reason: "" };
+
+        const edgeType = this.resolveEdgeType(source, target, sourceHandle, targetHandle);
+        const answer   = this.diagram.canConnect({ source, target, sourceHandle, targetHandle, edgeType, edge }, this);
+
+        if (answer === undefined || answer === null || answer === true) return { ok: true, reason: "" };
+        if (answer === false) return { ok: false, reason: "" };
+        if (typeof answer === "string") return { ok: false, reason: answer };
+        return { ok: answer.ok !== false, reason: answer.reason || "" };
+    }
+
+    /** True if checkConnection allows the connection. */
+    canConnect(connection) {
+        return this.checkConnection(connection).ok;
+    }
+
+    /**
+     * The edges from sourceId to targetId (both directions with { directed: false }), leaving out the
+     * edge with id exceptId — for definitions that refuse duplicate connections.
+     */
+    getEdgesBetween(sourceId, targetId, { directed = true, exceptId = null } = {}) {
+        return this.model.edges.filter(e => e.id !== exceptId && (
+            (e.sourceNodeId === sourceId && e.targetNodeId === targetId) ||
+            (!directed && e.sourceNodeId === targetId && e.targetNodeId === sourceId)
+        ));
+    }
+
+    /**
+     * The connection the user is drawing or reconnecting right now, as it would be made on release:
+     * { source, target, sourceHandle, targetHandle, edge }, or null when there is no other node to attach to.
+     */
+    getPendingConnection() {
+        if (this.state.connectingNodeId) {
+            const { targetNodeId, targetHandle } = this.resolveConnectionTarget(
+                this.state.connectionPreviewX,
+                this.state.connectionPreviewY
+            );
+            if (!targetNodeId || !targetHandle || targetNodeId === this.state.connectingNodeId) return null;
+
+            return {
+                source:       this.getNode(this.state.connectingNodeId),
+                sourceHandle: this.state.connectingHandle,
+                target:       this.getNode(targetNodeId),
+                targetHandle,
+                edge:         null
+            };
+        }
+
+        if (this.state.reconnectingEdgeId) {
+            const edge = this.model.edges.find(e => e.id === this.state.reconnectingEdgeId);
+            const nodeId = this.state.hoverHandleNodeId;
+            const handle = this.state.hoverHandleName;
+            if (!edge || !nodeId || !handle) return null;
+
+            const isSource = this.state.reconnectingSide === "source";
+            const connection = {
+                source:       this.getNode(isSource ? nodeId : edge.sourceNodeId),
+                sourceHandle: isSource ? handle : edge.sourceHandle,
+                target:       this.getNode(isSource ? edge.targetNodeId : nodeId),
+                targetHandle: isSource ? edge.targetHandle : handle,
+                edge
+            };
+            return connection.source && connection.target && connection.source.id !== connection.target.id
+                ? connection
+                : null;
+        }
+
+        return null;
+    }
+
+    /** Re-checks the pending connection (state.connectionCheck) and updates the reason next to the cursor. */
+    updateConnectionCheck() {
+        const pending = this.getPendingConnection();
+        this.state.connectionCheck = pending ? this.checkConnection(pending) : null;
+        this.updateConnectHint();
+    }
+
+    /** True while the pending connection is refused by the rules (drawn in the refused colour). */
+    isConnectionRefused() {
+        return !!this.state.connectionCheck && !this.state.connectionCheck.ok;
+    }
+
+    /** The reason of a refused connection, next to the cursor (.weavle-connect-hint in the UI layer). */
+    updateConnectHint() {
+        const check  = this.state.connectionCheck;
+        const reason = check && !check.ok ? check.reason : "";
+
+        if (!reason) {
+            this.connectHintEl?.remove();
+            this.connectHintEl = null;
+            return;
+        }
+
+        if (!this.connectHintEl) {
+            this.connectHintEl = document.createElement("div");
+            this.connectHintEl.className = "weavle-connect-hint";
+            this.uiLayer.appendChild(this.connectHintEl);
+        }
+
+        const x = this.state.connectingNodeId ? this.state.connectionPreviewX : this.state.reconnectionPreviewX;
+        const y = this.state.connectingNodeId ? this.state.connectionPreviewY : this.state.reconnectionPreviewY;
+        const view = this.modelToView(x, y);
+
+        this.connectHintEl.textContent = reason;
+        this.connectHintEl.style.left  = `${view.x + 14}px`;
+        this.connectHintEl.style.top   = `${view.y + 18}px`;
+    }
+
+    /** Ends the refusal feedback (after a release or cancel). */
+    clearConnectionCheck() {
+        this.state.connectionCheck = null;
+        this.updateConnectHint();
+    }
+
+    /** Tells the host a connection the user tried to make was refused: weavle:connectionrefused. */
+    emitConnectionRefused(connection, check) {
+        this.emit("weavle:connectionrefused", {
+            sourceNodeId: connection.source?.id ?? null,
+            targetNodeId: connection.target?.id ?? null,
+            sourceHandle: connection.sourceHandle ?? null,
+            targetHandle: connection.targetHandle ?? null,
+            edgeId:       connection.edge?.id ?? null,
+            reason:       check.reason
+        });
+    }
+
+    /**
+     * Context actions without the "addConnectedNode" entries the rules would refuse (a candidate node of
+     * that type next to the source); a submenu that loses all its entries goes too.
+     */
+    filterConnectableActions(actions, node) {
+        if (typeof this.diagram.canConnect !== "function") return actions;
+
+        const allowed = action => {
+            if (action.type !== "addConnectedNode") return true;
+            const candidate = this.buildCandidateNode(action.nodeType, node);
+            return this.canConnect({ source: node, target: candidate });
+        };
+
+        return actions
+            .map(action => {
+                if (!Array.isArray(action.children)) return action;
+                const children = action.children.filter(allowed);
+                const hadAdds  = action.children.some(c => c.type === "addConnectedNode");
+                const hasAdds  = children.some(c => c.type === "addConnectedNode");
+                return hadAdds && !hasAdds ? null : { ...action, children };
+            })
+            .filter(action => action && allowed(action));
+    }
+
+    /** A node of nodeType that does not exist yet, beside source and in the same container: input for canConnect. */
+    buildCandidateNode(nodeType, source) {
+        const { width, height } = this.getDefaultNodeSize(nodeType);
+        return {
+            id:       "__candidate__",
+            type:     nodeType,
+            label:    this.diagram.nodeTypes?.[nodeType]?.defaultLabel ?? "",
+            x:        source.x + source.width + 60,
+            y:        source.y,
+            width,
+            height,
+            parentId: source.parentId ?? null
+        };
+    }
+
 
     // ============================================================
     // 9. HIT TESTING & LOOKUP
@@ -4262,6 +4496,13 @@ export class WeavleJS {
      * fallback line through other nodes) wins, so repeated adds fan out instead of stacking up.
      */
     createConnectedNode(sourceNode, nodeType) {
+        // The connection rules may refuse this pair (the node tools leave such entries out already).
+        const check = this.checkConnection({ source: sourceNode, target: this.buildCandidateNode(nodeType, sourceNode) });
+        if (!check.ok) {
+            this.emitConnectionRefused({ source: sourceNode, target: { id: null } }, check);
+            return null;
+        }
+
         const { width, height } = this.getDefaultNodeSize(nodeType);
         const gap    = 60;     // free space between source and new node, enough for clean routing
         const step   = this.options.gridSize || 20;
@@ -5151,7 +5392,7 @@ export class WeavleJS {
 
     getNodeContextActions(node) {
         const actions = this.diagram && typeof this.diagram.getContextActions === "function"
-            ? this.diagram.getContextActions(node, this) || []
+            ? this.filterConnectableActions(this.diagram.getContextActions(node, this) || [], node)
             : [];
 
         // Built in: "Stijl" (theme presets, own colours) for every node the definition lets be styled.
@@ -5210,12 +5451,11 @@ export class WeavleJS {
 
         if (action.type === "addConnectedNode") {
             const newNode = this.createConnectedNode(node, action.nodeType);
+            if (!newNode) return;
 
-            if (newNode) {
-                this.selectSingleNode(newNode.id);
-                this.renderNodeToolSurface(newNode);
-                this.emitSelectionChanged();
-            }
+            this.selectSingleNode(newNode.id);
+            this.renderNodeToolSurface(newNode);
+            this.emitSelectionChanged();
 
             this.pushHistory();
             this.emit("weavle:modelchanged", { model: this.getData() });
@@ -5574,6 +5814,7 @@ export class WeavleJS {
         this.state.connectionPreviewX  = 0;
         this.state.connectionPreviewY  = 0;
         this.resetHoverState();
+        this.clearConnectionCheck();
     }
 
     /** Clears the state used while reconnecting an existing edge endpoint. */
@@ -5583,6 +5824,7 @@ export class WeavleJS {
         this.state.reconnectionPreviewX  = 0;
         this.state.reconnectionPreviewY  = 0;
         this.resetHoverState();
+        this.clearConnectionCheck();
     }
 
     /** Clears the state used while placing a new node on the canvas. */
@@ -5645,6 +5887,10 @@ export class WeavleJS {
 
         const type = edge.type || null;
         if (this.resolveEdgeType(source, node) !== type || this.resolveEdgeType(node, target) !== type) return false;
+
+        // Both halves must pass the connection rules (the edge itself is the one being replaced).
+        if (!this.canConnect({ source, target: node, sourceHandle: edge.sourceHandle, edge }) ||
+            !this.canConnect({ source: node, target, targetHandle: edge.targetHandle, edge })) return false;
 
         if (typeof this.diagram.canSplitEdge === "function") {
             return this.diagram.canSplitEdge(edge, node, this) !== false;
@@ -5857,7 +6103,12 @@ export class WeavleJS {
             const targetId = out.targetNodeId;
             const exists = this.model.edges.some(e => e.sourceNodeId === sourceId && e.targetNodeId === targetId);
 
-            if (sourceId !== targetId && !exists) {
+            const allowed = this.canConnect({
+                source: this.getNode(sourceId), target: this.getNode(targetId),
+                sourceHandle: into.sourceHandle, targetHandle: out.targetHandle
+            });
+
+            if (sourceId !== targetId && !exists && allowed) {
                 const joined = {
                     ...into,
                     targetNodeId: targetId,
@@ -7401,6 +7652,7 @@ export class WeavleJS {
             guide:        ui.accent    || "#4da3ff",   // alignment guides, marquee
             connect:      ui.hot       || "#eb6c4c",   // ports while connecting
             hot:          ui.hot       || "#f28c52",   // the port under the mouse, hover glow
+            refused:      ui.refused   || "#d93838",   // a connection the rules refuse
             grid:         ui.grid      || "#c3cad3"
         };
     }
@@ -8087,6 +8339,7 @@ export class WeavleJS {
 
             this.state.connectionPreviewX  = pos.x;
             this.state.connectionPreviewY  = pos.y;
+            this.updateConnectionCheck();
             this.render();
             return;
         }
@@ -8107,6 +8360,7 @@ export class WeavleJS {
 
             this.state.reconnectionPreviewX = pos.x;
             this.state.reconnectionPreviewY = pos.y;
+            this.updateConnectionCheck();
             this.render();
             return;
         }
@@ -8353,10 +8607,14 @@ export class WeavleJS {
             const reconnectingSide = this.state.reconnectingSide;
             const targetNodeId     = this.state.hoverHandleNodeId;
             const targetHandle     = this.state.hoverHandleName;
+            const pending          = this.getPendingConnection();
+            const check            = pending ? this.checkConnection(pending) : null;
 
             this.resetReconnectionState();
 
-            if (edge && targetNodeId && targetHandle) {
+            if (pending && !check.ok) this.emitConnectionRefused(pending, check);
+
+            if (edge && pending && check.ok) {
                 if (reconnectingSide === "source") {
                     edge.sourceNodeId = targetNodeId;
                     edge.sourceHandle = targetHandle;
@@ -8437,9 +8695,16 @@ export class WeavleJS {
             const pos = this.getMousePosition(evt);
             const { targetNodeId, targetHandle } = this.resolveConnectionTarget(pos.x, pos.y);
 
+            this.state.connectionPreviewX = pos.x;
+            this.state.connectionPreviewY = pos.y;
+            const pending = this.getPendingConnection();
+            const check   = pending ? this.checkConnection(pending) : null;
+
             this.resetConnectionState();
 
-            if (targetNodeId && targetHandle && targetNodeId !== sourceNodeId) {
+            if (pending && !check.ok) this.emitConnectionRefused(pending, check);
+
+            if (pending && check.ok && targetNodeId && targetHandle && targetNodeId !== sourceNodeId) {
                 const newEdge = {
                     id:           this.generateId(),
                     sourceNodeId: sourceNodeId,

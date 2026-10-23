@@ -7,6 +7,25 @@
   previews the new line to the highlighted card instead, and shows no line over empty space.
 
 ### Added
+- **Connection rules** (roadmap step 3): a definition answers `canConnect({ source, target, sourceHandle, targetHandle,
+  edgeType, edge }, engine)` with true, false, a reason (string) or `{ ok, reason }`. While drawing or reconnecting a
+  line, a refused target gets a red glow and port, the preview turns red and dashed, and the reason shows next to the
+  cursor (`.weavle-connect-hint`). A refused line is not made; the host gets `weavle:connectionrefused { sourceNodeId,
+  targetNodeId, sourceHandle, targetHandle, edgeId, reason }` (OutSystems `onConnectionRefused(reason, detailJson)`).
+  The rules also apply to "add connected node" (refused types are left out of the node tools), to splitting an edge
+  and to joining the neighbours on "Losmaken". Engine API: `checkConnection(connection)`, `canConnect(connection)`,
+  `getEdgesBetween(sourceId, targetId, { directed, exceptId })`. Colour: `theme.ui.refused` /
+  `--weavle-refused-color`.
+  - Flowchart: no second line in the same direction between two shapes, no comment on a comment.
+  - BPMN: no duplicate connections; sequence flow not into a start event, out of an end event or into a boundary
+    event; message flow not from / to a gateway, not from a start event, not into an end event; data associations
+    not between two data elements or to a gateway; no annotation on an annotation.
+- Add-in contract clean-up (roadmap step 1): the engine no longer names shape types. The hover glow follows
+  `nodeTypes[type].outline` (`"rect"` default, `"pill"`, `"diamond"`, `"ellipse"`, or `diagram.getNodeOutline(node)`),
+  extra routing clearance comes from `nodeTypes[type].extraObstacleMargin` (flowchart decision: 6). A type without a
+  shape function draws as a plain box instead of throwing. `addNode()` fills in id, size and label from the
+  definition; the playground no longer keeps its own size table. BPMN gateways now glow as a diamond and events as
+  a circle.
 - **Node buttons**: definitions can put small clickable buttons on a node (`getNodeButtons(node, engine)`: position,
   plus / minus icon or short text, tooltip, action). A click runs the action like a node tool, without selecting or
   dragging; buttons can show always or only while the node is hovered / selected, may work in read-only mode and

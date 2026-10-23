@@ -310,53 +310,15 @@ function renderShapeButtons() {
   });
 }
 
-function getDefaultNodeSize(type) {
-  // The diagram definition knows its own sizes; this table is only a fallback.
-  const fromDefinition = currentDiagramDefinition?.getDefaultSize?.(type);
-  if (fromDefinition) return fromDefinition;
-
-  switch (type) {
-    case "startEvent":
-          return { width: 80, height: 80 };
-    case "endEvent":
-                return { width: 60, height: 60 };
-    case "intermediateEvent":
-                return { width: 60, height: 60 };
-
-    case "gateway":
-      return { width: 120, height: 120 };
-
-    case "decision":
-      return { width: 140, height: 90 };
-
-    case "task":
-      return { width: 140, height: 60 };
-    case "process":
-      return { width: 140, height: 90 };
-    case "terminator":
-    default:
-      return { width: 140, height: 70 };
-  }
-}
-
 function addNode(type) {
   if (!editor) return;
 
   const id = "node_" + nodeCounter++;
-  const size = getDefaultNodeSize(type);
 
   if (typeof editor.addNode === "function") {
-    const label =
-      currentDiagramDefinition?.nodeTypes?.[type]?.defaultLabel || type;
-
-    // No x / y: the editor places the node on a free spot in the visible area.
-    editor.addNode({
-      id,
-      type,
-      width: size.width,
-      height: size.height,
-      label
-    });
+    // Only id and type: size and label come from the diagram definition, and without x / y
+    // the editor places the node on a free spot in the visible area.
+    editor.addNode({ id, type });
 
     const placed = editor.getData().nodes.find(n => n.id === id);
     logEvent("demo:addNode", { id, type, x: placed?.x, y: placed?.y, diagram: currentDiagramKey });
@@ -379,6 +341,7 @@ function attachEditorEventListeners() {
     "weavle:noderesized",
     "weavle:selectionchanged",
     "weavle:toolbarmoved",
+    "weavle:connectionrefused",
     "weavle:diagramevent"
   ];
 
