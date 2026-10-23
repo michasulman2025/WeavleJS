@@ -1,81 +1,88 @@
-# WeavleJS — architectuur: engine en add-ins
+# WeavleJS — architecture: engine and add-ins
 
-WeavleJS is een engine die allerlei soorten diagrammen kan tekenen en bewerken. Wat een diagramtype *is* —
-welke onderdelen er bestaan, hoe ze eruitzien, wat met wat verbonden mag worden en hoe het geheel geordend
-wordt — staat niet in de engine, maar in een **add-in** (diagramdefinitie).
+WeavleJS is an engine that can draw and edit all kinds of diagrams. What a diagram type *is* — which parts
+exist, what they look like, what may be connected to what and how the whole is arranged — is not in the
+engine, but in an **add-in** (diagram definition).
 
-Dit document legt die verdeling vast en is het plan om er stap voor stap naartoe te werken.
+This document records that split and is the plan for getting there step by step.
 
-- **Nu:** flowchart en BPMN.
-- **Gepland:** node-editor (Blender-stijl) en stamboom (pedigree, zoals de Landscape-weergave van FamilySearch).
+- **Now:** flowchart, BPMN and Ishikawa (fishbone).
+- **Planned:** node editor (Blender style) and pedigree (family tree, like FamilySearch's Landscape view).
 
 ---
 
-## 1. Uitgangspunt
+## 1. Starting point
 
-| | Verantwoordelijk voor |
+| | Responsible for |
 |---|---|
-| **Engine** | Een generieke tekentafel met een graaf: nodes, poorten en verbindingen, plus alle interactie (selecteren, slepen, resizen, zoomen/pannen, snappen, undo/redo, events, API). De engine kent geen "gateway" of "echtpaar". |
-| **Add-in** | Een diagramtaal: welke node- en verbindingstypes er zijn, hoe ze eruitzien, welke poorten ze hebben, welke verbindingen zijn toegestaan, welke acties er zijn, en eventueel hoe het diagram automatisch wordt geordend. |
+| **Engine** | A generic drawing board with a graph: nodes, ports and edges, plus all interaction (selecting, dragging, resizing, zooming/panning, snapping, undo/redo, events, API). The engine knows no "gateway" or "couple". |
+| **Add-in** | A diagram language: which node and edge types exist, what they look like, which ports they have, which connections are allowed, which actions there are, and optionally how the diagram is arranged automatically. |
 
-Vuistregel: **als je een type bij naam moet noemen, hoort het in de add-in.**
+Rule of thumb: **if you need to name a type, it belongs in the add-in.**
 
 ---
 
-## 2. Twee werkwijzen
+## 2. Two ways of working
 
-| | Vrij tekenen | Afgeleid |
+| | Free drawing | Derived |
 |---|---|---|
-| **Voorbeelden** | Flowchart, BPMN, node-editor | Stamboom |
-| **Bron van waarheid** | De nodes en verbindingen zelf | Domeindata (personen, huwelijken, ouder-kindrelaties), bijvoorbeeld uit OutSystems |
-| **Wie maakt de nodes** | De gebruiker | De add-in, via `toGraph(data)` |
-| **Wie bepaalt de positie** | De gebruiker (slepen, snappen, uitlijnen) | De layout van de add-in |
-| **Wat een actie doet** | Past het model direct aan (met undo) | Stuurt een verzoek als event, bijvoorbeeld `weavle:action { action: "addFather", personId }`; de host verwerkt het en levert nieuwe data aan |
+| **Examples** | Flowchart, BPMN, node editor | Pedigree |
+| **Source of truth** | The nodes and edges themselves | Domain data (persons, marriages, parent-child relations), for example from OutSystems |
+| **Who creates the nodes** | The user | The add-in, via `toGraph(data)` |
+| **Who decides the position** | The user (dragging, snapping, aligning) | The add-in's layout |
+| **What an action does** | Changes the model directly (with undo) | Sends a request as an event, for example `weavle:action { action: "addFather", personId }`; the host handles it and supplies new data |
 
-De engine ondersteunt beide. Een add-in geeft aan in welke modus hij werkt.
+The engine supports both. An add-in states which mode it works in.
+
+Ishikawa sits in between: the nodes and edges are the source of truth (as in free drawing), but the add-in
+decides every position (as in derived mode).
 
 ---
 
-## 3. Verdeling van verantwoordelijkheden
+## 3. Division of responsibilities
 
-| Onderwerp | Engine | Add-in |
+| Topic | Engine | Add-in |
 |---|---|---|
-| **Nodes** | Tekenen, selecteren, slepen, resizen, snappen, uitlijnen, verwijderen | Types, vorm (SVG of HTML), kleuren, standaardmaat, resize-regels, labelplaatsing, iconen |
-| **Poorten** | Tekenen, raken, hover, snappen naar een poort | Welke poorten een type heeft: positie, richting, in/uit, datatype, maximum aantal verbindingen |
-| **Verbindingen** | Trekken, opnieuw verbinden, preview, selecteren, labels | Verbindingstypes: lijnstijl, pijlpunt, router |
-| **Regels** | Vragen "mag dit?" en feedback geven (rode poort, geweigerde drop met reden) | Het antwoord: `canConnect(...)` |
-| **Routering** | De algoritmes: haaks (A\*), elleboog, bezier, recht | Kiest per verbindingstype een router en de instellingen |
-| **Layout** | Het mechanisme: toepassen, animeren, undo | Optioneel een strategie (bijvoorbeeld generaties in kolommen) en de opties ervan |
-| **Data** | Opslaan, undo, events, `getData()` / `load()` | Welke velden een node heeft en hoe die zichtbaar worden |
-| **UI rond nodes** | Plek voor node tools, contextacties en overlays | Welke acties er zijn ("kind toevoegen", "partner toevoegen", ...) |
-| **Palet** | – | Welke types er in het palet staan, en in welke groepen |
-| **Interactie** | Voert slepen, verbinden, resizen en verwijderen uit | Zet die per diagramtype aan of uit |
+| **Nodes** | Drawing, selecting, dragging, resizing, snapping, aligning, deleting | Types, shape (SVG or HTML), colours, default size, resize rules, label placement, icons |
+| **Ports** | Drawing, hit testing, hover, snapping to a port | Which ports a type has: position, direction, in/out, data type, maximum number of connections |
+| **Edges** | Drawing out, reconnecting, preview, selecting, labels | Edge types: line style, arrowhead, router |
+| **Rules** | Asking "is this allowed?" and giving feedback (red port, refused drop with a reason) | The answer: `canConnect(...)` |
+| **Routing** | The algorithms: orthogonal (A\*), elbow, bezier, straight | Picks a router and its settings per edge type |
+| **Layout** | The mechanism: applying, animating, undo | Optionally a strategy (for example generations in columns) and its options |
+| **Data** | Storing, undo, events, `getData()` / `load()` | Which fields a node has and how they are shown |
+| **UI around nodes** | A place for node tools, context actions and overlays | Which actions exist ("add child", "add partner", ...) |
+| **Palette** | – | Which types are in the palette, and in which groups |
+| **Interaction** | Performs dragging, connecting, resizing and deleting | Switches them on or off per diagram type |
 
 ---
 
-## 4. Het add-in-contract
+## 4. The add-in contract
 
-### 4.1 Wat er nu al is
+### 4.1 What exists today
 
-Dit zijn de hooks die de engine vandaag gebruikt:
+These are the hooks the engine uses today:
 
-| Hook | Doel |
+| Hook | Purpose |
 |---|---|
-| `id` | Naam van het diagramtype |
-| `shapes` | SVG-vormfuncties `(node, engine) => SVGElement` |
-| `nodeTypes[type]` | `defaultLabel`, `colors`, `shape` (plus optioneel `resize` en `label`) |
-| `getPorts(node)` | Poortposities (nu altijd boven, rechts, onder, links) |
-| `routeEdge(...)` | Eigen routering van een verbinding |
-| `getRoutingConfig(edge)` | Instellingen voor de haakse A\*-router |
-| `getContextActions(node)` | Acties in de node tools |
-| `getNodeInteractionMode(node)` | `"action-rail"` of `"docked-panel"` |
-| `getNodeToolRenderer` | Eigen weergave van de node tools |
-| `getResizeRules(node)` | `false` of `{ minWidth, minHeight, maxWidth, maxHeight, keepAspectRatio }` |
+| `id` | Name of the diagram type |
+| `shapes` | SVG shape functions `(node, engine) => SVGElement` |
+| `nodeTypes[type]` | `defaultLabel`, `colors`, `shape` (plus optionally `resize` and `label`) |
+| `getPorts(node)` | Port positions (currently always top, right, bottom, left) |
+| `routeEdge(...)` | Custom routing of an edge |
+| `getRoutingConfig(edge)` | Settings for the orthogonal A\* router |
+| `getContextActions(node)` | Actions in the node tools |
+| `getNodeInteractionMode(node)` | `"action-rail"` or `"docked-panel"` |
+| `getNodeToolRenderer` | Custom rendering of the node tools |
+| `getResizeRules(node)` | `false` or `{ minWidth, minHeight, maxWidth, maxHeight, keepAspectRatio }` |
 | `getLabelLayout(node)` | `{ placement: "inside" \| "below" \| "auto", padding…, widthFactor, heightFactor, fontSize, maxLines }` |
+| `layoutDiagram(engine)` | Automatic layout: positions every node, on load, before every undo step and after undo/redo |
+| `createInitialModel()` | What an empty diagram starts with (Ishikawa: problem + 6M) |
+| `interaction` | `{ dragNodes, connect, selectEdges }` — switches interactions off per add-in |
+| `canDeleteNode(node)` / `getDependentNodes(node)` | Not deletable / deleted (and dragged) along with the node |
 
-### 4.2 Waar we naartoe gaan
+### 4.2 Where we are heading
 
-Dit is een schets; details volgen per stap uit de roadmap.
+This is a sketch; details follow per roadmap step.
 
 ```js
 export default {
@@ -83,20 +90,20 @@ export default {
     name: "Flowchart",
     mode: "free",                       // "free" | "derived"
 
-    interaction: {                      // standaard alles aan
+    interaction: {                      // everything on by default
         dragNodes: true, resizeNodes: true, connect: true, deleteItems: true
     },
 
     nodeTypes: {
         terminator: {
             label: "Start / Stop",
-            render: (node, api) => ...,  // SVGElement, of { html } voor een HTML-node
+            render: (node, api) => ...,  // SVGElement, or { html } for an HTML node
             size: { width: 140, height: 60 },
             colors: { fill: "#E8F3EC", stroke: "#1B5278" },
-            ports: "sides",              // of een lijst, zie 4.3
+            ports: "sides",              // or a list, see 4.3
             resize: { minWidth: 80, minHeight: 40 },
             labelLayout: { placement: "inside" },
-            fields: { }                  // datavelden (zie node-data)
+            fields: { }                  // data fields (see node data)
         }
     },
 
@@ -106,21 +113,21 @@ export default {
 
     rules: {
         canConnect({ source, sourcePort, target, targetPort, edgeType }) {
-            // true, false, of { ok: false, reason: "..." }
+            // true, false, or { ok: false, reason: "..." }
         }
     },
 
     palette: [ { group: "Basis", types: ["process", "decision", "terminator"] } ],
     actions: (node) => [ ... ],
 
-    layout: null,                        // of { run(graph, options), options: { orientation: "landscape" } }
-    toGraph: null                        // alleen bij mode "derived": (data) => ({ nodes, edges })
+    layout: null,                        // or { run(graph, options), options: { orientation: "landscape" } }
+    toGraph: null                        // only in mode "derived": (data) => ({ nodes, edges })
 };
 ```
 
-### 4.3 Poortenmodel (nieuw)
+### 4.3 Port model (new)
 
-Poorten krijgen een naam en zijn niet meer beperkt tot de vier zijden:
+Ports get a name and are no longer limited to the four sides:
 
 ```js
 ports: [
@@ -129,109 +136,122 @@ ports: [
 ]
 ```
 
-- `side` en `offset` bepalen de positie. De uitgangsrichting volgt uit `side`.
-- `direction`, `dataType` en `max` zijn input voor `canConnect` en voor de feedback tijdens het slepen.
-- `ports: "sides"` blijft de korte vorm voor de huidige vier poorten.
+- `side` and `offset` determine the position. The exit direction follows from `side`.
+- `direction`, `dataType` and `max` are input for `canConnect` and for the feedback while dragging.
+- `ports: "sides"` remains the short form for the current four ports.
 
 ---
 
-## 5. Wat de engine hiervoor nodig heeft
+## 5. What the engine needs for this
 
-| Mogelijkheid | Nodig voor | Status |
+| Capability | Needed for | Status |
 |---|---|---|
-| Resize-regels per type | Alle | ✅ `getResizeRules` |
-| Labelplaatsing en afbreken per type | Alle | ✅ `getLabelLayout` |
-| Interactie per add-in aan/uit | Stamboom | – |
-| Acties als events (`weavle:action`) | Stamboom, integratie met OutSystems | – |
-| Verbindingsregels met feedback | Flowchart, BPMN, node-editor | – |
-| Flexibele poorten (naam, positie, datatype, maximum) | Node-editor, stamboom | – |
-| Verbindingstypes met router, pijlpunt en stijl | Alle | ✅ `edgeTypes`, `defaultEdgeType`, `getEdgeTypeForConnection` |
-| Routers: elleboog, bezier, recht (naast haaks) | Stamboom, node-editor | Deels: recht ✅ |
-| HTML-nodes via `foreignObject` | Stamboom, node-editor | – |
-| Node-data (velden) en tekenen vanuit data | Stamboom, node-editor | – |
-| Containers (pools, lanes, groepen): lidmaatschap, meeverplaatsen, `canContain`, `layoutContainer` | BPMN, later groepen | ✅ |
-| Eigen acties van een add-in (`handleAction`) en omgeleid slepen (`getDragTarget`) | BPMN, stamboom | ✅ |
-| Overlays aan een node (bijvoorbeeld een uitklaplijst) | Stamboom | Deels (UI-laag bestaat) |
-| Afgeleide modus: `toGraph(data)` | Stamboom | – |
-| Layout-hook met opties en animatie | Stamboom | – |
-| Uitklappen en lazy loading via events | Stamboom | – |
+| Resize rules per type | All | ✅ `getResizeRules` |
+| Label placement and wrapping per type | All | ✅ `getLabelLayout` |
+| Interaction on/off per add-in | Pedigree, Ishikawa | ✅ `interaction` (dragging, connecting, selecting edges) |
+| Actions as events (`weavle:action`) | Pedigree, integration with OutSystems | – |
+| Connection rules with feedback | Flowchart, BPMN, node editor | – |
+| Flexible ports (name, position, data type, maximum) | Node editor, pedigree | – |
+| Edge types with router, arrowhead and style | All | ✅ `edgeTypes`, `defaultEdgeType`, `getEdgeTypeForConnection` |
+| Routers: elbow, bezier, straight (besides orthogonal) | Pedigree, node editor | Partly: straight ✅ |
+| HTML nodes via `foreignObject` | Pedigree, node editor | – |
+| Node data (fields) and rendering from data | Pedigree, node editor | – |
+| Containers (pools, lanes, groups): membership, moving along, `canContain`, `layoutContainer` | BPMN, later groups | ✅ |
+| Custom add-in actions (`handleAction`) and redirected dragging (`getDragTarget`) | BPMN, pedigree | ✅ |
+| Overlays on a node (for example an expandable list) | Pedigree | Partly (UI layer exists) |
+| Derived mode: `toGraph(data)` | Pedigree | – |
+| Layout hook with options and animation | Pedigree, Ishikawa | Partly: `layoutDiagram` ✅ (without options and animation) |
+| Expanding and lazy loading via events | Pedigree | – |
 
-### Koppelingen die nu nog aan de verkeerde kant zitten
+### Couplings that are still on the wrong side
 
-- `"decision"` staat hard in de engine (vorm-uitzondering en extra obstakelmarge in `getNodeObstacleBox`).
-- Overal wordt uitgegaan van vier poorten (boven, rechts, onder, links).
-- Palet en standaardmaten staan in de demo (`palette`, `getDefaultNodeSize`), niet in de add-in.
-- `createConnectedNode` en `startNodeCreation` gebruiken vaste maten (140×60).
-- Nodes hebben alleen een `label`, geen gestructureerde data.
+- `"decision"` is hard-coded in the engine (shape exception and extra obstacle margin in `getNodeObstacleBox`).
+- Four ports (top, right, bottom, left) are assumed everywhere.
+- Palette and default sizes are in the demo (`palette`, `getDefaultNodeSize`), not in the add-in.
+- `createConnectedNode` and `startNodeCreation` use fixed sizes (140×60).
+- Nodes only have a `label`, no structured data.
 
 ---
 
-## 6. De diagramtypes
+## 6. The diagram types
 
-### Flowchart en BPMN (vrij tekenen)
+### Flowchart and BPMN (free drawing)
 
-- Blijven functioneel zoals ze nu zijn, alleen omgezet naar het contract.
-- Krijgen verbindingsregels, bijvoorbeeld:
-  - Geen verbinding van eind naar eind.
-  - Een start-event heeft geen inkomende lijnen, een eind-event geen uitgaande.
+- Remain functionally as they are now, only converted to the contract.
+- Get connection rules, for example:
+  - No connection from end to end.
+  - A start event has no incoming lines, an end event no outgoing ones.
 
-### Node-editor (vrij tekenen, Blender-stijl)
+### Ishikawa / fishbone (automatic layout)
 
-- Nodes met een kop en een lijst ingangen (links) en uitgangen (rechts), elk met een label en een datatype.
-  Eventueel met invoervelden in de node (HTML-node).
-- Verbindingen als bezier-curves, gekleurd naar datatype.
-- Regels:
-  - Datatypes moeten passen.
-  - Een ingang heeft maximaal één verbinding; een uitgang mag er meerdere hebben.
-  - Geen kringen.
-- Vooral een test voor het poortenmodel, de bezier-router en HTML-nodes.
+- **Model:** a tree of nodes — problem (`effect`) → category → cause → sub-cause — with edges from child to
+  parent. The order of siblings is their order in `model.nodes`.
+- **Layout:** `layoutDiagram` places everything around the head: slanted main bones, alternately above and
+  below the spine, in columns of two; causes as text on a horizontal line, sub-causes on a slanted twig.
+  Text nodes are sized to their label.
+- **Interaction:** dragging, connecting and selecting edges are off; adding, reordering and deleting go through
+  the node tools, the toolbar adds a category. A new diagram = problem + 6M.
+- **Later (hybrid):** manual offsets along a bone. `layoutCategory` already works relative to the bone's
+  junction with the spine; a per-node offset can be added there.
 
-### Stamboom (afgeleid, FamilySearch Landscape-stijl)
+### Node editor (free drawing, Blender style)
 
-- **Domeinmodel:** personen, huwelijken (echtparen) en ouder-kindrelaties. Het diagram volgt daaruit via `toGraph`.
-- **Echtpaarkaart:** één HTML-node met man en vrouw, huwelijksgegevens, avatars, actieknoppen, lege plekken
-  ("Add spouse", "Add father/mother") en een uitklapbare kinderlijst ("Children", "Add child").
-- **Poorten per persoon:** aan de voorouderkant één poort voor de man en één voor de vrouw, elk naar het
-  eigen ouderpaar. Aan de nakomelingenkant één poort naar de kinderen.
-- **Layout:** automatisch, generaties in kolommen. Voorouders naar de ene kant en nakomelingen naar de
-  andere; de oriëntatie is een optie ("landscape", later eventueel "portrait").
-- **Verbindingen:** elleboog-lijnen met één knik tussen de kolommen, zonder pijl.
-- **Interactie:** slepen, vrij verbinden en resizen staan uit. Acties ("addFather", "addChild", uitklappen,
-  focus verschuiven) gaan als events naar de host.
+- Nodes with a header and a list of inputs (left) and outputs (right), each with a label and a data type.
+  Optionally with input fields inside the node (HTML node).
+- Edges as bezier curves, coloured by data type.
+- Rules:
+  - Data types must match.
+  - An input has at most one connection; an output may have several.
+  - No cycles.
+- Mainly a test for the port model, the bezier router and HTML nodes.
+
+### Pedigree (derived, FamilySearch Landscape style)
+
+- **Domain model:** persons, marriages (couples) and parent-child relations. The diagram follows from it via `toGraph`.
+- **Couple card:** one HTML node with husband and wife, marriage details, avatars, action buttons, empty slots
+  ("Add spouse", "Add father/mother") and an expandable list of children ("Children", "Add child").
+- **Ports per person:** on the ancestor side one port for the husband and one for the wife, each to their
+  own parents. On the descendant side one port to the children.
+- **Layout:** automatic, generations in columns. Ancestors to one side and descendants to the other; the
+  orientation is an option ("landscape", later possibly "portrait").
+- **Edges:** elbow lines with one bend between the columns, without an arrow.
+- **Interaction:** dragging, free connecting and resizing are off. Actions ("addFather", "addChild",
+  expanding, shifting the focus) go to the host as events.
 
 ---
 
 ## 7. Roadmap
 
-Elke stap is los te testen en mag het bestaande niet breken.
+Every step can be tested on its own and must not break what exists.
 
-- [ ] **1. Contract en opruimen:** het add-in-contract vastleggen, palet en standaardmaten van de demo naar
-      de add-in verhuizen, en de `decision`-uitzonderingen uit de engine halen.
-- [ ] **2. Interactie per add-in en acties als events** (`interaction`, `weavle:action`).
-- [ ] **3. Verbindingsregels:** `canConnect` met feedback tijdens het slepen. Eerste regels voor BPMN en flowchart.
-- [ ] **4. Flexibele poorten en verbindingstypes:** het poortenmodel uit 4.3, `edgeTypes`, en de routers
-      elleboog, bezier en recht.
-- [ ] **5. HTML-nodes** via `foreignObject`.
-- [ ] **6. Node-editor-add-in.**
-- [ ] **7. Afgeleide modus en layout:** `toGraph`, layout-hook met opties en animatie, uitklappen en lazy loading.
-- [ ] **8. Stamboom-add-in.**
+- [ ] **1. Contract and clean-up:** pin down the add-in contract, move the palette and default sizes from the
+      demo to the add-in, and remove the `decision` exceptions from the engine.
+- [ ] **2. Interaction per add-in and actions as events** (`interaction` ✅, `weavle:action`).
+- [ ] **3. Connection rules:** `canConnect` with feedback while dragging. First rules for BPMN and flowchart.
+- [ ] **4. Flexible ports and edge types:** the port model from 4.3, `edgeTypes`, and the routers
+      elbow, bezier and straight.
+- [ ] **5. HTML nodes** via `foreignObject`.
+- [ ] **6. Node editor add-in.**
+- [ ] **7. Derived mode and layout:** `toGraph`, layout hook with options and animation, expanding and lazy loading.
+- [ ] **8. Pedigree add-in.**
 
-Na stap 5 kan de stamboom eventueel vóór de node-editor, als die meer prioriteit heeft.
+After step 5 the pedigree may come before the node editor, if it has more priority.
 
 ---
 
 ## 8. Backlog
 
-- **Verticale pools en lanes** (kopstrook boven, lanes naast elkaar).
-- **Verbindingsregels** voor BPMN (roadmap stap 3): geen sequence flow tussen pools, geen inkomende lijn op een
-  start-event, geen uitgaande op een eind-event, message flow alleen tussen pools.
-- **Live preview bij het herschikken van lanes** (nu zie je het resultaat pas na het loslaten).
-- **Geneste lanes** (lanes binnen lanes).
+- **Vertical pools and lanes** (header strip on top, lanes side by side).
+- **Connection rules** for BPMN (roadmap step 3): no sequence flow between pools, no incoming line on a
+  start event, no outgoing line on an end event, message flow only between pools.
+- **Live preview while reordering lanes** (now you only see the result after releasing).
+- **Nested lanes** (lanes within lanes).
+- **Ishikawa hybrid mode:** drag causes and categories along their bone (offsets kept in the model).
 
-## 9. Open vragen (stamboom)
+## 9. Open questions (pedigree)
 
-1. **Databron:** levert OutSystems de personen en relaties? Opent "Add father" daar een formulier, of moet
-   het bewerken in de chart zelf gebeuren?
-2. **Bekijken of bewerken:** is de chart vooral om te navigeren, of ook om de stamboom mee op te bouwen?
-3. **Weergaven:** alleen Landscape, of ook Portrait of een waaier?
-4. **Omvang:** alle generaties tegelijk, of per stap uitklappen zoals FamilySearch?
+1. **Data source:** does OutSystems supply the persons and relations? Does "Add father" open a form there, or
+   should editing happen in the chart itself?
+2. **Viewing or editing:** is the chart mainly for navigating, or also for building the family tree?
+3. **Views:** only Landscape, or also Portrait or a fan?
+4. **Size:** all generations at once, or expanding step by step like FamilySearch?
