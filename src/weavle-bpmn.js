@@ -760,8 +760,10 @@ export function createBpmnDefinition() {
             annotation:        { defaultLabel: "Annotation",          colors: { fill: "#FFFDE7", stroke: "#999999" }, shape: "annotation"         },
 
             // Containers — rendered behind regular nodes
-            swimlane:          { defaultLabel: "Lane",                colors: { fill: "#F4F6F7", stroke: "#85929E" }, shape: "swimlane", isContainer: true },
-            pool:              { defaultLabel: "Pool",                colors: { fill: "#FDFEFE", stroke: "#2C3E50" }, shape: "pool",      isContainer: true },
+            // The header strip is filled with the stroke colour and carries white text: a generic theme
+            // text colour must not make it unreadable (theme.nodeTypes.pool / swimlane may still change it).
+            swimlane:          { defaultLabel: "Lane",                colors: { fill: "#F4F6F7", stroke: "#85929E" }, shape: "swimlane", isContainer: true, fixedStyle: { textColor: "#ffffff" } },
+            pool:              { defaultLabel: "Pool",                colors: { fill: "#FDFEFE", stroke: "#2C3E50" }, shape: "pool",      isContainer: true, fixedStyle: { textColor: "#ffffff" } },
         },
 
         // Palette shown in the side panel (curated subset)

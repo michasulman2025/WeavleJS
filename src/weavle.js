@@ -20,6 +20,19 @@ const EDGE_STYLE_DEFAULTS = {
     fill: "none", stroke: "#666", strokeWidth: 1.5, dash: null, textColor: null, fontWeight: null, fontStyle: null
 };
 
+// theme.ui keys → the CSS custom properties of weavle.css they set on the container (ARCHITECTURE.md 7.8).
+const THEME_UI_CSS_VARS = {
+    selection:        ["--weavle-selection-color"],
+    accent:           ["--weavle-handle-fill", "--weavle-port-stroke", "--weavle-ui-active-text"],
+    hot:              ["--weavle-port-hot"],
+    canvasBackground: ["--weavle-canvas-bg"],
+    grid:             ["--weavle-grid-color"],
+    uiFont:           ["--weavle-ui-font"],
+    uiBackground:     ["--weavle-ui-bg"],
+    uiText:           ["--weavle-ui-text"],
+    uiBorder:         ["--weavle-ui-border"]
+};
+
 /** The style properties of an object that are set (not undefined / null); anything else is ignored. */
 function pickStyle(source) {
     const style = {};
@@ -91,6 +104,7 @@ export class WeavleJS {
             toolbarFloatingPosition: null,  // { x, y } start spot of a floating toolbar (px in the visible area)
             tidyTools: true,           // "Lijnen optimaliseren" (and later "Flow optimaliseren") in the toolbar
             layoutDirection: null,     // "LR" | "TB" — flow direction; null = diagram.getLayoutConfig().direction
+            theme: null,               // house style: node / edge styles, font, editor colours (ARCHITECTURE.md 7.4)
         }, options);
 
         // The diagram definition drives node types, port layout, routing and context actions.
@@ -229,6 +243,9 @@ export class WeavleJS {
         // Focusable container: keyboard shortcuts belong to the editor that has focus, so several
         // editors on one page (or an editor inside a rich-text document) don't react to each other's keys.
         this.container.setAttribute("data-weavle-host", "");
+
+        // Theme: editor colours as CSS custom properties on the container, the label font on the SVG.
+        this.applyThemeUi();
         if (!this.container.hasAttribute("tabindex")) {
             this.container.setAttribute("tabindex", "0");
             this.didSetTabIndex = true;   // undone by destroy()
@@ -259,86 +276,11 @@ export class WeavleJS {
         this.svg.setAttribute("class", "weavle-canvas");   // background, cursor: weavle.css
         this.svg.style.touchAction = "none";                // functional: no browser panning while dragging
 
-        // --- SVG <defs>: arrow-head markers ---
+        // --- SVG <defs>: arrowheads are created on demand, one per kind and colour (getMarkerId) ---
 
         const defs = document.createElementNS(NS, "defs");
-
-        // Default (unselected) arrowhead — grey fill.
-        const markerDefault = document.createElementNS(NS, "marker");
-        markerDefault.setAttribute("id", "arrow-default");
-        markerDefault.setAttribute("viewBox", "0 0 10 10");
-        markerDefault.setAttribute("refX", "10");
-        markerDefault.setAttribute("refY", "5");
-        markerDefault.setAttribute("markerWidth", "6");
-        markerDefault.setAttribute("markerHeight", "6");
-        markerDefault.setAttribute("orient", "auto-start-reverse");
-
-        const pathDefault = document.createElementNS(NS, "path");
-        pathDefault.setAttribute("d", "M 0 0 L 10 5 L 0 10 z");
-        pathDefault.setAttribute("fill", "#666");
-
-        markerDefault.appendChild(pathDefault);
-        defs.appendChild(markerDefault);
-
-        // Selected arrowhead — accent colour fill.
-        const markerSelected = document.createElementNS(NS, "marker");
-        markerSelected.setAttribute("id", "arrow-selected");
-        markerSelected.setAttribute("viewBox", "0 0 10 10");
-        markerSelected.setAttribute("refX", "10");
-        markerSelected.setAttribute("refY", "5");
-        markerSelected.setAttribute("markerWidth", "6");
-        markerSelected.setAttribute("markerHeight", "6");
-        markerSelected.setAttribute("orient", "auto-start-reverse");
-
-        const pathSelected = document.createElementNS(NS, "path");
-        pathSelected.setAttribute("d", "M 0 0 L 10 5 L 0 10 z");
-        pathSelected.setAttribute("fill", "#eb6c4c");
-
-        markerSelected.appendChild(pathSelected);
-        defs.appendChild(markerSelected);
-
-        // Open (unfilled) arrowheads — e.g. BPMN data associations.
-        [["arrow-open", "#666"], ["arrow-open-selected", "#eb6c4c"]].forEach(([id, color]) => {
-            const marker = document.createElementNS(NS, "marker");
-            marker.setAttribute("id", id);
-            marker.setAttribute("viewBox", "0 0 10 10");
-            marker.setAttribute("refX", "9");
-            marker.setAttribute("refY", "5");
-            marker.setAttribute("markerWidth", "7");
-            marker.setAttribute("markerHeight", "7");
-            marker.setAttribute("orient", "auto-start-reverse");
-
-            const open = document.createElementNS(NS, "path");
-            open.setAttribute("d", "M 1 1 L 9 5 L 1 9");
-            open.setAttribute("fill", "none");
-            open.setAttribute("stroke", color);
-            open.setAttribute("stroke-width", "1.5");
-
-            marker.appendChild(open);
-            defs.appendChild(marker);
-        });
-
-        // Open circle start markers — e.g. BPMN message flows.
-        [["circle-open", "#666"], ["circle-open-selected", "#eb6c4c"]].forEach(([id, color]) => {
-            const marker = document.createElementNS(NS, "marker");
-            marker.setAttribute("id", id);
-            marker.setAttribute("viewBox", "0 0 10 10");
-            marker.setAttribute("refX", "2");
-            marker.setAttribute("refY", "5");
-            marker.setAttribute("markerWidth", "7");
-            marker.setAttribute("markerHeight", "7");
-
-            const circle = document.createElementNS(NS, "circle");
-            circle.setAttribute("cx", "5");
-            circle.setAttribute("cy", "5");
-            circle.setAttribute("r", "3.5");
-            circle.setAttribute("fill", "#ffffff");
-            circle.setAttribute("stroke", color);
-            circle.setAttribute("stroke-width", "1.5");
-
-            marker.appendChild(circle);
-            defs.appendChild(marker);
-        });
+        this.defs      = defs;
+        this.markerIds = new Map();
 
         this.svg.appendChild(defs);
 
@@ -707,6 +649,7 @@ export class WeavleJS {
         if (this.didSetTabIndex) {
             this.container.removeAttribute("tabindex");
         }
+        this.clearThemeUi();
         this.container.removeAttribute("data-weavle-host");
     }
 
@@ -765,14 +708,14 @@ export class WeavleJS {
                 dot.setAttribute("cx", size / 2);
                 dot.setAttribute("cy", size / 2);
                 dot.setAttribute("r", 1);
-                dot.setAttribute("fill", "#c3cad3");
+                dot.setAttribute("fill", this.getUiColors().grid);
                 p.appendChild(dot);
             } else {
                 const lines = document.createElementNS(NS, "path");
                 lines.setAttribute("class", "weavle-grid-line");
                 lines.setAttribute("d", `M ${size / 2} 0 V ${size} M 0 ${size / 2} H ${size}`);
                 lines.setAttribute("fill", "none");
-                lines.setAttribute("stroke", "#c3cad3");
+                lines.setAttribute("stroke", this.getUiColors().grid);
                 lines.setAttribute("stroke-width", 0.5);
                 p.appendChild(lines);
             }
@@ -1138,7 +1081,7 @@ export class WeavleJS {
                 lineX.setAttribute("y1", 0);
                 lineX.setAttribute("x2", this.state.snapGuideX);
                 lineX.setAttribute("y2", this.options.height);
-                lineX.setAttribute("stroke", "#4da3ff");
+                lineX.setAttribute("stroke", this.getUiColors().guide);
                 lineX.setAttribute("stroke-width", "1");
                 lineX.setAttribute("stroke-dasharray", "4,4");
                 lineX.setAttribute("pointer-events", "none");
@@ -1151,7 +1094,7 @@ export class WeavleJS {
                 lineY.setAttribute("y1", this.state.snapGuideY);
                 lineY.setAttribute("x2", this.options.width);
                 lineY.setAttribute("y2", this.state.snapGuideY);
-                lineY.setAttribute("stroke", "#4da3ff");
+                lineY.setAttribute("stroke", this.getUiColors().guide);
                 lineY.setAttribute("stroke-width", "1");
                 lineY.setAttribute("stroke-dasharray", "4,4");
                 lineY.setAttribute("pointer-events", "none");
@@ -1169,9 +1112,9 @@ export class WeavleJS {
             rect.setAttribute("y", rectData.y);
             rect.setAttribute("width", rectData.width);
             rect.setAttribute("height", rectData.height);
-            rect.setAttribute("fill", "#4da3ff");
+            rect.setAttribute("fill", this.getUiColors().guide);
             rect.setAttribute("fill-opacity", "0.12");
-            rect.setAttribute("stroke", "#4da3ff");
+            rect.setAttribute("stroke", this.getUiColors().guide);
             rect.setAttribute("stroke-width", "1");
             rect.setAttribute("stroke-dasharray", "4,4");
             rect.setAttribute("pointer-events", "none");
@@ -1236,7 +1179,7 @@ export class WeavleJS {
             outline.setAttribute("height", node.height + 6);
             outline.setAttribute("rx", 8);
             outline.setAttribute("fill", "rgba(46, 168, 223, 0.06)");
-            outline.setAttribute("stroke", "#2ea8df");
+            outline.setAttribute("stroke", this.getUiColors().port);
             outline.setAttribute("stroke-width", "2");
             outline.setAttribute("stroke-dasharray", "6,4");
             outline.setAttribute("class", "weavle-drop-target");
@@ -1581,8 +1524,8 @@ export class WeavleJS {
             circle.setAttribute("cx",           pos.x);
             circle.setAttribute("cy",           pos.y);
             circle.setAttribute("r",            isHovered ? 7 : 5);
-            circle.setAttribute("fill",         isHovered ? "#eb6c4c" : "#ffffff");
-            circle.setAttribute("stroke",       "#eb6c4c");
+            circle.setAttribute("fill",         isHovered ? this.getUiColors().connect : "#ffffff");
+            circle.setAttribute("stroke",       this.getUiColors().connect);
             circle.setAttribute("stroke-width", isHovered ? "3" : "2");
             circle.setAttribute("data-handle-position", positionName);
             circle.setAttribute("class", isHovered ? "weavle-port weavle-port--hot" : "weavle-port");
@@ -1627,7 +1570,7 @@ export class WeavleJS {
             r.setAttribute("width", size);
             r.setAttribute("height", size);
             r.setAttribute("rx", 1);
-            r.setAttribute("fill", "#2563eb");
+            r.setAttribute("fill", this.getUiColors().handle);
             r.setAttribute("stroke", "#ffffff");
             r.setAttribute("stroke-width", "1");
             r.setAttribute("data-resize-corner", corner);
@@ -1651,7 +1594,7 @@ export class WeavleJS {
             c.setAttribute("r", 4.5);
 
             c.setAttribute("fill", "#ffffff");
-            c.setAttribute("stroke", "#2ea8df");
+            c.setAttribute("stroke", this.getUiColors().port);
             c.setAttribute("stroke-width", "2");
 
             c.setAttribute("data-handle-position", handleName);
@@ -1676,7 +1619,7 @@ export class WeavleJS {
         c.setAttribute("r", 6.5);
 
         c.setAttribute("fill", "#ffffff");
-        c.setAttribute("stroke", "#f28c52");
+        c.setAttribute("stroke", this.getUiColors().hot);
         c.setAttribute("stroke-width", "2.5");
 
         c.setAttribute("data-handle-position", handleName);
@@ -1723,7 +1666,7 @@ export class WeavleJS {
         }
 
         glow.setAttribute("fill", "none");
-        glow.setAttribute("stroke", "#f28c52");
+        glow.setAttribute("stroke", this.getUiColors().hot);
         glow.setAttribute("stroke-width", "3");
         glow.setAttribute("opacity", "0.55");
         glow.setAttribute("filter", "url(#hover-glow)");
@@ -1748,7 +1691,7 @@ export class WeavleJS {
         // Override stroke colour and width when the node is selected.
         if (this.isNodeSelected(node.id)) {
             shape.classList.add("is-selected");
-            shape.setAttribute("stroke",       "#F57100");
+            shape.setAttribute("stroke",       this.getUiColors().selection);
             shape.setAttribute("stroke-width", "2.5");
         }
     }
@@ -1781,22 +1724,20 @@ export class WeavleJS {
             isSelected ? "is-selected" : "",
             isPreview ? "is-preview" : ""
         ].filter(Boolean).join(" "));
-        path.setAttribute("stroke",      isSelected ? "#F57100" : look.stroke);
+        path.setAttribute("stroke",      isSelected ? this.getUiColors().selection : look.stroke);
         path.setAttribute("stroke-width", isSelected ? "2.5" : String(look.strokeWidth));
         path.setAttribute("fill",        "none");
 
-        const markerId = {
-            arrow:     isSelected ? "arrow-selected"      : "arrow-default",
-            openArrow: isSelected ? "arrow-open-selected" : "arrow-open"
-        }[def.marker];
+        // Arrowheads in the line's colour (selected: the selection colour of the arrowheads).
+        const markerColor = isSelected ? this.getUiColors().selectedLine : look.stroke;
 
-        if (markerId) {
-            path.setAttribute("marker-end", `url(#${markerId})`);
+        if (def.marker === "arrow" || def.marker === "openArrow") {
+            path.setAttribute("marker-end", `url(#${this.getMarkerId(def.marker, markerColor)})`);
         }
 
         // Start marker, e.g. the open circle of a BPMN message flow.
         if (def.markerStart === "circle") {
-            path.setAttribute("marker-start", `url(#${isSelected ? "circle-open-selected" : "circle-open"})`);
+            path.setAttribute("marker-start", `url(#${this.getMarkerId("circle", markerColor)})`);
         }
 
         if (look.dash) {
@@ -1940,7 +1881,7 @@ export class WeavleJS {
         circle.setAttribute("cy",                    y);
         circle.setAttribute("r",                     5);
         circle.setAttribute("fill",                  "#ffffff");
-        circle.setAttribute("stroke",                "#eb6c4c");
+        circle.setAttribute("stroke",                this.getUiColors().selectedLine);
         circle.setAttribute("stroke-width",          "2");
         circle.setAttribute("data-edge-control-id",  edgeId);
         circle.setAttribute("class", "weavle-edge-handle");
@@ -1965,7 +1906,7 @@ export class WeavleJS {
         circle.setAttribute("cy",                       y);
         circle.setAttribute("r",                        6);
         circle.setAttribute("fill",                     "#ffffff");
-        circle.setAttribute("stroke",                   "#eb6c4c");
+        circle.setAttribute("stroke",                   this.getUiColors().selectedLine);
         circle.setAttribute("stroke-width",             "2");
         circle.setAttribute("data-edge-endpoint-id",   edgeId);
         circle.setAttribute("data-edge-endpoint-side", side);
@@ -1983,7 +1924,7 @@ export class WeavleJS {
     circle.setAttribute("cy", y);
     circle.setAttribute("r", 5);
     circle.setAttribute("fill", "#ffffff");
-    circle.setAttribute("stroke", "#eb6c4c");
+    circle.setAttribute("stroke", this.getUiColors().selectedLine);
     circle.setAttribute("stroke-width", "2");
 
     circle.setAttribute("data-edge-segment-id", edgeId);
@@ -6942,28 +6883,186 @@ export class WeavleJS {
     //   1. engine defaults (NODE_STYLE_DEFAULTS / EDGE_STYLE_DEFAULTS)
     //   2. the definition: nodeTypes[type].colors ({ fill, stroke }), nodeTypes[type].style and the
     //      label colour of getLabelLayout; edgeTypes[type] (stroke, strokeWidth, dash) and its style
-    //   (planned: the theme, presets and node.style / edge.style — see section 7.6)
+    //   3. the generic theme: theme.node / theme.edge, then theme.diagrams[id].node / .edge
+    //   4. the type's fixedStyle (properties a generic theme must not change, e.g. a pool's white
+    //      header text or the transparent background of an Ishikawa cause)
+    //   5. the theme per type: theme.nodeTypes[type] / theme.edgeTypes[type], then theme.diagrams[id]'s
+    //   (planned: presets and node.style / edge.style — see section 7.6)
     //
     // Style properties: fill, stroke, strokeWidth, dash, textColor, fontWeight, fontStyle.
     // ------------------------------------------------------------
 
     /** The resolved style of a node (or of { type } for a type preview). Always has every property. */
     getNodeStyle(node) {
-        const typeDef = this.diagram.nodeTypes?.[node?.type];
-        if (!typeDef) return mergeStyles(NODE_STYLE_DEFAULTS);
+        const type     = node?.type;
+        const typeDef  = this.diagram.nodeTypes?.[type];
+        const theme    = this.getTheme();
+        const diagram  = theme.diagrams?.[this.diagram.id] || {};
+
+        const definition = typeDef
+            ? [typeDef.colors, typeDef.style, { textColor: this.getLabelLayout(node).color }]
+            : [];
 
         return mergeStyles(
             NODE_STYLE_DEFAULTS,
-            pickStyle(typeDef.colors),
-            pickStyle(typeDef.style),
-            { textColor: this.getLabelLayout(node).color }
+            ...definition,
+            theme.node, diagram.node,
+            typeDef?.fixedStyle,
+            theme.nodeTypes?.[type], diagram.nodeTypes?.[type]
         );
     }
 
     /** The resolved style of an edge (or of null for a preview line). Always has every property. */
     getEdgeStyle(edge) {
-        const def = this.getEdgeTypeDefinition(edge);
-        return mergeStyles(EDGE_STYLE_DEFAULTS, pickStyle(def), pickStyle(def.style));
+        const def     = this.getEdgeTypeDefinition(edge);
+        const theme   = this.getTheme();
+        const diagram = theme.diagrams?.[this.diagram.id] || {};
+
+        return mergeStyles(
+            EDGE_STYLE_DEFAULTS,
+            def, def.style,
+            theme.edge, diagram.edge,
+            def.fixedStyle,
+            theme.edgeTypes?.[def.type], diagram.edgeTypes?.[def.type]
+        );
+    }
+
+    // ------------------------------------------------------------
+    // Theme (options.theme, ARCHITECTURE.md 7.4 / 7.8)
+    // ------------------------------------------------------------
+
+    /** The current theme (options.theme), or an empty object. Not part of the model or of undo. */
+    getTheme() {
+        return this.options.theme || {};
+    }
+
+    /**
+     * Replaces the theme and redraws everything (no undo step, no change event): node and edge styles,
+     * arrowheads, the font, the editor chrome (theme.ui) and the toolbar's type icons.
+     * @param {object|null} theme  see ARCHITECTURE.md 7.4; null = no theme
+     */
+    setTheme(theme) {
+        this.options.theme = theme || null;
+
+        this.labelMeasure   = null;   // the font may have changed: measure labels again
+        this.gridPatternKey = null;   // the grid colour may have changed
+        this.applyThemeUi();
+
+        // Label sizes may depend on the font (Ishikawa sizes its text nodes).
+        this.applyDiagramLayout();
+
+        this.setToolbarPosition(this.getToolbarPosition());
+        this.refreshNodeToolSurface();
+        this.render();
+    }
+
+    /**
+     * Colours of the editor chrome drawn in SVG (selection, ports, handles, guides, grid), from
+     * theme.ui with the built-in defaults.
+     */
+    getUiColors() {
+        const ui = this.getTheme().ui || {};
+        return {
+            selection:    ui.selection || "#F57100",   // selected node / edge
+            selectedLine: ui.selection || "#eb6c4c",   // arrowheads and handles of a selected edge
+            port:         ui.accent    || "#2ea8df",   // ports, drop target
+            handle:       ui.accent    || "#2563eb",   // resize handles
+            guide:        ui.accent    || "#4da3ff",   // alignment guides, marquee
+            connect:      ui.hot       || "#eb6c4c",   // ports while connecting
+            hot:          ui.hot       || "#f28c52",   // the port under the mouse, hover glow
+            grid:         ui.grid      || "#c3cad3"
+        };
+    }
+
+    /**
+     * Applies theme.ui to the CSS custom properties of weavle.css (set on the container, so they only
+     * affect this editor) and theme.font to the SVG. Only properties this editor set are removed again.
+     */
+    applyThemeUi() {
+        const theme = this.getTheme();
+        const ui    = theme.ui || {};
+        const style = this.container.style;
+
+        this.themeCssVars = this.themeCssVars || new Set();
+
+        for (const [key, names] of Object.entries(THEME_UI_CSS_VARS)) {
+            for (const name of names) {
+                if (ui[key]) {
+                    style.setProperty(name, ui[key]);
+                    this.themeCssVars.add(name);
+                } else if (this.themeCssVars.has(name)) {
+                    style.removeProperty(name);
+                    this.themeCssVars.delete(name);
+                }
+            }
+        }
+
+        // Labels (and so the export) use the theme font; without one they inherit the page font.
+        if (theme.font?.family) this.svg.setAttribute("font-family", theme.font.family);
+        else this.svg.removeAttribute("font-family");
+    }
+
+    /** Removes the CSS custom properties applyThemeUi set on the container (see destroy). */
+    clearThemeUi() {
+        for (const name of this.themeCssVars || []) this.container.style.removeProperty(name);
+        this.themeCssVars = null;
+    }
+
+    /**
+     * Id of an arrowhead marker of the given kind ("arrow" | "openArrow" | "circle") and colour,
+     * created in the SVG's <defs> on first use. Markers are shared by every edge with that colour.
+     */
+    getMarkerId(kind, color) {
+        const key = `${kind}|${color}`;
+        let id = this.markerIds.get(key);
+        if (id) return id;
+
+        const NS     = "http://www.w3.org/2000/svg";
+        const marker = document.createElementNS(NS, "marker");
+        id = `weavle-${kind}-${String(color).replace(/[^a-zA-Z0-9]/g, "")}`;
+
+        marker.setAttribute("id", id);
+        marker.setAttribute("viewBox", "0 0 10 10");
+        marker.setAttribute("refY", "5");
+
+        if (kind === "arrow") {
+            const head = document.createElementNS(NS, "path");
+            head.setAttribute("d", "M 0 0 L 10 5 L 0 10 z");
+            head.setAttribute("fill", color);
+            marker.append(head);
+            marker.setAttribute("refX", "10");
+            marker.setAttribute("markerWidth", "6");
+            marker.setAttribute("markerHeight", "6");
+            marker.setAttribute("orient", "auto-start-reverse");
+        } else if (kind === "openArrow") {
+            const head = document.createElementNS(NS, "path");
+            head.setAttribute("d", "M 1 1 L 9 5 L 1 9");
+            head.setAttribute("fill", "none");
+            head.setAttribute("stroke", color);
+            head.setAttribute("stroke-width", "1.5");
+            marker.append(head);
+            marker.setAttribute("refX", "9");
+            marker.setAttribute("markerWidth", "7");
+            marker.setAttribute("markerHeight", "7");
+            marker.setAttribute("orient", "auto-start-reverse");
+        } else {
+            // Open circle at the start of the line (BPMN message flow).
+            const circle = document.createElementNS(NS, "circle");
+            circle.setAttribute("cx", "5");
+            circle.setAttribute("cy", "5");
+            circle.setAttribute("r", "3.5");
+            circle.setAttribute("fill", "#ffffff");
+            circle.setAttribute("stroke", color);
+            circle.setAttribute("stroke-width", "1.5");
+            marker.append(circle);
+            marker.setAttribute("refX", "2");
+            marker.setAttribute("markerWidth", "7");
+            marker.setAttribute("markerHeight", "7");
+        }
+
+        this.defs.appendChild(marker);
+        this.markerIds.set(key, id);
+        return id;
     }
 
     /** Puts a resolved style's text properties (textColor, fontWeight, fontStyle) on a <text>. */

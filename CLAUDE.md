@@ -136,7 +136,12 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
   dash / style). Properties: fill, stroke, strokeWidth, dash, textColor, fontWeight, fontStyle. Written as attributes
   by `applyNodeStyle`, `createEdgePath(..., style)`, `applyTextStyle`. Definitions use `engine.getNodeStyle(node)`
   for detail lines (`getNodeColors(type)` is a deprecated wrapper). Node groups: `weavle-node weavle-node--{type}`,
-  `data-node-type`. Next: theme (`options.theme`), then `node.style` / `edge.style`.
+  `data-node-type`. Step 2 built: `options.theme` / `setTheme(theme)` / `getTheme()` — layers after the definition:
+  generic `theme.node` / `.edge` (+ `theme.diagrams[id]`), the type's `fixedStyle` (BPMN pool / lane header text,
+  Ishikawa causes), then `theme.nodeTypes` / `.edgeTypes` (+ per diagram). Arrowheads per colour (`getMarkerId`);
+  SVG chrome colours from `getUiColors()`; `theme.ui` → CSS custom properties on the container (`applyThemeUi`,
+  `THEME_UI_CSS_VARS`); `theme.font.family` on the SVG. Sample: `src/samples/theme-house-style.js` (playground
+  "Theme" select). Next: `node.style` / `edge.style` with presets.
 
 ## Conventions
 

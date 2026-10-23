@@ -9,6 +9,7 @@ import { createFlowchartDefinition } from "./weavle-flowchart.js";
 import { createBpmnDefinition } from "./weavle-bpmn.js";
 import { createIshikawaDefinition } from "./weavle-ishikawa.js";
 import { createLateDeliverySample } from "./samples/ishikawa-late-delivery.js";
+import { houseStyleTheme } from "./samples/theme-house-style.js";
 import { createOrderProcessSample } from "./samples/bpmn-order-process.js";
 
 /*
@@ -33,6 +34,10 @@ const chkSnap = document.getElementById("chkSnap");
 const rngCornerRadius = document.getElementById("rngCornerRadius");
 const lblCornerRadius = document.getElementById("lblCornerRadius");
 const selGridType = document.getElementById("selGridType");
+const selTheme = document.getElementById("selTheme");
+
+// Themes of the "Theme" select (ARCHITECTURE.md 7.4).
+const THEMES = { houseStyle: houseStyleTheme };
 const clrGrid = document.getElementById("clrGrid");
 const selFlowDirection = document.getElementById("selFlowDirection");
 const selToolbarPosition = document.getElementById("selToolbarPosition");
@@ -222,6 +227,7 @@ function createEditor() {
       readOnly: chkReadonly.checked,
       edgeCornerRadius: Number(rngCornerRadius.value),
       gridType: selGridType.value,
+      theme: THEMES[selTheme.value] || null,
       layoutDirection: selFlowDirection.value || null,
       toolbarPosition: selToolbarPosition.value,
       debugRouting: chkDebugRoutePoints.checked || chkDebugAStarGrid.checked,
@@ -593,6 +599,7 @@ chkSnap.addEventListener("change", rebuildEditorPreserveModel);
 selGridType.addEventListener("change", rebuildEditorPreserveModel);
 
 selToolbarPosition.addEventListener("change", () => editor.setToolbarPosition(selToolbarPosition.value));
+selTheme.addEventListener("change", () => editor.setTheme(THEMES[selTheme.value] || null));
 
 // The flow direction only steers the tidy-up functions: no rebuild needed.
 selFlowDirection.addEventListener("change", () => {

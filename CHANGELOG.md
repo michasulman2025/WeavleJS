@@ -3,6 +3,16 @@
 ## Unreleased
 
 ### Added
+- **Themes (house style), styles step 2** (ARCHITECTURE.md 7.4): `options.theme`, `setTheme(theme)`, `getTheme()`.
+  A theme sets node / edge styles for every type (`node`, `edge`), per type (`nodeTypes`, `edgeTypes`) and per
+  diagram type (`diagrams[id]`), the label font (`font.family`) and the editor colours (`ui`: selection, accent,
+  hot, canvasBackground, grid, uiFont / uiBackground / uiText / uiBorder → the CSS custom properties, set on the
+  container). Types protect properties against the generic layers with `fixedStyle` (BPMN pool / lane header
+  text, Ishikawa causes). Arrowheads now follow the line colour (markers per colour, `getMarkerId`); every colour
+  the engine drew in SVG comes from the theme with the old values as defaults. Works in `exportSvg()`.
+  OutSystems: `options.theme`, `controller.setTheme(themeJson)` (kept across type switches). Playground: "Theme"
+  select with a sample house style (`src/samples/theme-house-style.js`). Without a theme nothing changes (exports
+  identical apart from marker ids).
 - **Styles, step 1** (ARCHITECTURE.md section 7): one place decides how a node or edge looks —
   `getNodeStyle(node)` / `getEdgeStyle(edge)` (fill, stroke, strokeWidth, dash, textColor, fontWeight, fontStyle;
   engine defaults → the definition's `colors` / `style` / label colour, `edgeTypes[type]`). Shapes, detail

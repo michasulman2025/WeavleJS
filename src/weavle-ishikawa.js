@@ -53,6 +53,9 @@ const LABELS = {
 
 const LINE_HEIGHT = 1.25;   // the engine's default label line height
 
+// Look of the text-only nodes (causes): no box.
+const TEXT_NODE = { fill: "transparent", stroke: "none" };
+
 // What a node's children are, and the edge type that links a node to its parent.
 const CHILD_TYPE = { effect: "category", category: "cause", cause: "subCause" };
 const EDGE_TYPE  = { category: "bone", cause: "causeLine", subCause: "subCauseLine" };
@@ -336,8 +339,9 @@ export function createIshikawaDefinition() {
         nodeTypes: {
             effect:   { defaultLabel: "Probleem",   title: "Probleem (gevolg)", colors: { fill: "#FDE8E7", stroke: "#B42318" }, shape: "effect" },
             category: { defaultLabel: "Categorie",  colors: { fill: "#EAF4FB", stroke: "#1B5278" }, shape: "category" },
-            cause:    { defaultLabel: "Oorzaak",    colors: { fill: "transparent", stroke: "none" }, shape: "text" },
-            subCause: { defaultLabel: "Suboorzaak", colors: { fill: "transparent", stroke: "none" }, shape: "text" }
+            // Causes are text on a line: a generic theme must not give them a box.
+            cause:    { defaultLabel: "Oorzaak",    colors: TEXT_NODE, fixedStyle: TEXT_NODE, shape: "text" },
+            subCause: { defaultLabel: "Suboorzaak", colors: TEXT_NODE, fixedStyle: TEXT_NODE, shape: "text" }
         },
 
         // Nothing to place freely: the toolbar adds categories, the node tools do the rest.

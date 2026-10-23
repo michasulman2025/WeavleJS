@@ -1663,7 +1663,8 @@ function b() {
 					stroke: "#85929E"
 				},
 				shape: "swimlane",
-				isContainer: !0
+				isContainer: !0,
+				fixedStyle: { textColor: "#ffffff" }
 			},
 			pool: {
 				defaultLabel: "Pool",
@@ -1672,7 +1673,8 @@ function b() {
 					stroke: "#2C3E50"
 				},
 				shape: "pool",
-				isContainer: !0
+				isContainer: !0,
+				fixedStyle: { textColor: "#ffffff" }
 			}
 		},
 		palette: [
@@ -2529,7 +2531,7 @@ var te = [
 	"textColor",
 	"fontWeight",
 	"fontStyle"
-], j = {
+], ne = {
 	fill: "#eeeeee",
 	stroke: "#999999",
 	strokeWidth: 1.5,
@@ -2537,7 +2539,7 @@ var te = [
 	textColor: null,
 	fontWeight: null,
 	fontStyle: null
-}, ne = {
+}, re = {
 	fill: "none",
 	stroke: "#666",
 	strokeWidth: 1.5,
@@ -2545,17 +2547,31 @@ var te = [
 	textColor: null,
 	fontWeight: null,
 	fontStyle: null
+}, ie = {
+	selection: ["--weavle-selection-color"],
+	accent: [
+		"--weavle-handle-fill",
+		"--weavle-port-stroke",
+		"--weavle-ui-active-text"
+	],
+	hot: ["--weavle-port-hot"],
+	canvasBackground: ["--weavle-canvas-bg"],
+	grid: ["--weavle-grid-color"],
+	uiFont: ["--weavle-ui-font"],
+	uiBackground: ["--weavle-ui-bg"],
+	uiText: ["--weavle-ui-text"],
+	uiBorder: ["--weavle-ui-border"]
 };
-function M(e) {
+function ae(e) {
 	let t = {};
 	if (!e) return t;
 	for (let n of te) e[n] !== void 0 && e[n] !== null && (t[n] = e[n]);
 	return t;
 }
-function N(e, ...t) {
-	return Object.assign({}, e, ...t.map(M));
+function oe(e, ...t) {
+	return Object.assign({}, e, ...t.map(ae));
 }
-var P = class {
+var j = class {
 	constructor(e, t = {}, n = null) {
 		this.container = typeof e == "string" ? document.querySelector(e) : e, this.options = Object.assign({
 			width: 1200,
@@ -2578,7 +2594,8 @@ var P = class {
 			toolbarPosition: "top",
 			toolbarFloatingPosition: null,
 			tidyTools: !0,
-			layoutDirection: null
+			layoutDirection: null,
+			theme: null
 		}, t), this.diagram = n || s(), this.model = {
 			nodes: [],
 			edges: []
@@ -2650,33 +2667,17 @@ var P = class {
 		}, this.history = [], this.historyIndex = -1, this.isRestoringHistory = !1, this.init();
 	}
 	init() {
-		this.createSvg(), getComputedStyle(this.container).position === "static" && (this.container.style.position = "relative", this.didSetContainerPosition = !0), this.nodeToolEl = null, this.uiLayer = document.createElement("div"), this.uiLayer.className = "weavle-ui-layer", this.uiLayer.style.position = "absolute", this.uiLayer.style.inset = "0", this.uiLayer.style.pointerEvents = "none", this.container.appendChild(this.uiLayer), this.container.setAttribute("data-weavle-host", ""), this.container.hasAttribute("tabindex") || (this.container.setAttribute("tabindex", "0"), this.didSetTabIndex = !0), this.createCanvasToolbar(), this.bindEvents(), this.render();
+		this.createSvg(), getComputedStyle(this.container).position === "static" && (this.container.style.position = "relative", this.didSetContainerPosition = !0), this.nodeToolEl = null, this.uiLayer = document.createElement("div"), this.uiLayer.className = "weavle-ui-layer", this.uiLayer.style.position = "absolute", this.uiLayer.style.inset = "0", this.uiLayer.style.pointerEvents = "none", this.container.appendChild(this.uiLayer), this.container.setAttribute("data-weavle-host", ""), this.applyThemeUi(), this.container.hasAttribute("tabindex") || (this.container.setAttribute("tabindex", "0"), this.didSetTabIndex = !0), this.createCanvasToolbar(), this.bindEvents(), this.render();
 	}
 	createSvg() {
 		let e = "http://www.w3.org/2000/svg";
 		this.svg = document.createElementNS(e, "svg"), this.svg.setAttribute("width", this.options.width), this.svg.setAttribute("height", this.options.height), this.svg.setAttribute("class", "weavle-canvas"), this.svg.style.touchAction = "none";
-		let t = document.createElementNS(e, "defs"), n = document.createElementNS(e, "marker");
-		n.setAttribute("id", "arrow-default"), n.setAttribute("viewBox", "0 0 10 10"), n.setAttribute("refX", "10"), n.setAttribute("refY", "5"), n.setAttribute("markerWidth", "6"), n.setAttribute("markerHeight", "6"), n.setAttribute("orient", "auto-start-reverse");
-		let r = document.createElementNS(e, "path");
-		r.setAttribute("d", "M 0 0 L 10 5 L 0 10 z"), r.setAttribute("fill", "#666"), n.appendChild(r), t.appendChild(n);
-		let i = document.createElementNS(e, "marker");
-		i.setAttribute("id", "arrow-selected"), i.setAttribute("viewBox", "0 0 10 10"), i.setAttribute("refX", "10"), i.setAttribute("refY", "5"), i.setAttribute("markerWidth", "6"), i.setAttribute("markerHeight", "6"), i.setAttribute("orient", "auto-start-reverse");
-		let a = document.createElementNS(e, "path");
-		a.setAttribute("d", "M 0 0 L 10 5 L 0 10 z"), a.setAttribute("fill", "#eb6c4c"), i.appendChild(a), t.appendChild(i), [["arrow-open", "#666"], ["arrow-open-selected", "#eb6c4c"]].forEach(([n, r]) => {
-			let i = document.createElementNS(e, "marker");
-			i.setAttribute("id", n), i.setAttribute("viewBox", "0 0 10 10"), i.setAttribute("refX", "9"), i.setAttribute("refY", "5"), i.setAttribute("markerWidth", "7"), i.setAttribute("markerHeight", "7"), i.setAttribute("orient", "auto-start-reverse");
-			let a = document.createElementNS(e, "path");
-			a.setAttribute("d", "M 1 1 L 9 5 L 1 9"), a.setAttribute("fill", "none"), a.setAttribute("stroke", r), a.setAttribute("stroke-width", "1.5"), i.appendChild(a), t.appendChild(i);
-		}), [["circle-open", "#666"], ["circle-open-selected", "#eb6c4c"]].forEach(([n, r]) => {
-			let i = document.createElementNS(e, "marker");
-			i.setAttribute("id", n), i.setAttribute("viewBox", "0 0 10 10"), i.setAttribute("refX", "2"), i.setAttribute("refY", "5"), i.setAttribute("markerWidth", "7"), i.setAttribute("markerHeight", "7");
-			let a = document.createElementNS(e, "circle");
-			a.setAttribute("cx", "5"), a.setAttribute("cy", "5"), a.setAttribute("r", "3.5"), a.setAttribute("fill", "#ffffff"), a.setAttribute("stroke", r), a.setAttribute("stroke-width", "1.5"), i.appendChild(a), t.appendChild(i);
-		}), this.svg.appendChild(t);
-		let o = document.createElementNS(e, "filter");
-		o.setAttribute("id", "hover-glow"), o.setAttribute("x", "-50%"), o.setAttribute("y", "-50%"), o.setAttribute("width", "200%"), o.setAttribute("height", "200%");
-		let s = document.createElementNS(e, "feGaussianBlur");
-		s.setAttribute("in", "SourceGraphic"), s.setAttribute("stdDeviation", "3"), o.appendChild(s), t.appendChild(o), this.gridPattern = document.createElementNS(e, "pattern"), this.gridPattern.setAttribute("id", `weavle-grid-${Math.random().toString(36).slice(2, 10)}`), this.gridPattern.setAttribute("patternUnits", "userSpaceOnUse"), this.gridPatternKey = null, t.appendChild(this.gridPattern), this.viewport = document.createElementNS(e, "g"), this.viewport.setAttribute("data-viewport", "true"), this.layers = {
+		let t = document.createElementNS(e, "defs");
+		this.defs = t, this.markerIds = /* @__PURE__ */ new Map(), this.svg.appendChild(t);
+		let n = document.createElementNS(e, "filter");
+		n.setAttribute("id", "hover-glow"), n.setAttribute("x", "-50%"), n.setAttribute("y", "-50%"), n.setAttribute("width", "200%"), n.setAttribute("height", "200%");
+		let r = document.createElementNS(e, "feGaussianBlur");
+		r.setAttribute("in", "SourceGraphic"), r.setAttribute("stdDeviation", "3"), n.appendChild(r), t.appendChild(n), this.gridPattern = document.createElementNS(e, "pattern"), this.gridPattern.setAttribute("id", `weavle-grid-${Math.random().toString(36).slice(2, 10)}`), this.gridPattern.setAttribute("patternUnits", "userSpaceOnUse"), this.gridPatternKey = null, t.appendChild(this.gridPattern), this.viewport = document.createElementNS(e, "g"), this.viewport.setAttribute("data-viewport", "true"), this.layers = {
 			grid: document.createElementNS(e, "g"),
 			containers: document.createElementNS(e, "g"),
 			edges: document.createElementNS(e, "g"),
@@ -2811,7 +2812,7 @@ var P = class {
 		return new XMLSerializer().serializeToString(o);
 	}
 	destroy() {
-		this.isDestroyed || (this.isDestroyed = !0, this.state.editingLabel && this.cancelInlineLabelEdit(), this.svg?.removeEventListener("mousedown", this.onMouseDownBound), this.svg?.removeEventListener("wheel", this.onWheelBound), this.container.removeEventListener("mousedown", this.onContainerPointerDownBound, !0), window.removeEventListener("mousemove", this.onMouseMoveBound), window.removeEventListener("mouseup", this.onMouseUpBound), window.removeEventListener("keydown", this.onKeyDownBound), this.clearNodeToolSurface(), this.setTextSelectionEnabled(!0), this.svg?.remove(), this.uiLayer?.remove(), this.toolbarAnchor?.remove(), this.didSetContainerPosition && (this.container.style.position = ""), this.didSetTabIndex && this.container.removeAttribute("tabindex"), this.container.removeAttribute("data-weavle-host"));
+		this.isDestroyed || (this.isDestroyed = !0, this.state.editingLabel && this.cancelInlineLabelEdit(), this.svg?.removeEventListener("mousedown", this.onMouseDownBound), this.svg?.removeEventListener("wheel", this.onWheelBound), this.container.removeEventListener("mousedown", this.onContainerPointerDownBound, !0), window.removeEventListener("mousemove", this.onMouseMoveBound), window.removeEventListener("mouseup", this.onMouseUpBound), window.removeEventListener("keydown", this.onKeyDownBound), this.clearNodeToolSurface(), this.setTextSelectionEnabled(!0), this.svg?.remove(), this.uiLayer?.remove(), this.toolbarAnchor?.remove(), this.didSetContainerPosition && (this.container.style.position = ""), this.didSetTabIndex && this.container.removeAttribute("tabindex"), this.clearThemeUi(), this.container.removeAttribute("data-weavle-host"));
 	}
 	render() {
 		this.updateViewportTransform(), this.renderGrid(), this.renderEdges(), this.renderNodes(), this.renderOverlay(), this.renderDebug(), this.updateCanvasToolbar();
@@ -2825,10 +2826,10 @@ var P = class {
 			let i = this.gridPattern;
 			if (i.innerHTML = "", i.setAttribute("x", -n / 2), i.setAttribute("y", -n / 2), i.setAttribute("width", n), i.setAttribute("height", n), e === "dots") {
 				let e = document.createElementNS(t, "circle");
-				e.setAttribute("class", "weavle-grid-dot"), e.setAttribute("cx", n / 2), e.setAttribute("cy", n / 2), e.setAttribute("r", 1), e.setAttribute("fill", "#c3cad3"), i.appendChild(e);
+				e.setAttribute("class", "weavle-grid-dot"), e.setAttribute("cx", n / 2), e.setAttribute("cy", n / 2), e.setAttribute("r", 1), e.setAttribute("fill", this.getUiColors().grid), i.appendChild(e);
 			} else {
 				let e = document.createElementNS(t, "path");
-				e.setAttribute("class", "weavle-grid-line"), e.setAttribute("d", `M ${n / 2} 0 V ${n} M 0 ${n / 2} H ${n}`), e.setAttribute("fill", "none"), e.setAttribute("stroke", "#c3cad3"), e.setAttribute("stroke-width", .5), i.appendChild(e);
+				e.setAttribute("class", "weavle-grid-line"), e.setAttribute("d", `M ${n / 2} 0 V ${n} M 0 ${n / 2} H ${n}`), e.setAttribute("fill", "none"), e.setAttribute("stroke", this.getUiColors().grid), e.setAttribute("stroke-width", .5), i.appendChild(e);
 			}
 			this.gridPatternKey = r;
 		}
@@ -2942,16 +2943,16 @@ var P = class {
 			let e = "http://www.w3.org/2000/svg";
 			if (this.state.snapGuideX !== null) {
 				let t = document.createElementNS(e, "line");
-				t.setAttribute("x1", this.state.snapGuideX), t.setAttribute("y1", 0), t.setAttribute("x2", this.state.snapGuideX), t.setAttribute("y2", this.options.height), t.setAttribute("stroke", "#4da3ff"), t.setAttribute("stroke-width", "1"), t.setAttribute("stroke-dasharray", "4,4"), t.setAttribute("pointer-events", "none"), this.layers.overlay.appendChild(t);
+				t.setAttribute("x1", this.state.snapGuideX), t.setAttribute("y1", 0), t.setAttribute("x2", this.state.snapGuideX), t.setAttribute("y2", this.options.height), t.setAttribute("stroke", this.getUiColors().guide), t.setAttribute("stroke-width", "1"), t.setAttribute("stroke-dasharray", "4,4"), t.setAttribute("pointer-events", "none"), this.layers.overlay.appendChild(t);
 			}
 			if (this.state.snapGuideY !== null) {
 				let t = document.createElementNS(e, "line");
-				t.setAttribute("x1", 0), t.setAttribute("y1", this.state.snapGuideY), t.setAttribute("x2", this.options.width), t.setAttribute("y2", this.state.snapGuideY), t.setAttribute("stroke", "#4da3ff"), t.setAttribute("stroke-width", "1"), t.setAttribute("stroke-dasharray", "4,4"), t.setAttribute("pointer-events", "none"), this.layers.overlay.appendChild(t);
+				t.setAttribute("x1", 0), t.setAttribute("y1", this.state.snapGuideY), t.setAttribute("x2", this.options.width), t.setAttribute("y2", this.state.snapGuideY), t.setAttribute("stroke", this.getUiColors().guide), t.setAttribute("stroke-width", "1"), t.setAttribute("stroke-dasharray", "4,4"), t.setAttribute("pointer-events", "none"), this.layers.overlay.appendChild(t);
 			}
 		}
 		if (this.state.isMarqueeSelecting) {
 			let e = this.getMarqueeRect(), t = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-			t.setAttribute("x", e.x), t.setAttribute("y", e.y), t.setAttribute("width", e.width), t.setAttribute("height", e.height), t.setAttribute("fill", "#4da3ff"), t.setAttribute("fill-opacity", "0.12"), t.setAttribute("stroke", "#4da3ff"), t.setAttribute("stroke-width", "1"), t.setAttribute("stroke-dasharray", "4,4"), t.setAttribute("pointer-events", "none"), this.layers.overlay.appendChild(t);
+			t.setAttribute("x", e.x), t.setAttribute("y", e.y), t.setAttribute("width", e.width), t.setAttribute("height", e.height), t.setAttribute("fill", this.getUiColors().guide), t.setAttribute("fill-opacity", "0.12"), t.setAttribute("stroke", this.getUiColors().guide), t.setAttribute("stroke-width", "1"), t.setAttribute("stroke-dasharray", "4,4"), t.setAttribute("pointer-events", "none"), this.layers.overlay.appendChild(t);
 		}
 	}
 	updateViewportTransform() {
@@ -2968,7 +2969,7 @@ var P = class {
 		let a = this.createNodeShape(e), o = this.createNodeText(e);
 		if (n.appendChild(a), e.id === this.state.dropTargetId) {
 			let r = document.createElementNS(t, "rect");
-			r.setAttribute("x", e.x - 3), r.setAttribute("y", e.y - 3), r.setAttribute("width", e.width + 6), r.setAttribute("height", e.height + 6), r.setAttribute("rx", 8), r.setAttribute("fill", "rgba(46, 168, 223, 0.06)"), r.setAttribute("stroke", "#2ea8df"), r.setAttribute("stroke-width", "2"), r.setAttribute("stroke-dasharray", "6,4"), r.setAttribute("class", "weavle-drop-target"), r.setAttribute("pointer-events", "none"), n.appendChild(r);
+			r.setAttribute("x", e.x - 3), r.setAttribute("y", e.y - 3), r.setAttribute("width", e.width + 6), r.setAttribute("height", e.height + 6), r.setAttribute("rx", 8), r.setAttribute("fill", "rgba(46, 168, 223, 0.06)"), r.setAttribute("stroke", this.getUiColors().port), r.setAttribute("stroke-width", "2"), r.setAttribute("stroke-dasharray", "6,4"), r.setAttribute("class", "weavle-drop-target"), r.setAttribute("pointer-events", "none"), n.appendChild(r);
 		}
 		if (n.appendChild(o), o.getAttribute("data-truncated")) {
 			let e = document.createElementNS(t, "title");
@@ -3126,7 +3127,7 @@ var P = class {
 		let t = [], n = this.getPorts(e);
 		return Object.keys(n).forEach((r) => {
 			let i = n[r], a = document.createElementNS("http://www.w3.org/2000/svg", "circle"), o = e.id === this.state.hoverHandleNodeId && r === this.state.hoverHandleName;
-			a.setAttribute("cx", i.x), a.setAttribute("cy", i.y), a.setAttribute("r", o ? 7 : 5), a.setAttribute("fill", o ? "#eb6c4c" : "#ffffff"), a.setAttribute("stroke", "#eb6c4c"), a.setAttribute("stroke-width", o ? "3" : "2"), a.setAttribute("data-handle-position", r), a.setAttribute("class", o ? "weavle-port weavle-port--hot" : "weavle-port"), a.setAttribute("cursor", "crosshair"), t.push(a);
+			a.setAttribute("cx", i.x), a.setAttribute("cy", i.y), a.setAttribute("r", o ? 7 : 5), a.setAttribute("fill", o ? this.getUiColors().connect : "#ffffff"), a.setAttribute("stroke", this.getUiColors().connect), a.setAttribute("stroke-width", o ? "3" : "2"), a.setAttribute("data-handle-position", r), a.setAttribute("class", o ? "weavle-port weavle-port--hot" : "weavle-port"), a.setAttribute("cursor", "crosshair"), t.push(a);
 		}), t;
 	}
 	createResizeHandles(e) {
@@ -3179,21 +3180,21 @@ var P = class {
 		}, a = Object.fromEntries(t.filter((e) => i[e]).map((e) => [e, i[e]]));
 		return Object.entries(a).map(([e, t]) => {
 			let n = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-			return n.setAttribute("x", t.x - 7 / 2), n.setAttribute("y", t.y - 7 / 2), n.setAttribute("width", 7), n.setAttribute("height", 7), n.setAttribute("rx", 1), n.setAttribute("fill", "#2563eb"), n.setAttribute("stroke", "#ffffff"), n.setAttribute("stroke-width", "1"), n.setAttribute("data-resize-corner", e), n.setAttribute("class", `weavle-resize-handle weavle-resize-handle--${e}`), n.setAttribute("cursor", t.cursor), n;
+			return n.setAttribute("x", t.x - 7 / 2), n.setAttribute("y", t.y - 7 / 2), n.setAttribute("width", 7), n.setAttribute("height", 7), n.setAttribute("rx", 1), n.setAttribute("fill", this.getUiColors().handle), n.setAttribute("stroke", "#ffffff"), n.setAttribute("stroke-width", "1"), n.setAttribute("data-resize-corner", e), n.setAttribute("class", `weavle-resize-handle weavle-resize-handle--${e}`), n.setAttribute("cursor", t.cursor), n;
 		});
 	}
 	createSelectionHandles(e) {
 		let t = [], n = this.getPorts(e);
 		return Object.keys(n).forEach((e) => {
 			let r = n[e], i = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-			i.setAttribute("cx", r.x), i.setAttribute("cy", r.y), i.setAttribute("r", 4.5), i.setAttribute("fill", "#ffffff"), i.setAttribute("stroke", "#2ea8df"), i.setAttribute("stroke-width", "2"), i.setAttribute("data-handle-position", e), i.setAttribute("class", "weavle-port"), i.setAttribute("cursor", "crosshair"), t.push(i);
+			i.setAttribute("cx", r.x), i.setAttribute("cy", r.y), i.setAttribute("r", 4.5), i.setAttribute("fill", "#ffffff"), i.setAttribute("stroke", this.getUiColors().port), i.setAttribute("stroke-width", "2"), i.setAttribute("data-handle-position", e), i.setAttribute("class", "weavle-port"), i.setAttribute("cursor", "crosshair"), t.push(i);
 		}), t;
 	}
 	createHotHandle(e, t) {
 		let n = this.getPorts(e)[t];
 		if (!n) return null;
 		let r = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-		return r.setAttribute("cx", n.x), r.setAttribute("cy", n.y), r.setAttribute("r", 6.5), r.setAttribute("fill", "#ffffff"), r.setAttribute("stroke", "#f28c52"), r.setAttribute("stroke-width", "2.5"), r.setAttribute("data-handle-position", t), r.setAttribute("class", "weavle-port weavle-port--hot"), r.setAttribute("cursor", "crosshair"), r;
+		return r.setAttribute("cx", n.x), r.setAttribute("cy", n.y), r.setAttribute("r", 6.5), r.setAttribute("fill", "#ffffff"), r.setAttribute("stroke", this.getUiColors().hot), r.setAttribute("stroke-width", "2.5"), r.setAttribute("data-handle-position", t), r.setAttribute("class", "weavle-port weavle-port--hot"), r.setAttribute("cursor", "crosshair"), r;
 	}
 	createHoverGlow(e) {
 		let t = "http://www.w3.org/2000/svg", n = this.diagram.nodeTypes && this.diagram.nodeTypes[e.type], r = n && n.shape ? n.shape : "process", i;
@@ -3207,11 +3208,11 @@ var P = class {
 			].join(" ");
 			i.setAttribute("points", a);
 		} else i = document.createElementNS(t, "rect"), i.setAttribute("x", e.x - 4), i.setAttribute("y", e.y - 4), i.setAttribute("width", e.width + 8), i.setAttribute("height", e.height + 8), r === "terminator" ? i.setAttribute("rx", Math.min((e.height + 8) / 2, 34)) : i.setAttribute("rx", 12);
-		return i.setAttribute("fill", "none"), i.setAttribute("stroke", "#f28c52"), i.setAttribute("stroke-width", "3"), i.setAttribute("opacity", "0.55"), i.setAttribute("filter", "url(#hover-glow)"), i.setAttribute("pointer-events", "none"), i;
+		return i.setAttribute("fill", "none"), i.setAttribute("stroke", this.getUiColors().hot), i.setAttribute("stroke-width", "3"), i.setAttribute("opacity", "0.55"), i.setAttribute("filter", "url(#hover-glow)"), i.setAttribute("pointer-events", "none"), i;
 	}
 	applyNodeStyle(e, t) {
 		let n = this.getNodeStyle(t);
-		e.setAttribute("fill", n.fill), e.setAttribute("stroke", n.stroke), e.setAttribute("stroke-width", String(n.strokeWidth)), n.dash && e.setAttribute("stroke-dasharray", n.dash), e.classList.add("weavle-node-shape"), this.isNodeSelected(t.id) && (e.classList.add("is-selected"), e.setAttribute("stroke", "#F57100"), e.setAttribute("stroke-width", "2.5"));
+		e.setAttribute("fill", n.fill), e.setAttribute("stroke", n.stroke), e.setAttribute("stroke-width", String(n.strokeWidth)), n.dash && e.setAttribute("stroke-dasharray", n.dash), e.classList.add("weavle-node-shape"), this.isNodeSelected(t.id) && (e.classList.add("is-selected"), e.setAttribute("stroke", this.getUiColors().selection), e.setAttribute("stroke-width", "2.5"));
 	}
 	createEdgePath(e, t = !1, n = !1, r = null, i = null) {
 		let a = document.createElementNS("http://www.w3.org/2000/svg", "path"), o = r || this.getEdgeTypeDefinition(null), s = i || this.getEdgeStyle(null);
@@ -3220,12 +3221,9 @@ var P = class {
 			o.type ? `weavle-edge--${o.type}` : "",
 			n ? "is-selected" : "",
 			t ? "is-preview" : ""
-		].filter(Boolean).join(" ")), a.setAttribute("stroke", n ? "#F57100" : s.stroke), a.setAttribute("stroke-width", n ? "2.5" : String(s.strokeWidth)), a.setAttribute("fill", "none");
-		let c = {
-			arrow: n ? "arrow-selected" : "arrow-default",
-			openArrow: n ? "arrow-open-selected" : "arrow-open"
-		}[o.marker];
-		return c && a.setAttribute("marker-end", `url(#${c})`), o.markerStart === "circle" && a.setAttribute("marker-start", `url(#${n ? "circle-open-selected" : "circle-open"})`), s.dash && a.setAttribute("stroke-dasharray", s.dash), t && (a.setAttribute("stroke-dasharray", "5,5"), a.setAttribute("opacity", "0.7")), a;
+		].filter(Boolean).join(" ")), a.setAttribute("stroke", n ? this.getUiColors().selection : s.stroke), a.setAttribute("stroke-width", n ? "2.5" : String(s.strokeWidth)), a.setAttribute("fill", "none");
+		let c = n ? this.getUiColors().selectedLine : s.stroke;
+		return (o.marker === "arrow" || o.marker === "openArrow") && a.setAttribute("marker-end", `url(#${this.getMarkerId(o.marker, c)})`), o.markerStart === "circle" && a.setAttribute("marker-start", `url(#${this.getMarkerId("circle", c)})`), s.dash && a.setAttribute("stroke-dasharray", s.dash), t && (a.setAttribute("stroke-dasharray", "5,5"), a.setAttribute("opacity", "0.7")), a;
 	}
 	getEdgeTypeDefinition(e) {
 		let t = {
@@ -3278,15 +3276,15 @@ var P = class {
 	}
 	createEdgeControlHandle(e, t, n) {
 		let r = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-		return r.setAttribute("cx", e), r.setAttribute("cy", t), r.setAttribute("r", 5), r.setAttribute("fill", "#ffffff"), r.setAttribute("stroke", "#eb6c4c"), r.setAttribute("stroke-width", "2"), r.setAttribute("data-edge-control-id", n), r.setAttribute("class", "weavle-edge-handle"), r.setAttribute("cursor", "move"), r;
+		return r.setAttribute("cx", e), r.setAttribute("cy", t), r.setAttribute("r", 5), r.setAttribute("fill", "#ffffff"), r.setAttribute("stroke", this.getUiColors().selectedLine), r.setAttribute("stroke-width", "2"), r.setAttribute("data-edge-control-id", n), r.setAttribute("class", "weavle-edge-handle"), r.setAttribute("cursor", "move"), r;
 	}
 	createEdgeEndpointHandle(e, t, n, r) {
 		let i = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-		return i.setAttribute("cx", e), i.setAttribute("cy", t), i.setAttribute("r", 6), i.setAttribute("fill", "#ffffff"), i.setAttribute("stroke", "#eb6c4c"), i.setAttribute("stroke-width", "2"), i.setAttribute("data-edge-endpoint-id", n), i.setAttribute("data-edge-endpoint-side", r), i.setAttribute("class", "weavle-edge-handle weavle-edge-handle--endpoint"), i.setAttribute("cursor", "crosshair"), i;
+		return i.setAttribute("cx", e), i.setAttribute("cy", t), i.setAttribute("r", 6), i.setAttribute("fill", "#ffffff"), i.setAttribute("stroke", this.getUiColors().selectedLine), i.setAttribute("stroke-width", "2"), i.setAttribute("data-edge-endpoint-id", n), i.setAttribute("data-edge-endpoint-side", r), i.setAttribute("class", "weavle-edge-handle weavle-edge-handle--endpoint"), i.setAttribute("cursor", "crosshair"), i;
 	}
 	createEdgeSegmentHandle(e, t, n, r, i) {
 		let a = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-		return a.setAttribute("cx", e), a.setAttribute("cy", t), a.setAttribute("r", 5), a.setAttribute("fill", "#ffffff"), a.setAttribute("stroke", "#eb6c4c"), a.setAttribute("stroke-width", "2"), a.setAttribute("data-edge-segment-id", n), a.setAttribute("data-edge-segment-index", r), a.setAttribute("data-edge-segment-orientation", i), a.setAttribute("class", "weavle-edge-handle weavle-edge-handle--segment"), a.setAttribute("cursor", i === "vertical" ? "ew-resize" : "ns-resize"), a;
+		return a.setAttribute("cx", e), a.setAttribute("cy", t), a.setAttribute("r", 5), a.setAttribute("fill", "#ffffff"), a.setAttribute("stroke", this.getUiColors().selectedLine), a.setAttribute("stroke-width", "2"), a.setAttribute("data-edge-segment-id", n), a.setAttribute("data-edge-segment-index", r), a.setAttribute("data-edge-segment-orientation", i), a.setAttribute("class", "weavle-edge-handle weavle-edge-handle--segment"), a.setAttribute("cursor", i === "vertical" ? "ew-resize" : "ns-resize"), a;
 	}
 	rerouteEdgesForNodes(e) {
 		this.model.edges.filter((t) => e.includes(t.sourceNodeId) || e.includes(t.targetNodeId)).forEach((e) => {
@@ -5717,12 +5715,61 @@ var P = class {
 		return (this.diagram.nodeTypes && this.diagram.nodeTypes[e])?.title || this.getDefaultLabelForType(e);
 	}
 	getNodeStyle(e) {
-		let t = this.diagram.nodeTypes?.[e?.type];
-		return t ? N(j, M(t.colors), M(t.style), { textColor: this.getLabelLayout(e).color }) : N(j);
+		let t = e?.type, n = this.diagram.nodeTypes?.[t], r = this.getTheme(), i = r.diagrams?.[this.diagram.id] || {};
+		return oe(ne, ...n ? [
+			n.colors,
+			n.style,
+			{ textColor: this.getLabelLayout(e).color }
+		] : [], r.node, i.node, n?.fixedStyle, r.nodeTypes?.[t], i.nodeTypes?.[t]);
 	}
 	getEdgeStyle(e) {
-		let t = this.getEdgeTypeDefinition(e);
-		return N(ne, M(t), M(t.style));
+		let t = this.getEdgeTypeDefinition(e), n = this.getTheme(), r = n.diagrams?.[this.diagram.id] || {};
+		return oe(re, t, t.style, n.edge, r.edge, t.fixedStyle, n.edgeTypes?.[t.type], r.edgeTypes?.[t.type]);
+	}
+	getTheme() {
+		return this.options.theme || {};
+	}
+	setTheme(e) {
+		this.options.theme = e || null, this.labelMeasure = null, this.gridPatternKey = null, this.applyThemeUi(), this.applyDiagramLayout(), this.setToolbarPosition(this.getToolbarPosition()), this.refreshNodeToolSurface(), this.render();
+	}
+	getUiColors() {
+		let e = this.getTheme().ui || {};
+		return {
+			selection: e.selection || "#F57100",
+			selectedLine: e.selection || "#eb6c4c",
+			port: e.accent || "#2ea8df",
+			handle: e.accent || "#2563eb",
+			guide: e.accent || "#4da3ff",
+			connect: e.hot || "#eb6c4c",
+			hot: e.hot || "#f28c52",
+			grid: e.grid || "#c3cad3"
+		};
+	}
+	applyThemeUi() {
+		let e = this.getTheme(), t = e.ui || {}, n = this.container.style;
+		this.themeCssVars = this.themeCssVars || /* @__PURE__ */ new Set();
+		for (let [e, r] of Object.entries(ie)) for (let i of r) t[e] ? (n.setProperty(i, t[e]), this.themeCssVars.add(i)) : this.themeCssVars.has(i) && (n.removeProperty(i), this.themeCssVars.delete(i));
+		e.font?.family ? this.svg.setAttribute("font-family", e.font.family) : this.svg.removeAttribute("font-family");
+	}
+	clearThemeUi() {
+		for (let e of this.themeCssVars || []) this.container.style.removeProperty(e);
+		this.themeCssVars = null;
+	}
+	getMarkerId(e, t) {
+		let n = `${e}|${t}`, r = this.markerIds.get(n);
+		if (r) return r;
+		let i = "http://www.w3.org/2000/svg", a = document.createElementNS(i, "marker");
+		if (r = `weavle-${e}-${String(t).replace(/[^a-zA-Z0-9]/g, "")}`, a.setAttribute("id", r), a.setAttribute("viewBox", "0 0 10 10"), a.setAttribute("refY", "5"), e === "arrow") {
+			let e = document.createElementNS(i, "path");
+			e.setAttribute("d", "M 0 0 L 10 5 L 0 10 z"), e.setAttribute("fill", t), a.append(e), a.setAttribute("refX", "10"), a.setAttribute("markerWidth", "6"), a.setAttribute("markerHeight", "6"), a.setAttribute("orient", "auto-start-reverse");
+		} else if (e === "openArrow") {
+			let e = document.createElementNS(i, "path");
+			e.setAttribute("d", "M 1 1 L 9 5 L 1 9"), e.setAttribute("fill", "none"), e.setAttribute("stroke", t), e.setAttribute("stroke-width", "1.5"), a.append(e), a.setAttribute("refX", "9"), a.setAttribute("markerWidth", "7"), a.setAttribute("markerHeight", "7"), a.setAttribute("orient", "auto-start-reverse");
+		} else {
+			let e = document.createElementNS(i, "circle");
+			e.setAttribute("cx", "5"), e.setAttribute("cy", "5"), e.setAttribute("r", "3.5"), e.setAttribute("fill", "#ffffff"), e.setAttribute("stroke", t), e.setAttribute("stroke-width", "1.5"), a.append(e), a.setAttribute("refX", "2"), a.setAttribute("markerWidth", "7"), a.setAttribute("markerHeight", "7");
+		}
+		return this.defs.appendChild(a), this.markerIds.set(n, r), r;
 	}
 	applyTextStyle(e, t) {
 		t.textColor && e.setAttribute("fill", t.textColor), t.fontWeight && e.setAttribute("font-weight", t.fontWeight), t.fontStyle && e.setAttribute("font-style", t.fontStyle);
@@ -6142,15 +6189,15 @@ var P = class {
 			e.label = t, this.selectSingleNode(e.id), this.state.selectedEdgeId = null, this.emit("weavle:modelchanged", { model: this.getData() }), this.render();
 		}
 	}
-}, F = "http://www.w3.org/2000/svg", I = .5, re = 26, ie = 4, ae = 10, oe = 90, L = 8, R = 22, z = 12, B = 50, se = 36, ce = 40, le = {
+}, M = "http://www.w3.org/2000/svg", N = .5, se = 26, ce = 4, le = 10, ue = 90, P = 8, F = 22, I = 12, L = 50, de = 36, fe = 40, pe = {
 	category: 150,
 	cause: 160,
 	subCause: 130
-}, ue = {
+}, me = {
 	category: 100,
 	cause: 28,
 	subCause: 24
-}, V = {
+}, R = {
 	effect: {
 		placement: "inside",
 		fontSize: 15,
@@ -6179,41 +6226,44 @@ var P = class {
 		paddingY: 1,
 		maxLines: 3
 	}
-}, de = 1.25, H = {
+}, he = 1.25, z = {
+	fill: "transparent",
+	stroke: "none"
+}, B = {
 	effect: "category",
 	category: "cause",
 	cause: "subCause"
-}, U = {
+}, V = {
 	category: "bone",
 	cause: "causeLine",
 	subCause: "subCauseLine"
-}, fe = [
+}, ge = [
 	"Mens",
 	"Machine",
 	"Methode",
 	"Materiaal",
 	"Meting",
 	"Milieu"
-], pe = {
+], _e = {
 	effect(e, t) {
-		let { x: n, y: r, width: i, height: a } = e, o = Math.min(a / 2, i / 3), s = document.createElementNS(F, "g"), c = t.diagram.getSpineStart?.(e, t);
+		let { x: n, y: r, width: i, height: a } = e, o = Math.min(a / 2, i / 3), s = document.createElementNS(M, "g"), c = t.diagram.getSpineStart?.(e, t);
 		if (c != null) {
-			let e = t.getEdgeStyle({ type: "bone" }), i = document.createElementNS(F, "line");
+			let e = t.getEdgeStyle({ type: "bone" }), i = document.createElementNS(M, "line");
 			i.setAttribute("x1", c), i.setAttribute("y1", r + a / 2), i.setAttribute("x2", n), i.setAttribute("y2", r + a / 2), i.setAttribute("stroke", e.stroke), i.setAttribute("stroke-width", String(e.strokeWidth)), e.dash && i.setAttribute("stroke-dasharray", e.dash), i.setAttribute("class", "weavle-ishikawa-spine"), i.setAttribute("pointer-events", "none"), s.appendChild(i);
 		}
-		let l = document.createElementNS(F, "path");
+		let l = document.createElementNS(M, "path");
 		return l.setAttribute("d", `M ${n} ${r} L ${n + i - o} ${r} A ${o} ${a / 2} 0 0 1 ${n + i - o} ${r + a} L ${n} ${r + a} Z`), t.applyNodeStyle(l, e), s.appendChild(l), s;
 	},
 	category(e, t) {
-		let n = document.createElementNS(F, "rect");
+		let n = document.createElementNS(M, "rect");
 		return n.setAttribute("x", e.x), n.setAttribute("y", e.y), n.setAttribute("width", e.width), n.setAttribute("height", e.height), n.setAttribute("rx", 4), t.applyNodeStyle(n, e), n;
 	},
 	text(e, t) {
-		let n = document.createElementNS(F, "rect");
+		let n = document.createElementNS(M, "rect");
 		return n.setAttribute("x", e.x - 2), n.setAttribute("y", e.y - 1), n.setAttribute("width", e.width + 4), n.setAttribute("height", e.height + 2), n.setAttribute("rx", 3), t.applyNodeStyle(n, e), n;
 	}
 };
-function W(e) {
+function H(e) {
 	let t = e.model.nodes, n = new Map(t.map((e) => [e.id, e])), r = /* @__PURE__ */ new Map();
 	for (let t of e.model.edges) {
 		let e = n.get(t.sourceNodeId), i = n.get(t.targetNodeId);
@@ -6225,42 +6275,42 @@ function W(e) {
 		children: (e) => t.filter((t) => r.get(t.id) === e)
 	};
 }
-function G(e, t, n) {
+function U(e, t, n) {
 	return {
 		id: e.generateId(),
 		sourceNodeId: t.id,
 		targetNodeId: n.id,
 		sourceHandle: "right",
 		targetHandle: "left",
-		type: U[t.type] || "bone"
+		type: V[t.type] || "bone"
 	};
 }
-function K(e, t) {
-	let n = V[t.type], { lines: r } = e.wrapLabel(t.label || "", le[t.type], n.maxLines, n.fontSize), i = Math.max(0, ...r.map((t) => e.measureLabelText(t, n.fontSize)));
-	t.width = Math.max(ue[t.type], Math.ceil(i + 2 * n.paddingX + 2)), t.height = Math.ceil(Math.max(1, r.length) * n.fontSize * de + 2 * n.paddingY);
+function W(e, t) {
+	let n = R[t.type], { lines: r } = e.wrapLabel(t.label || "", pe[t.type], n.maxLines, n.fontSize), i = Math.max(0, ...r.map((t) => e.measureLabelText(t, n.fontSize)));
+	t.width = Math.max(me[t.type], Math.ceil(i + 2 * n.paddingX + 2)), t.height = Math.ceil(Math.max(1, r.length) * n.fontSize * he + 2 * n.paddingY);
 }
-function me(e, t, n, r, i) {
-	let a = (e) => i + r * e, o = (e) => -e * I, s = [n], c = /* @__PURE__ */ new Map(), l = 0, u = re;
+function ve(e, t, n, r, i) {
+	let a = (e) => i + r * e, o = (e) => -e * N, s = [n], c = /* @__PURE__ */ new Map(), l = 0, u = se;
 	for (let i of [...t.children(n)].reverse()) {
-		K(e, i);
+		W(e, i);
 		let n = t.children(i);
-		n.forEach((t) => K(e, t));
-		let d = r < 0 ? Math.max(R, i.height + 6) : R, f = n.length ? d + Math.max(...n.map((e) => e.height)) + 2 : 0, p = r < 0 ? 0 : i.height + 2, m = r < 0 ? Math.max(i.height + 2, f) : f;
-		u += p + ie;
+		n.forEach((t) => W(e, t));
+		let d = r < 0 ? Math.max(F, i.height + 6) : F, f = n.length ? d + Math.max(...n.map((e) => e.height)) + 2 : 0, p = r < 0 ? 0 : i.height + 2, m = r < 0 ? Math.max(i.height + 2, f) : f;
+		u += p + ce;
 		let h = u;
-		u += m + ae;
+		u += m + le;
 		let g = a(h), _ = o(h);
-		i.x = _ - L - (r < 0 ? i.height * I : 0) - i.width, i.y = g - i.height - 1, s.push(i);
-		let v = i.x - 4, y = i.x - L, b = Infinity;
+		i.x = _ - P - (r < 0 ? i.height * N : 0) - i.width, i.y = g - i.height - 1, s.push(i);
+		let v = i.x - 4, y = i.x - P, b = Infinity;
 		for (let e of n) {
-			let t = Math.min(y - d * I, b - z - e.width / 2, o(h + d + e.height) - L - e.width / 2), n = g + r * d, i = t + d * I;
+			let t = Math.min(y - d * N, b - I - e.width / 2, o(h + d + e.height) - P - e.width / 2), n = g + r * d, i = t + d * N;
 			e.x = t - e.width / 2, e.y = r < 0 ? n - e.height - 1 : n + 1, s.push(e), c.set(e.id, [{
 				x: t,
 				y: n
 			}, {
 				x: i,
 				y: g
-			}]), b = e.x, y = i - z, v = Math.min(v, i - 10), l = Math.min(l, e.x);
+			}]), b = e.x, y = i - I, v = Math.min(v, i - 10), l = Math.min(l, e.x);
 		}
 		c.set(i.id, [{
 			x: v,
@@ -6270,8 +6320,8 @@ function me(e, t, n, r, i) {
 			y: g
 		}]), l = Math.min(l, v, i.x);
 	}
-	K(e, n);
-	let d = Math.max(u + 4, oe), f = {
+	W(e, n);
+	let d = Math.max(u + 4, ue), f = {
 		x: o(d),
 		y: a(d)
 	};
@@ -6285,16 +6335,16 @@ function me(e, t, n, r, i) {
 		anchor: f
 	};
 }
-function he(e, t) {
+function ye(e, t) {
 	t.clear();
-	let n = W(e), r = n.effect;
+	let n = H(e), r = n.effect;
 	if (!r) return;
-	for (let t of e.model.nodes) t.type === "category" && !n.parentOf(t) && e.model.edges.push(G(e, t, r));
-	let i = W(e), a = i.children(r).filter((e) => e.type === "category"), o = r.y + r.height / 2, s = a.map((t, n) => ({
+	for (let t of e.model.nodes) t.type === "category" && !n.parentOf(t) && e.model.edges.push(U(e, t, r));
+	let i = H(e), a = i.children(r).filter((e) => e.type === "category"), o = r.y + r.height / 2, s = a.map((t, n) => ({
 		category: t,
 		column: Math.floor(n / 2),
-		...me(e, i, t, n % 2 == 0 ? -1 : 1, o)
-	})), c = Math.ceil(s.length / 2), l = r.x - B;
+		...ve(e, i, t, n % 2 == 0 ? -1 : 1, o)
+	})), c = Math.ceil(s.length / 2), l = r.x - L;
 	for (let e = c - 1; e >= 0; e--) {
 		let n = s.filter((t) => t.column === e), i = Math.min(...n.map((e) => e.minX)), a = Math.max(...n.map((e) => e.maxX)), c = l - a;
 		for (let e of n) {
@@ -6320,7 +6370,7 @@ function he(e, t) {
 				}
 			]);
 		}
-		l = c + i - se;
+		l = c + i - de;
 	}
 	let u = new Map(t);
 	t.clear();
@@ -6335,11 +6385,11 @@ function he(e, t) {
 		});
 	}
 }
-function q() {
+function G() {
 	let e = /* @__PURE__ */ new Map();
 	return {
 		id: "ishikawa",
-		shapes: pe,
+		shapes: _e,
 		nodeTypes: {
 			effect: {
 				defaultLabel: "Probleem",
@@ -6360,18 +6410,14 @@ function q() {
 			},
 			cause: {
 				defaultLabel: "Oorzaak",
-				colors: {
-					fill: "transparent",
-					stroke: "none"
-				},
+				colors: z,
+				fixedStyle: z,
 				shape: "text"
 			},
 			subCause: {
 				defaultLabel: "Suboorzaak",
-				colors: {
-					fill: "transparent",
-					stroke: "none"
-				},
+				colors: z,
+				fixedStyle: z,
 				shape: "text"
 			}
 		},
@@ -6399,7 +6445,7 @@ function q() {
 			}
 		},
 		getEdgeTypeForConnection({ source: e }) {
-			return U[e?.type] || "bone";
+			return V[e?.type] || "bone";
 		},
 		createInitialModel() {
 			let e = {
@@ -6411,7 +6457,7 @@ function q() {
 				width: 180,
 				height: 90
 			}, t = [e], n = [];
-			return fe.forEach((r, i) => {
+			return ge.forEach((r, i) => {
 				let a = `category-${i + 1}`;
 				t.push({
 					id: a,
@@ -6435,7 +6481,7 @@ function q() {
 			};
 		},
 		layoutDiagram(t) {
-			he(t, e);
+			ye(t, e);
 		},
 		routeEdge({ sourcePoint: t, targetPoint: n, edge: r, engine: i }) {
 			let a = e.get(r?.id), o = a && i.getNode(r.sourceNodeId);
@@ -6447,15 +6493,15 @@ function q() {
 			}));
 		},
 		getDragTarget(e, t) {
-			return W(t).effect || null;
+			return H(t).effect || null;
 		},
 		getSpineStart(e, t) {
 			if (!t?.getNode(e.id)) return null;
 			let n = t.model.edges.filter((t) => t.targetNodeId === e.id && t.routePoints?.length >= 3).map((e) => e.routePoints[1].x);
-			return Math.min(e.x - B, ...n) - ce;
+			return Math.min(e.x - L, ...n) - fe;
 		},
 		getDependentNodes(e, t) {
-			return H[e.type] ? W(t).children(e) : [];
+			return B[e.type] ? H(t).children(e) : [];
 		},
 		canDeleteNode(e) {
 			return e.type !== "effect";
@@ -6469,18 +6515,18 @@ function q() {
 		},
 		handleCanvasAction(e, t) {
 			if (e.type !== "fishboneAddCategory") return !1;
-			let n = W(t).effect;
-			return n ? (J(t, n, null), !0) : !1;
+			let n = H(t).effect;
+			return n ? (K(t, n, null), !0) : !1;
 		},
 		getContextActions(e, t) {
-			let n = W(t), r = n.parentOf(e), i = r ? n.children(r) : [], a = i.indexOf(e), o = (e) => this.nodeTypes[e].defaultLabel.toLowerCase(), s = [];
+			let n = H(t), r = n.parentOf(e), i = r ? n.children(r) : [], a = i.indexOf(e), o = (e) => this.nodeTypes[e].defaultLabel.toLowerCase(), s = [];
 			return e.type === "effect" ? (s.push({
 				type: "fishboneAddChild",
 				label: "Categorie toevoegen",
 				nodeType: "category"
-			}), s) : (H[e.type] && s.push({
+			}), s) : (B[e.type] && s.push({
 				type: "fishboneAddChild",
-				label: `${Y(o(H[e.type]))} toevoegen`,
+				label: `${q(o(B[e.type]))} toevoegen`,
 				icon: "branch"
 			}), s.push(e.type === "category" ? {
 				type: "fishboneAddSibling",
@@ -6488,7 +6534,7 @@ function q() {
 				nodeType: "category"
 			} : {
 				type: "fishboneAddSibling",
-				label: `${Y(o(e.type))} toevoegen`,
+				label: `${q(o(e.type))} toevoegen`,
 				icon: "plus"
 			}), a > 0 && s.push({
 				type: "fishboneMove",
@@ -6506,12 +6552,12 @@ function q() {
 			}), s);
 		},
 		handleAction(e, t, n) {
-			let r = W(n);
+			let r = H(n);
 			switch (e.type) {
-				case "fishboneAddChild": return H[t.type] ? (J(n, t, null), !0) : !1;
+				case "fishboneAddChild": return B[t.type] ? (K(n, t, null), !0) : !1;
 				case "fishboneAddSibling": {
 					let e = r.parentOf(t);
-					return e ? (J(n, e, t), !0) : !1;
+					return e ? (K(n, e, t), !0) : !1;
 				}
 				case "fishboneMove": {
 					let i = r.parentOf(t), a = i ? r.children(i) : [], o = a[a.indexOf(t) + e.direction];
@@ -6549,7 +6595,7 @@ function q() {
 			return "action-surface";
 		},
 		getLabelLayout(e) {
-			return V[e.type] || {};
+			return R[e.type] || {};
 		},
 		getResizeRules(e) {
 			return e.type === "effect" && {
@@ -6561,8 +6607,8 @@ function q() {
 		}
 	};
 }
-function J(e, t, n) {
-	let r = H[t.type], i = {
+function K(e, t, n) {
+	let r = B[t.type], i = {
 		id: e.generateId(),
 		type: r,
 		label: e.getDefaultLabelForType(r),
@@ -6571,47 +6617,47 @@ function J(e, t, n) {
 		width: 0,
 		height: 0
 	}, a = e.model.nodes, o = n ? a.indexOf(n) : -1;
-	o >= 0 ? a.splice(o + 1, 0, i) : a.push(i), e.model.edges.push(G(e, i, t)), e.selectSingleNode(i.id), e.emitSelectionChanged(), setTimeout(() => {
+	o >= 0 ? a.splice(o + 1, 0, i) : a.push(i), e.model.edges.push(U(e, i, t)), e.selectSingleNode(i.id), e.emitSelectionChanged(), setTimeout(() => {
 		e.getNode(i.id) && !e.state.editingLabel && e.startInlineLabelEdit("node", i.id);
 	}, 0);
 }
-function Y(e) {
+function q(e) {
 	return e.charAt(0).toUpperCase() + e.slice(1);
 }
 //#endregion
 //#region src/weavle-outsystems.js
-var X = {
+var J = {
 	bpmn: b,
 	flowchart: s,
-	ishikawa: q
-}, Z = {
+	ishikawa: G
+}, Y = {
 	nodes: [],
 	edges: []
 };
-function ge(e, t) {
-	X[e] = t;
+function be(e, t) {
+	J[e] = t;
 }
-function _e() {
-	return Object.keys(X);
+function X() {
+	return Object.keys(J);
 }
-function ve(e) {
-	return xe(e)?._weavle || null;
+function xe(e) {
+	return Q(e)?._weavle || null;
 }
-function ye(e, t = {}) {
-	let n = xe(e);
+function Se(e, t = {}) {
+	let n = Q(e);
 	if (!n) throw Error(`Weavle.mount: container "${e}" not found`);
 	n._weavle?.destroy();
 	let r = typeof t.diagramType == "function" ? "custom" : t.diagramType || "bpmn", i = (e) => {
-		let n = e === "custom" && typeof t.diagramType == "function" ? t.diagramType : X[e];
-		if (!n) throw Error(`Weavle: unknown diagram type "${e}" (known: ${_e().join(", ")})`);
+		let n = e === "custom" && typeof t.diagramType == "function" ? t.diagramType : J[e];
+		if (!n) throw Error(`Weavle: unknown diagram type "${e}" (known: ${X().join(", ")})`);
 		return n;
-	}, a = { ...Q(t.options) || {} }, o = r, s = new P(n, { ...a }, i(o)()), c = null, l = (e) => ({
+	}, a = { ...$(t.options) || {} }, o = r, s = new j(n, { ...a }, i(o)()), c = null, l = (e) => ({
 		diagramType: o,
 		...e
 	}), u = {
 		"weavle:modelchanged": (e) => {
 			let n = l(e.detail.model);
-			c = $(n), t.onModelChanged?.(JSON.stringify(n));
+			c = Ce(n), t.onModelChanged?.(JSON.stringify(n));
 		},
 		"weavle:selectionchanged": (e) => {
 			t.onSelectionChanged?.(e.detail.primarySelectedNodeId || "", e.detail.selectedEdgeId || "", JSON.stringify(e.detail.selectedNodeIds || []));
@@ -6628,11 +6674,11 @@ function ye(e, t = {}) {
 	for (let [e, t] of Object.entries(u)) n.addEventListener(e, t);
 	let d = () => s.emit("weavle:modelchanged", { model: s.getData() }), f = (e) => {
 		let r = i(e);
-		s.destroy(), o = e, s = new P(n, { ...a }, r()), t.onSelectionChanged?.("", "", "[]");
+		s.destroy(), o = e, s = new j(n, { ...a }, r()), t.onSelectionChanged?.("", "", "[]");
 	}, p = (e) => {
 		let { diagramType: t, ...n } = e;
 		s.load(JSON.parse(JSON.stringify({
-			...Z,
+			...Y,
 			...n
 		})));
 	}, m = {
@@ -6640,7 +6686,7 @@ function ye(e, t = {}) {
 			return s;
 		},
 		setModel(e) {
-			let t = (typeof e == "string" ? Q(e) : e) || Z, n = t.diagramType || r, i = $({
+			let t = (typeof e == "string" ? $(e) : e) || Y, n = t.diagramType || r, i = Ce({
 				...t,
 				diagramType: n
 			});
@@ -6654,7 +6700,7 @@ function ye(e, t = {}) {
 		},
 		setDiagramType(e, t) {
 			if (e === o && t == null) return !1;
-			let n = (typeof t == "string" ? Q(t) : t) || Z;
+			let n = (typeof t == "string" ? $(t) : t) || Y;
 			return e !== o && f(e), p(n), d(), !0;
 		},
 		undo() {
@@ -6667,13 +6713,17 @@ function ye(e, t = {}) {
 			s.clear();
 		},
 		optimizeEdges(e) {
-			return s.optimizeEdges({ nodeIds: be(e) });
+			return s.optimizeEdges({ nodeIds: Z(e) });
 		},
 		optimizeLayout(e) {
-			return s.optimizeLayout({ nodeIds: be(e) });
+			return s.optimizeLayout({ nodeIds: Z(e) });
 		},
 		setLayoutDirection(e) {
 			s.setLayoutDirection(e), a.layoutDirection = s.options.layoutDirection;
+		},
+		setTheme(e) {
+			let t = $(e) || null;
+			a.theme = t, s.setTheme(t);
 		},
 		setToolbarPosition(e) {
 			a.toolbarPosition = e, s.setToolbarPosition(e);
@@ -6686,10 +6736,10 @@ function ye(e, t = {}) {
 			a.width = e, a.height = t, s.setCanvasSize(e, t);
 		},
 		fitToContent(e) {
-			s.fitToContent(Q(e) || {});
+			s.fitToContent($(e) || {});
 		},
 		exportSvg(e) {
-			return s.exportSvg(Q(e) || {});
+			return s.exportSvg($(e) || {});
 		},
 		addNode(e, t) {
 			let n = `node_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
@@ -6711,25 +6761,25 @@ function ye(e, t = {}) {
 			s.destroy(), n._weavle === m && delete n._weavle;
 		}
 	};
-	return n._weavle = m, m.setModel(t.model ?? Z), m;
+	return n._weavle = m, m.setModel(t.model ?? Y), m;
 }
-function be(e) {
+function Z(e) {
 	let t = e ? typeof e == "string" ? JSON.parse(e) : e : null;
 	return t && t.length ? t : null;
 }
-function xe(e) {
+function Q(e) {
 	return e ? typeof e == "string" ? document.getElementById(e) || document.querySelector(e) : e : null;
 }
-function Q(e) {
+function $(e) {
 	return typeof e == "string" ? e.trim() ? JSON.parse(e) : null : e ?? null;
 }
-function $(e) {
+function Ce(e) {
 	return JSON.stringify(e, (e, t) => t && typeof t == "object" && !Array.isArray(t) ? Object.fromEntries(Object.keys(t).sort().map((e) => [e, t[e]])) : t);
 }
 //#endregion
 //#region src/index.js
-var Se = "0.9.0";
+var we = "0.9.0";
 //#endregion
-export { P as WeavleJS, b as createBpmnDefinition, s as createFlowchartDefinition, q as createIshikawaDefinition, _e as getDiagramTypes, ve as getInstance, ye as mount, ge as registerDiagramType, Se as version };
+export { j as WeavleJS, b as createBpmnDefinition, s as createFlowchartDefinition, G as createIshikawaDefinition, X as getDiagramTypes, xe as getInstance, Se as mount, be as registerDiagramType, we as version };
 
 //# sourceMappingURL=weavle.es.js.map

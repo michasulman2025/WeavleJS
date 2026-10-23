@@ -220,6 +220,13 @@ export function mount(container, config = {}) {
             editorOptions.layoutDirection = editor.options.layoutDirection;
         },
 
+        /** House style (ARCHITECTURE.md 7.4), object or JSON text; empty = no theme. Kept across type switches. */
+        setTheme(theme) {
+            const value = parseJson(theme) || null;
+            editorOptions.theme = value;
+            editor.setTheme(value);
+        },
+
         /** Canvas toolbar placement: "top", "left", "right" or "floating" (draggable). */
         setToolbarPosition(position) {
             editorOptions.toolbarPosition = position;

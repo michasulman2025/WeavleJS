@@ -162,7 +162,7 @@ ports: [
 | Derived mode: `toGraph(data)` | Pedigree | – |
 | Layout hook with options and animation | Pedigree, Ishikawa | Partly: `layoutDiagram` ✅ (without options and animation) |
 | Expanding and lazy loading via events | Pedigree | – |
-| Themes (house style) and per-item styles | All (organisations) | Partly: style resolver and type classes ✅ (section 7) |
+| Themes (house style) and per-item styles | All (organisations) | Partly: style resolver, type classes and themes ✅ (section 7) |
 
 ### Couplings that are still on the wrong side
 
@@ -224,7 +224,7 @@ ports: [
 
 ## 7. Styling and themes (design)
 
-Status: step 1 of 7.10 is built; the rest is design. Goal: organisations can apply their house style to every diagram, and users can
+Status: steps 1–2 of 7.10 are built; the rest is design. Goal: organisations can apply their house style to every diagram, and users can
 mark individual nodes and edges — without visual inline styles, and with the same result on screen and in
 `exportSvg()`.
 
@@ -337,23 +337,24 @@ export, type previews in the toolbar):
 engine.getNodeStyle(node)  /  engine.getEdgeStyle(edge)
 
   1. engine defaults                      (fill #eee, stroke #999, strokeWidth 1.5, ...)
-  2. definition default                   (nodeTypes[type].colors / diagram.defaultTheme)
-  3. theme.node / theme.edge
-  4. theme.nodeTypes[type] / theme.edgeTypes[type]
-  5. theme.diagrams[id] (its node, nodeTypes[type], edge, edgeTypes[type])
-  6. theme.presets[item.style.preset]
-  7. item.style (explicit properties, if allowed)
-     → minus the properties the type fixes (fixedStyle)
+  2. definition default                   (nodeTypes[type].colors / .style, label colour; edgeTypes[type])
+  3. generic theme                        theme.node / theme.edge, then theme.diagrams[id].node / .edge
+  4. the type's fixedStyle                (properties a generic theme must not change)
+  5. theme per type                       theme.nodeTypes[type] / theme.edgeTypes[type], then theme.diagrams[id]'s
+  6. theme.presets[item.style.preset]     (planned, step 3)
+  7. item.style                           (planned, step 3; explicit properties, if allowed)
 ```
 
-- **Fixed properties:** a type can lock properties that would break its meaning:
-  `nodeTypes.cause.fixedStyle = { fill: "none", stroke: "none" }` (Ishikawa causes are text on a line; a theme
-  `node.fill` must not give them a box). The selection outline still works.
+- **Fixed properties** protect a type against the *generic* theme layers only: `theme.node.fill` must not give an
+  Ishikawa cause a box (`fixedStyle: { fill: "transparent", stroke: "none" }`), and `theme.node.textColor` must
+  not make the white header text of a BPMN pool or lane unreadable (`fixedStyle: { textColor: "#ffffff" }`). An
+  entry for that specific type (`theme.nodeTypes.swimlane.textColor`), a preset or a node's own style may still
+  change them — that is a deliberate choice for that type. The selection outline always works.
 - **Selection** stays outside this chain: a selected item is drawn with `theme.ui.selection` on top of its own
   style, and the export never contains it.
 - `getNodeColors(type)` stays as a deprecated wrapper (`{ fill, stroke }` of steps 1–5) for existing definitions;
   definitions move to `getNodeStyle(node)` so detail lines follow per-node styles too.
-- Resolved styles are cached per render (cleared on model, theme or selection change).
+- Not cached (yet): resolving is a handful of object spreads per item; cache per render if it ever shows up.
 
 ### 7.7 Rendering, classes and export
 
@@ -363,8 +364,9 @@ engine.getNodeStyle(node)  /  engine.getEdgeStyle(edge)
   `weavle-edge--{type}`; styled items also get `weavle-node--preset-{name}` / `weavle-edge--preset-{name}`.
   CSS rules still win over attributes on screen, but they are **not** carried into the export; the theme is the
   recommended route for a house style, CSS for fine-tuning.
-- **Arrowheads** follow the edge stroke: markers are created on demand per colour (`arrow-<colour>`,
-  `arrow-open-<colour>`, `circle-open-<colour>`) in the SVG `<defs>` and reused. (SVG2 `context-stroke` would be
+- **Arrowheads** follow the edge stroke: markers are created on demand per kind and colour (`getMarkerId(kind,
+  colour)` → `weavle-arrow-<colour>`, `weavle-openArrow-<colour>`, `weavle-circle-<colour>`) in the SVG `<defs>`
+  and reused. (SVG2 `context-stroke` would be
   simpler but is not supported everywhere yet.)
 - **Labels:** `textColor`, `fontWeight`, `fontStyle` as attributes on the `<text>`; `theme.font.family` on the
   SVG root (and so in the export). Web fonts are not embedded in the export; the host page or document must
@@ -374,11 +376,12 @@ engine.getNodeStyle(node)  /  engine.getEdgeStyle(edge)
 
 - `theme.ui` maps to the existing CSS custom properties, set on the container: `selection` →
   `--weavle-selection-color`, `canvasBackground` → `--weavle-canvas-bg`, `grid` → `--weavle-grid-color`,
-  `accent` → `--weavle-handle-fill` / `--weavle-port-stroke` / `--weavle-ui-active-text`, plus `uiFont`,
-  `uiBackground`, `uiText`, `uiBorder` for the node tools and toolbar. (Setting custom properties on the container
+  `accent` → `--weavle-handle-fill` / `--weavle-port-stroke` / `--weavle-ui-active-text`, `hot` →
+  `--weavle-port-hot`, plus `uiFont`, `uiBackground`, `uiText`, `uiBorder` for the node tools and toolbar
+  (`THEME_UI_CSS_VARS`; `applyThemeUi`, removed again by `destroy`). (Setting custom properties on the container
   is configuration, not a visual inline style on an element.)
-- The colours that are still hard-coded in `weavle.js` (selection `#F57100`, ports, handles, guides `#4da3ff`,
-  marquee, drop target, hover glow) read the same values, so attributes and CSS agree.
+- The colours drawn in SVG (selection, ports, handles, guides, marquee, drop target, hover glow, grid) come from
+  `getUiColors()`: `theme.ui` with the old values as defaults, so attributes and CSS agree.
 
 ### 7.9 Node tools: "Stijl"
 
@@ -395,7 +398,7 @@ Each step is usable on its own and changes nothing for existing diagrams without
 
 1. ✅ **Resolver and classes:** `getNodeStyle` / `getEdgeStyle` (steps 1–4 of 7.6 with an empty theme), type classes,
    definitions switch from `getNodeColors` to `getNodeStyle`. No visible change.
-2. **Theme:** `options.theme`, `setTheme`, `theme.diagrams`, `fixedStyle`, markers per colour, `theme.font`,
+2. ✅ **Theme:** `options.theme`, `setTheme`, `theme.diagrams`, `fixedStyle`, markers per colour, `theme.font`,
    `theme.ui`, the remaining hard-coded colours. OutSystems `setTheme`. Playground: a theme switch (default /
    sample house style).
 3. **Per-item style:** `node.style` / `edge.style` with presets and `allowCustomStyles`; export check.
