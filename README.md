@@ -1,7 +1,7 @@
 # 🧶 Weavle
 
 A lightweight, dependency-free SVG diagram editor for the browser. One engine, many diagram types:
-flowcharts, BPMN and Ishikawa (fishbone) diagrams today, more to come. Built with OutSystems in mind, but it runs anywhere you have a DOM.
+flowcharts, BPMN, Ishikawa (fishbone) and fault tree (FTA) diagrams today, more to come. Built with OutSystems in mind, but it runs anywhere you have a DOM.
 
 The engine knows nothing about "gateways" or "decisions". Everything that makes a diagram type what it is —
 shapes, colours, ports, edge types, sizes, labels, rules — lives in a **diagram definition** (an add-in).
@@ -11,7 +11,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the design and roadmap.
 
 ## Examples
 
-All images below are exported by Weavle itself (`exportSvg()`). The BPMN and Ishikawa diagrams are the playground samples.
+All images below are exported by Weavle itself (`exportSvg()`). The BPMN, Ishikawa and fault tree diagrams are the playground samples.
 
 ### Flowchart
 
@@ -33,6 +33,14 @@ fishbone arranges itself. A new diagram starts with the 6M categories.
 
 ![Ishikawa: causes of late deliveries in six categories](docs/images/ishikawa.svg)
 
+### Fault tree (FTA)
+
+Fault tree analysis with automatic top-down layout: a top event broken down through AND, OR, XOR, priority AND,
+k-out-of-n and inhibit gates into intermediate, basic, undeveloped, house and transfer events. Add gates and causes
+from the node tools; the tree arranges itself.
+
+![Fault tree: why a data centre goes down](docs/images/fta.svg)
+
 ### Themes and styles
 
 The same diagram with a house-style theme (`options.theme`): colours per node type, line colour, editor colours, and
@@ -45,7 +53,7 @@ presets users can pick per node ("Kritiek" and "Let op" here).
 ## Features
 
 - Zero runtime dependencies, plain ES modules
-- Pluggable diagram definitions — flowchart, BPMN and Ishikawa included
+- Pluggable diagram definitions — flowchart, BPMN, Ishikawa and fault tree included
 - Flowchart: all 26 standard (ISO 5807) shapes in five groups, incl. on-page / off-page connectors and comments
 - BPMN: 23 event types (start / intermediate catch & throw / end), 10 activity types, gateways, data,
   annotations, pools & lanes — with "change type" in the node tools
@@ -66,6 +74,7 @@ presets users can pick per node ("Kritiek" and "Let op" here).
 - CSS-stylable dot or line grid
 - Containers: BPMN pools and lanes hold their contents, stack lanes and move as one
 - Ishikawa (fishbone): problem → categories → causes → sub-causes, laid out automatically; starts with the 6M
+- Fault tree (FTA): top event → gates → events, laid out automatically top-down; six gate types, k-out-of-n threshold
 - Themes for a house style (`options.theme` / `setTheme()`): node and edge styles per type, font, editor colours —
   also in `exportSvg()`; presets users can give single nodes ("Stijl" in the node tools)
 - Read-only mode
@@ -82,6 +91,7 @@ presets users can pick per node ("Kritiek" and "Let op" here).
 | `src/weavle-flowchart.js` | Flowchart definition — `export function createFlowchartDefinition()` |
 | `src/weavle-bpmn.js` | BPMN definition — `export function createBpmnDefinition()` |
 | `src/weavle-ishikawa.js` | Ishikawa definition — `export function createIshikawaDefinition()` |
+| `src/weavle-fta.js` | Fault tree definition — `export function createFtaDefinition()` |
 | `src/samples/` | Sample diagrams and the sample house-style theme used by the playground |
 | `dist/weavle.iife.js` | Single-file build for a `<script>` tag — global `Weavle` (engine, definitions, OutSystems adapter) |
 | `dist/weavle.es.js` | Same as an ES module |

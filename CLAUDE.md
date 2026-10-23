@@ -23,6 +23,7 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
 - `src/weavle-flowchart.js` — `export function createFlowchartDefinition()`.
 - `src/weavle-bpmn.js` — `export function createBpmnDefinition()`.
 - `src/weavle-ishikawa.js` — `export function createIshikawaDefinition()` (fishbone, automatic layout).
+- `src/weavle-fta.js` — `export function createFtaDefinition()` (fault tree, automatic top-down layout).
 - `src/weavle-layout.js` — `computeLayeredLayout(graph, options)`, the layered layout behind "Flow optimaliseren".
 - `src/weavle-outsystems.js` — host adapter: `mount(container, config)` → controller, `getInstance`,
   `registerDiagramType`; JSON in / out and echo protection (`setModel` skips the model the editor reported).
@@ -32,6 +33,7 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
   and `example.html` simulation.
 - `src/samples/bpmn-order-process.js` — complex BPMN sample (3 pools, lanes, message flows), button
   "Load complex sample" in the playground. `src/samples/ishikawa-late-delivery.js` — the Ishikawa "Load sample".
+  `src/samples/fta-datacenter-outage.js` — the fault tree "Load sample".
 - `index.html`, `src/demo.js`, `src/style.css` — the playground (diagram type switch, shape buttons,
   event log, selection info, model JSON).
 - `embed-test.html` — embedding tests: two editors (keyboard follows focus), `setCanvasSize` + `fitToContent` in a
@@ -127,6 +129,12 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
   last layout, shifted by how far their child node moved since (live while dragging); dragging any part drags the
   whole diagram (`getDragTarget` → head, `getDependentNodes` → the rest); the head shape draws the spine's tail
   (`getSpineStart`, from the stored routes).
+- Fault tree (`weavle-fta.js`, same pattern as Ishikawa): child → parent edges; `topEvent` / `event` boxes have at
+  most one gate (`GATE_TYPES`), gates take `INPUT_TYPES` plus (inhibit) one `conditionEvent`; `layoutFaultTree` =
+  tidy tree top-down (`measure` subtree widths, `place` centred, bus routes per gate input via `inputPoint` /
+  `outputPoint`); boxes are sized by `fitToLabel`, leaves label below. k-out-of-n threshold in `node.k`.
+  Actions `ftaAddGate`, `ftaAddInput`, `ftaAddSibling`, `ftaAddCondition`, `ftaChangeGate`, `ftaSetK`, `ftaMove`,
+  `changeType` (input events only).
 - The diagram definition is the extension point for new diagram types: shapes, nodeTypes, getPorts,
   routeEdge, getContextActions, getNodeInteractionMode, getRoutingConfig.
 

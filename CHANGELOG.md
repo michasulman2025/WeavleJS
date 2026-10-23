@@ -3,6 +3,15 @@
 ## Unreleased
 
 ### Added
+- **Fault tree (FTA, foutenboom) diagram type** (`createFtaDefinition()` in `src/weavle-fta.js`, OutSystems
+  `diagramType: "fta"`): top event → gates → events, stored as nodes with child → parent edges and laid out
+  automatically top-down (tidy tree; the lines from a gate's inputs meet in a shared bus). Gates: OR, AND, XOR,
+  priority AND, k-out-of-n (threshold `node.k`, shown as "k/n") and inhibit (with a condition beside it). Events:
+  top, intermediate (box), basic (circle), undeveloped (diamond), house and transfer (label below the symbol).
+  Node tools: add / change a gate, add causes or a neighbour, change an event's type, set k, move left / right,
+  delete (takes everything below along; the top event can't be deleted). Dragging any part moves the whole tree.
+  A new diagram starts with a top event, an OR gate and two basic events. Playground: "Foutenboom (FTA)" with a
+  sample (`src/samples/fta-datacenter-outage.js`). New action icons `moveLeft`, `moveRight`.
 - **Definition default themes, styles step 5** (ARCHITECTURE.md 7.4): flowchart, BPMN and Ishikawa keep their
   colours in `diagram.defaultTheme` (same shape as a theme) instead of `nodeTypes[type].colors` — one readable
   table per diagram type. `getDefaultTheme()` (OutSystems `controller.getDefaultTheme()`, JSON) returns it as a

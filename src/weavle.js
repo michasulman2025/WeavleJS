@@ -4833,6 +4833,11 @@ export class WeavleJS {
                 d: icon === "moveUp" ? "M 20 32 L 20 9 M 11 17 L 20 8 L 29 17" : "M 20 8 L 20 31 M 11 23 L 20 32 L 29 23",
                 fill: "none", stroke: "currentColor", "stroke-width": 3, "stroke-linecap": "round", "stroke-linejoin": "round"
             });
+        } else if (icon === "moveLeft" || icon === "moveRight") {
+            add("path", {
+                d: icon === "moveLeft" ? "M 32 20 L 9 20 M 17 11 L 8 20 L 17 29" : "M 8 20 L 31 20 M 23 11 L 32 20 L 23 29",
+                fill: "none", stroke: "currentColor", "stroke-width": 3, "stroke-linecap": "round", "stroke-linejoin": "round"
+            });
         } else if (action.nodeType) {
             this.appendTypePreview(svg, action.nodeType);
         }

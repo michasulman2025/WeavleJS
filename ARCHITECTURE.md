@@ -196,6 +196,21 @@ ports: [
 - **Later (hybrid):** manual offsets along a bone. `layoutCategory` already works relative to the bone's
   junction with the spine; a per-node offset can be added there.
 
+### Fault tree / FTA (automatic layout)
+
+- **Model:** a tree of nodes with edges from child to parent: `topEvent` → gate → inputs. An event box (`topEvent`,
+  `event`) has at most one gate; a gate's inputs are intermediate events or leaves (`basicEvent`,
+  `undevelopedEvent`, `houseEvent`, `transfer`); an inhibit gate may also have one `conditionEvent`. Sibling order
+  = order in `model.nodes`. A k-out-of-n gate keeps its threshold in `node.k` (n = its number of inputs).
+- **Layout:** `layoutDiagram` builds a tidy tree top-down around the top event (which keeps its centre and top):
+  every subtree gets a column as wide as its widest row, parents are centred above it. Event boxes have a fixed
+  width and grow with their text; leaves carry their label below the symbol; the condition sits right of its gate.
+  `routeEdge` returns the stored elbow lines (bus between a gate and its inputs).
+- **Interaction:** as Ishikawa — no connecting or edge selection, dragging moves the whole tree, everything else
+  through the node tools.
+- **Later:** probabilities on basic events and the computed probability per gate / top event; minimal cut sets;
+  collapsing subtrees; transfer events that link to another tree.
+
 ### Node editor (free drawing, Blender style)
 
 - Nodes with a header and a list of inputs (left) and outputs (right), each with a label and a data type.
