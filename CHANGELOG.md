@@ -3,6 +3,18 @@
 ## Unreleased
 
 ### Added
+- **Ishikawa (visgraat) diagram type** (`createIshikawaDefinition()` in `src/weavle-ishikawa.js`, OutSystems
+  `diagramType: "ishikawa"`): problem (head) → categories (slanted main bones, alternately above / below the
+  spine) → causes (horizontal lines) → sub-causes (twigs), stored as nodes with child → parent edges. Laid out
+  automatically on every change; a new diagram starts with the 6M categories (Mens, Machine, Methode, Materiaal,
+  Meting, Milieu). Node tools: add child / sibling, reorder (sibling order = model order), delete (takes the
+  causes along; the problem can't be deleted). Playground: diagram type "Ishikawa (visgraat)" with a sample.
+- Engine hooks for diagram types that arrange themselves: `layoutDiagram(engine)` (run on load, before every
+  undo step and after undo / redo; `applyDiagramLayout()`), `createInitialModel()` (what `load` of an empty
+  model and `clear()` start with), `interaction: { dragNodes, connect, selectEdges }` (`getInteraction()`),
+  `canDeleteNode(node)`, `getDependentNodes(node)` (deleted / dragged along, like contents of a container).
+  `handleCanvasAction` returning `true` gets an undo step and a change event. Edge types may set
+  `strokeWidth`. New action icons `branch`, `moveUp`, `moveDown`.
 - `embed-test.html`: test page for keyboard scope, `fitToContent` / `setCanvasSize` and `exportSvg`
   (linked from the playground, included in `npm run build:demo`).
 - **Embedding in documents** (first user: ScrivleJS, the rich text editor): `fitToContent({ padding, maxZoom,

@@ -411,6 +411,9 @@ export class WeavleJS {
 
     /** Replaces the current model with the supplied data and re-renders. */
     load(data) {
+        // An empty diagram may start from the definition's initial model (e.g. Ishikawa: problem + 6M).
+        if (!data?.nodes?.length) data = this.getInitialModel() || data || {};
+
         this.model.nodes = data.nodes || [];
         this.model.edges = data.edges || [];
 
@@ -432,9 +435,12 @@ export class WeavleJS {
             if (!edge.type) {
                 this.assignEdgeType(edge);
             }
-
-            this.updateEdgeRoute(edge);
         });
+
+        // Diagrams with an automatic layout (Ishikawa) position everything themselves (and route the edges).
+        if (!this.applyDiagramLayout()) {
+            this.model.edges.forEach(edge => this.updateEdgeRoute(edge));
+        }
 
         this.history = [];
         this.historyIndex = -1;
@@ -523,8 +529,9 @@ export class WeavleJS {
 
     /** Removes all nodes and edges, records an undo step and re-renders. */
     clear() {
-        this.model.nodes = [];
-        this.model.edges = [];
+        const initial = this.getInitialModel();
+        this.model.nodes = initial?.nodes || [];
+        this.model.edges = initial?.edges || [];
         this.clearTransientStateAfterHistoryRestore();
         this.pushHistory();
         this.emitModelChanged();
@@ -975,9 +982,10 @@ export class WeavleJS {
 
             const isSelected = edge.id === this.state.selectedEdgeId;
 
-            // Wide invisible stroke for easier click detection.
-            const hitPath = this.createEdgeHitPath(pathData, edge.id);
-            this.layers.edges.appendChild(hitPath);
+            // Wide invisible stroke for easier click detection (not when edges can't be selected).
+            if (this.getInteraction().selectEdges) {
+                this.layers.edges.appendChild(this.createEdgeHitPath(pathData, edge.id));
+            }
 
             // Visible edge path.
             const visiblePath = this.createEdgePath(pathData, false, isSelected, this.getEdgeTypeDefinition(edge));
@@ -1216,8 +1224,8 @@ export class WeavleJS {
         }
 
 
-        //  Selected → alle 4 ports
-        if (isPrimarySelected) {
+        //  Selected → alle 4 ports (only where the user may draw connections)
+        if (isPrimarySelected && this.getInteraction().connect) {
             const handles = this.createSelectionHandles(node);
             handles.forEach(h => group.appendChild(h));
         }
@@ -1743,7 +1751,7 @@ export class WeavleJS {
             isPreview ? "is-preview" : ""
         ].filter(Boolean).join(" "));
         path.setAttribute("stroke",      isSelected ? "#F57100" : "#666");
-        path.setAttribute("stroke-width", isSelected ? "2.5" : "1.5");
+        path.setAttribute("stroke-width", isSelected ? "2.5" : String(def.strokeWidth || 1.5));
         path.setAttribute("fill",        "none");
 
         const markerId = {
@@ -1779,6 +1787,7 @@ export class WeavleJS {
      *   marker       "arrow" | "openArrow" | "none"   (end of the edge)
      *   markerStart  "circle" | undefined             (start of the edge)
      *   dash         SVG stroke-dasharray, or null for a solid line
+     *   strokeWidth  line width (default 1.5)
      */
     getEdgeTypeDefinition(edge) {
         const defaults = { router: "orthogonal", marker: "arrow", dash: null };
@@ -4570,8 +4579,12 @@ export class WeavleJS {
             return;
         }
 
-        if (typeof this.diagram.handleCanvasAction === "function") {
-            this.diagram.handleCanvasAction(action, this);
+        // The definition handles its own actions; returning true means it changed the model,
+        // and the engine records the undo step and notifies (like handleAction).
+        if (typeof this.diagram.handleCanvasAction === "function" && this.diagram.handleCanvasAction(action, this) === true) {
+            this.pushHistory();
+            this.emit("weavle:modelchanged", { model: this.getData() });
+            this.render();
         }
     }
 
@@ -4790,6 +4803,15 @@ export class WeavleJS {
             add("path", { d: "M 31 5 L 32.5 9.5 L 37 11 L 32.5 12.5 L 31 17 L 29.5 12.5 L 25 11 L 29.5 9.5 Z", fill: "currentColor", stroke: "none" });
         } else if (icon === "plus") {
             add("path", { d: "M 20 10 L 20 30 M 10 20 L 30 20", fill: "none", stroke: "currentColor", "stroke-width": 3, "stroke-linecap": "round" });
+        } else if (icon === "branch") {
+            // A line with a slanted twig and a small plus: "add a sub-item".
+            add("path", { d: "M 4 30 L 36 30 M 12 30 L 4 16", fill: "none", stroke: "currentColor", "stroke-width": 2.5, "stroke-linecap": "round" });
+            add("path", { d: "M 26 6 L 26 20 M 19 13 L 33 13", fill: "none", stroke: "currentColor", "stroke-width": 2.5, "stroke-linecap": "round" });
+        } else if (icon === "moveUp" || icon === "moveDown") {
+            add("path", {
+                d: icon === "moveUp" ? "M 20 32 L 20 9 M 11 17 L 20 8 L 29 17" : "M 20 8 L 20 31 M 11 23 L 20 32 L 29 23",
+                fill: "none", stroke: "currentColor", "stroke-width": 3, "stroke-linecap": "round", "stroke-linejoin": "round"
+            });
         } else if (action.nodeType) {
             this.appendTypePreview(svg, action.nodeType);
         }
@@ -6408,6 +6430,48 @@ export class WeavleJS {
         });
     }
 
+    // ------------------------------------------------------------
+    // Automatic layout and interaction switches (diagram types that arrange themselves, e.g. Ishikawa)
+    // ------------------------------------------------------------
+
+    /**
+     * Lets the definition position every node via diagram.layoutDiagram(engine), then re-derives the
+     * edge types and reroutes all edges. Runs on load and before every undo step (pushHistory).
+     * Returns false (and does nothing) when the definition has no automatic layout.
+     */
+    applyDiagramLayout() {
+        if (typeof this.diagram.layoutDiagram !== "function") return false;
+
+        this.diagram.layoutDiagram(this);
+
+        this.model.edges.forEach(edge => {
+            this.assignEdgeType(edge);
+            this.updateEdgeRoute(edge);
+        });
+        return true;
+    }
+
+    /** A fresh copy of diagram.createInitialModel() — what an empty diagram starts with — or null. */
+    getInitialModel() {
+        const model = typeof this.diagram.createInitialModel === "function" ? this.diagram.createInitialModel(this) : null;
+        return model ? JSON.parse(JSON.stringify(model)) : null;
+    }
+
+    /**
+     * What the user may do directly on the canvas, from diagram.interaction (everything on by default):
+     *   dragNodes    move nodes by dragging
+     *   connect      draw new edges from the ports of a selected node
+     *   selectEdges  select (and so delete, reconnect or relabel) edges
+     */
+    getInteraction() {
+        return { dragNodes: true, connect: true, selectEdges: true, ...(this.diagram.interaction || {}) };
+    }
+
+    /** Whether the node may be deleted: diagram.canDeleteNode(node, engine), default yes. */
+    canDeleteNode(node) {
+        return typeof this.diagram.canDeleteNode !== "function" || this.diagram.canDeleteNode(node, this) !== false;
+    }
+
     /** Layout context for a drop: the grabbed node and where it started (lets e.g. BPMN reorder lanes). */
     moveContext(nodes, startPositions) {
         const node  = nodes.length === 1 ? nodes[0] : null;
@@ -6425,7 +6489,7 @@ export class WeavleJS {
      * edges attached to any of those; then lets the surrounding containers re-arrange.
      */
     removeNodesWithContents(nodeIds) {
-        const roots     = nodeIds.map(id => this.getNode(id)).filter(Boolean);
+        const roots     = nodeIds.map(id => this.getNode(id)).filter(n => n && this.canDeleteNode(n));
         const removed   = new Set(this.withDescendants(roots).map(n => n.id));
         const parentIds = roots.map(n => n.parentId).filter(id => id && !removed.has(id));
 
@@ -6482,7 +6546,13 @@ export class WeavleJS {
         const set = new Set(nodes);
         nodes.forEach(node => this.getDescendants(node).forEach(d => set.add(d)));
 
-        // Attached nodes (e.g. BPMN boundary events) belong to their host as well — repeat until stable.
+        // Attached nodes (e.g. BPMN boundary events) belong to their host as well, and so do the
+        // nodes the definition names via diagram.getDependentNodes(node, engine) (Ishikawa: the
+        // causes of a category) — repeat until stable.
+        const dependents = typeof this.diagram.getDependentNodes === "function"
+            ? node => this.diagram.getDependentNodes(node, this) || []
+            : () => [];
+
         let grew = true;
         while (grew) {
             grew = false;
@@ -6490,6 +6560,14 @@ export class WeavleJS {
                 if (n.attachedToId && !set.has(n) && [...set].some(h => h.id === n.attachedToId)) {
                     set.add(n);
                     grew = true;
+                }
+            }
+            for (const host of [...set]) {
+                for (const n of dependents(host)) {
+                    if (!set.has(n)) {
+                        set.add(n);
+                        grew = true;
+                    }
                 }
             }
         }
@@ -6728,6 +6806,10 @@ export class WeavleJS {
     pushHistory() {
         if (this.isRestoringHistory) return;
 
+        // Every recorded change passes here: diagrams with an automatic layout re-arrange first,
+        // so the snapshot, the change event and the next render all see the laid-out model.
+        this.applyDiagramLayout();
+
         // Alles ná de huidige positie weggooien (redo-stack leegmaken)
         if (this.historyIndex < this.history.length - 1) {
             this.history = this.history.slice(0, this.historyIndex + 1);
@@ -6750,6 +6832,8 @@ export class WeavleJS {
         this.isRestoringHistory = true;
         this.model = JSON.parse(JSON.stringify(this.history[this.historyIndex]));
         this.isRestoringHistory = false;
+        // An automatic layout keeps derived state (e.g. bone routes) in the definition: rebuild it.
+        this.applyDiagramLayout();
         this.clearTransientStateAfterHistoryRestore();
         this.render();
         this.emit("weavle:modelchanged", { model: this.getData() });
@@ -6762,6 +6846,8 @@ export class WeavleJS {
         this.isRestoringHistory = true;
         this.model = JSON.parse(JSON.stringify(this.history[this.historyIndex]));
         this.isRestoringHistory = false;
+        // An automatic layout keeps derived state (e.g. bone routes) in the definition: rebuild it.
+        this.applyDiagramLayout();
         this.clearTransientStateAfterHistoryRestore();
         this.render();
         this.emit("weavle:modelchanged", { model: this.getData() });
@@ -7063,10 +7149,11 @@ export class WeavleJS {
             }
         }
 
-        const handleInfo        = this.findHandleAtEventTarget(evt.target);
-        const edgeEndpointInfo  = this.findEdgeEndpointAtEventTarget(evt.target);
-        const edgeSegmentInfo   = this.findEdgeSegmentHandleAtEventTarget(evt.target);
-        const edgeId            = this.findEdgeAtEventTarget(evt.target);
+        const interaction       = this.getInteraction();
+        const handleInfo        = interaction.connect     ? this.findHandleAtEventTarget(evt.target) : null;
+        const edgeEndpointInfo  = interaction.selectEdges ? this.findEdgeEndpointAtEventTarget(evt.target) : null;
+        const edgeSegmentInfo   = interaction.selectEdges ? this.findEdgeSegmentHandleAtEventTarget(evt.target) : null;
+        const edgeId            = interaction.selectEdges ? this.findEdgeAtEventTarget(evt.target) : null;
         const pos               = this.getMousePosition(evt);
         const node              = this.findNodeAt(pos.x, pos.y);
         const isCtrlToggle     = evt.ctrlKey || evt.metaKey;
@@ -7208,6 +7295,13 @@ export class WeavleJS {
         this.state.draggingEdgeHandleId = null;
         this.state.reconnectingEdgeId   = null;
         this.state.reconnectingSide     = null;
+
+        // Diagrams that place their nodes themselves: a click only selects.
+        if (!interaction.dragNodes) {
+            this.render();
+            this.emitSelectionChanged();
+            return;
+        }
 
         //this.state.offsetX = pos.x - node.x;
         //this.state.offsetY = pos.y - node.y;
@@ -7953,8 +8047,8 @@ export class WeavleJS {
                 return;
             }
 
-            // Remove selected node(s) and all edges connected to it.
-            const selectedNodeIds = this.getSelectedNodeIds();
+            // Remove selected node(s) and all edges connected to it (except nodes that may not be deleted).
+            const selectedNodeIds = this.getSelectedNodeIds().filter(id => this.canDeleteNode(this.getNode(id)));
 
             if (selectedNodeIds.length > 0) {
                 this.removeNodesWithContents(selectedNodeIds);

@@ -22,6 +22,7 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
 - `src/weavle.js` — the engine, `export class WeavleJS` (~4900 lines).
 - `src/weavle-flowchart.js` — `export function createFlowchartDefinition()`.
 - `src/weavle-bpmn.js` — `export function createBpmnDefinition()`.
+- `src/weavle-ishikawa.js` — `export function createIshikawaDefinition()` (fishbone, automatic layout).
 - `src/weavle-layout.js` — `computeLayeredLayout(graph, options)`, the layered layout behind "Flow optimaliseren".
 - `src/weavle-outsystems.js` — host adapter: `mount(container, config)` → controller, `getInstance`,
   `registerDiagramType`; JSON in / out and echo protection (`setModel` skips the model the editor reported).
@@ -30,7 +31,7 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
 - `src/index.js` — library entry (exports everything, imports weavle.css). `wrappers/outsystems/` — block guide
   and `example.html` simulation.
 - `src/samples/bpmn-order-process.js` — complex BPMN sample (3 pools, lanes, message flows), button
-  "Load complex sample" in the playground.
+  "Load complex sample" in the playground. `src/samples/ishikawa-late-delivery.js` — the Ishikawa "Load sample".
 - `index.html`, `src/demo.js`, `src/style.css` — the playground (diagram type switch, shape buttons,
   event log, selection info, model JSON).
 - `embed-test.html` — embedding tests: two editors (keyboard follows focus), `setCanvasSize` + `fitToContent` in a
@@ -116,6 +117,14 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
   (`getOccupancyPenalty`). Toolbar entries come from `getTidyActions()`. Roadmap: optimise flow (layered layout).
 - Edge routing: orthogonal — straight or simple routes first, then A* on a grid (`findPathWithAStar`),
   tuned per definition via `getRoutingConfig`.
+- Self-arranging diagram types (Ishikawa): `diagram.layoutDiagram(engine)` positions every node; the engine runs it
+  via `applyDiagramLayout()` on load, at the start of every `pushHistory()` and after undo / redo, then reroutes
+  all edges. `createInitialModel()` = what an empty `load` / `clear()` starts with. `interaction: { dragNodes,
+  connect, selectEdges }` (`getInteraction()`) switches canvas interactions off; `canDeleteNode(node)`,
+  `getDependentNodes(node)` (deleted along via `withDescendants`). Ishikawa: tree = nodes effect / category /
+  cause / subCause with child → parent edges; sibling order = model order; `layoutCategory` works relative to a
+  bone's junction (ready for a later hybrid mode with manual offsets); `routeEdge` returns the bones from the
+  last layout; the head shape draws the spine's tail (`getSpineStart`, from the stored routes).
 - The diagram definition is the extension point for new diagram types: shapes, nodeTypes, getPorts,
   routeEdge, getContextActions, getNodeInteractionMode, getRoutingConfig.
 

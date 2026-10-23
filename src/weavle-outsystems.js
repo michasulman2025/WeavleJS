@@ -35,10 +35,12 @@
 import { WeavleJS } from "./weavle.js";
 import { createBpmnDefinition } from "./weavle-bpmn.js";
 import { createFlowchartDefinition } from "./weavle-flowchart.js";
+import { createIshikawaDefinition } from "./weavle-ishikawa.js";
 
 const DIAGRAM_TYPES = {
     bpmn:      createBpmnDefinition,
-    flowchart: createFlowchartDefinition
+    flowchart: createFlowchartDefinition,
+    ishikawa:  createIshikawaDefinition
 };
 
 const EMPTY_MODEL = { nodes: [], edges: [] };
@@ -63,7 +65,7 @@ export function getInstance(container) {
  * so getInstance() finds it again). Mounting twice on the same container replaces the old editor.
  *
  * config:
- *   diagramType         "bpmn" | "flowchart" | a registered name | a definition factory function
+ *   diagramType         "bpmn" | "flowchart" | "ishikawa" | a registered name | a definition factory function
  *                       (the type for models without their own diagramType)
  *   model               JSON text or { diagramType?, nodes, edges } (default: empty)
  *   options             editor options, object or JSON text (snapToGrid, readOnly, gridType, ...)

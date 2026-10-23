@@ -7,6 +7,8 @@
 import { WeavleJS } from  "./weavle.js";
 import { createFlowchartDefinition } from "./weavle-flowchart.js";
 import { createBpmnDefinition } from "./weavle-bpmn.js";
+import { createIshikawaDefinition } from "./weavle-ishikawa.js";
+import { createLateDeliverySample } from "./samples/ishikawa-late-delivery.js";
 import { createOrderProcessSample } from "./samples/bpmn-order-process.js";
 
 /*
@@ -66,6 +68,8 @@ function getDiagramDefinition(key) {
   switch (key) {
     case "bpmn":
       return createBpmnDefinition();
+    case "ishikawa":
+      return createIshikawaDefinition();
     case "flowchart":
     default:
       return createFlowchartDefinition();
@@ -73,6 +77,10 @@ function getDiagramDefinition(key) {
 }
 
 function getSampleForDiagram(key) {
+  if (key === "ishikawa") {
+    return createLateDeliverySample();
+  }
+
   if (key === "bpmn") {
     return {
       nodes: [

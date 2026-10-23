@@ -33,7 +33,7 @@ In the block, add the script under **Required Scripts** (O11) / **Scripts** (ODC
 
 | Name | Type | Default | |
 |---|---|---|---|
-| `DiagramType` | Text | `"bpmn"` | `"bpmn"` or `"flowchart"` — the type for models that don’t carry their own `diagramType` |
+| `DiagramType` | Text | `"bpmn"` | `"bpmn"`, `"flowchart"` or `"ishikawa"` — the type for models that don’t carry their own `diagramType` |
 | `ModelJson` | Text | `""` | The model; empty = empty diagram |
 | `ReadOnly` | Boolean | `False` | |
 | `ToolbarPosition` | Text | `"top"` | Canvas toolbar: `"top"`, `"left"`, `"right"` or `"floating"` (draggable by its grip) |
