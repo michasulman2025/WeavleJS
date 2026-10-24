@@ -21,6 +21,26 @@ const EDGE_STYLE_DEFAULTS = {
 };
 
 // theme.ui keys → the CSS custom properties of weavle.css they set on the container (ARCHITECTURE.md 7.8).
+/** The value at a field path on an object ("label", "values.text"); undefined when missing. */
+function getFieldValue(object, path) {
+    return String(path).split(".").reduce((value, key) => value?.[key], object);
+}
+
+/** Sets a field path on an object, creating the objects on the way ("values.text" → object.values.text). */
+function setFieldValue(object, path, value) {
+    const keys = String(path).split(".");
+    const last = keys.pop();
+    let target = object;
+    for (const key of keys) {
+        if (!target[key] || typeof target[key] !== "object") target[key] = {};
+        target = target[key];
+    }
+    target[last] = value;
+}
+
+/** The side facing the other way (for the free end of a curve that follows the cursor). */
+const OPPOSITE_SIDE = { top: "bottom", right: "left", bottom: "top", left: "right" };
+
 const THEME_UI_CSS_VARS = {
     selection:        ["--weavle-selection-color"],
     accent:           ["--weavle-handle-fill", "--weavle-port-stroke", "--weavle-ui-active-text"],
@@ -985,10 +1005,7 @@ export class WeavleJS {
             
             //this.debug ("points:", points);
             
-            const pathData = this.buildRoundedOrthogonalPath(
-                points,
-                this.options.edgeCornerRadius
-            );
+            const pathData = this.buildEdgePathData(points, edge);
 
             const isSelected = edge.id === this.state.selectedEdgeId;
 
@@ -1085,7 +1102,7 @@ export class WeavleJS {
             const points = this.getReconnectPreviewRoute(edge);
             if (!points || points.length === 0) return;
 
-            const pathData = this.buildRoundedOrthogonalPath(points, this.options.edgeCornerRadius);
+            const pathData = this.buildEdgePathData(points, edge);
             const previewPath = this.createEdgePath(pathData, true, true);
             this.markRefusedPreview(previewPath);
             this.layers.overlay.appendChild(previewPath);
@@ -1098,7 +1115,7 @@ export class WeavleJS {
             const cleanPoints = this.getConnectionPreviewRoute();
             if (!cleanPoints || cleanPoints.length === 0) return;
 
-            const pathData = this.buildRoundedOrthogonalPath(cleanPoints, this.options.edgeCornerRadius);
+            const pathData = this.buildEdgePathData(cleanPoints, this.state.connectionPreviewEdge);
             const previewPath = this.createEdgePath(pathData, true);
             this.markRefusedPreview(previewPath);
             this.layers.overlay.appendChild(previewPath);
@@ -1246,7 +1263,8 @@ export class WeavleJS {
 
 
         //  Selected → alle 4 ports (only where the user may draw connections)
-        if (isPrimarySelected && this.getInteraction().connect) {
+        // (Not when the definition's shapes draw their own ports: diagram.showPortHandles === false.)
+        if (isPrimarySelected && this.getInteraction().connect && this.diagram.showPortHandles !== false) {
             const handles = this.createSelectionHandles(node);
             handles.forEach(h => group.appendChild(h));
         }
@@ -2234,6 +2252,17 @@ export class WeavleJS {
             return [sourcePoint, targetPoint];
         }
 
+        // Bezier edge types (node editor): one curve, leaving each port in the direction of its side.
+        if (this.getEdgeTypeDefinition(edge).router === "bezier") {
+            if (edge) edge.routingMeta = { algorithm: "bezier", found: true };
+            return this.buildBezierRoute(
+                sourcePoint,
+                targetPoint,
+                this.getPortSide(this.getNode(edge?.sourceNodeId), sourceHandle),
+                this.getPortSide(this.getNode(edge?.targetNodeId), targetHandle)
+            );
+        }
+
         // 2. First try the simplest possible route:
         //    a perfectly straight horizontal or vertical line.
         //    This is the cleanest visual outcome, so it gets first priority. 
@@ -3084,6 +3113,36 @@ export class WeavleJS {
 
 
     /**
+     * A bezier edge as four points: start, two control points and end. The control points lie in the
+     * direction each port leaves its node (sideA / sideB), further out the further apart the ends are,
+     * so a link going backwards loops round instead of cutting through the nodes.
+     */
+    buildBezierRoute(a, b, sideA, sideB) {
+        const reach = Math.min(200, Math.max(40, Math.abs(b.x - a.x) / 2, Math.abs(b.y - a.y) / 4));
+        const da = this.getHandleDirection(sideA);
+        const db = this.getHandleDirection(sideB);
+
+        return [
+            a,
+            { x: a.x + da.x * reach, y: a.y + da.y * reach },
+            { x: b.x + db.x * reach, y: b.y + db.y * reach },
+            b
+        ];
+    }
+
+    /**
+     * SVG path data for an edge's points: a cubic curve for a bezier edge type (four points from
+     * buildBezierRoute), otherwise the rounded orthogonal path. edge may be an edge or { type }.
+     */
+    buildEdgePathData(points, edge = null) {
+        if (points?.length === 4 && this.getEdgeTypeDefinition(edge).router === "bezier") {
+            const [a, c1, c2, b] = points;
+            return `M ${a.x} ${a.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${b.x} ${b.y}`;
+        }
+        return this.buildRoundedOrthogonalPath(points, this.options.edgeCornerRadius);
+    }
+
+    /**
      * Converts a list of waypoints into an SVG path string with rounded corners.
      * Each interior corner is replaced by a quadratic bezier arc of the given radius,
      * capped at half the length of each adjacent segment.
@@ -3164,6 +3223,11 @@ export class WeavleJS {
 
             if (sourceNode && targetNode) {
                 targetHandle = this.getBestHandleForTargetNode(sourceNode, targetNode);
+
+                // Named ports (node editor): no "left" / "top" here, take a port the rules accept.
+                if (!this.getPorts(targetNode)[targetHandle]) {
+                    targetHandle = this.findConnectablePort(sourceNode, this.state.connectingHandle, targetNode);
+                }
             }
         }
 
@@ -3194,29 +3258,37 @@ export class WeavleJS {
         );
         if (!sourceNode) return [];
 
-        // Over a valid target: preview the exact route the edge will get on release.
-        const { targetNodeId, targetHandle } = this.resolveConnectionTarget(
-            this.state.connectionPreviewX,
-            this.state.connectionPreviewY
-        );
+        // Over a valid target: preview the exact route the edge will get on release
+        // (oriented like the real edge: dragged from an input, the output becomes the source).
+        const pending = this.getPendingConnection();
 
-        if (targetNodeId && targetHandle && targetNodeId !== sourceNode.id) {
-            return this.routeTemporaryEdge(this.assignEdgeType({
+        if (pending) {
+            const previewEdge = this.assignEdgeType({
                 id:           "__preview__",
-                sourceNodeId: sourceNode.id,
-                targetNodeId,
-                sourceHandle: this.state.connectingHandle,
-                targetHandle,
+                sourceNodeId: pending.source.id,
+                targetNodeId: pending.target.id,
+                sourceHandle: pending.sourceHandle,
+                targetHandle: pending.targetHandle,
                 isAutoRoute:  true
-            }));
+            });
+            this.state.connectionPreviewEdge = previewEdge;
+            return this.routeTemporaryEdge(previewEdge);
         }
 
-        // Cursor floating over empty canvas: simple orthogonal line to the cursor.
+        // Cursor floating over empty canvas: a line to the cursor (a curve for bezier edge types).
         const sourcePoint = this.getHandlePoint(sourceNode, this.state.connectingHandle);
         const targetPoint = {
             x: this.state.connectionPreviewX,
             y: this.state.connectionPreviewY
         };
+
+        const floatingType = this.resolveEdgeType(sourceNode, null, this.state.connectingHandle, null);
+        this.state.connectionPreviewEdge = { type: floatingType };
+
+        if (this.getEdgeTypeDefinition(this.state.connectionPreviewEdge).router === "bezier") {
+            const side = this.getPortSide(sourceNode, this.state.connectingHandle);
+            return this.buildBezierRoute(sourcePoint, targetPoint, side, OPPOSITE_SIDE[side]);
+        }
 
         const sourceExit = this.getHandleExitPoint(sourcePoint, this.state.connectingHandle, 16);
 
@@ -3283,7 +3355,15 @@ export class WeavleJS {
             return this.getEdgeRoute(sourcePoint, targetPoint, sourceHandle, targetHandle, edge);
         }
 
-        // One handle is unknown (cursor is floating) — use simplified routing.
+        // One handle is unknown (cursor is floating) — a curve for bezier edges, else simplified routing.
+        if (this.getEdgeTypeDefinition(edge).router === "bezier") {
+            const fixedSide = sourceHandle
+                ? this.getPortSide(sourceNode, sourceHandle)
+                : this.getPortSide(targetNode, targetHandle);
+            return sourceHandle
+                ? this.buildBezierRoute(sourcePoint, targetPoint, fixedSide, OPPOSITE_SIDE[fixedSide])
+                : this.buildBezierRoute(sourcePoint, targetPoint, OPPOSITE_SIDE[fixedSide], fixedSide);
+        }
         return this.buildOrthogonalPoints(sourcePoint, targetPoint, sourceHandle, targetHandle);
     }
 
@@ -3936,6 +4016,22 @@ export class WeavleJS {
         return positions[handleName] || positions.right;
     }
 
+    /**
+     * The port object of a handle: getPorts(node)[handle], or null. Besides x / y a port may carry
+     * side ("top" | "right" | "bottom" | "left"), direction ("in" | "out"), dataType, label, max and
+     * onFull ("refuse" | "replace") — see ARCHITECTURE.md 4.3.
+     */
+    getPort(node, handle) {
+        if (!node || !handle) return null;
+        return this.getPorts(node)[handle] || null;
+    }
+
+    /** The side a port leaves its node: port.side, else the name of one of the four default ports, else "right". */
+    getPortSide(node, handle) {
+        const side = this.getPort(node, handle)?.side || handle;
+        return ["top", "right", "bottom", "left"].includes(side) ? side : "right";
+    }
+
     /** Returns the unit direction vector for a handle name (e.g. "top" → {x:0, y:-1}). */
     getHandleDirection(handleName) {
         switch (handleName) {
@@ -4036,6 +4132,10 @@ export class WeavleJS {
      */
     checkConnection({ source, target, sourceHandle = null, targetHandle = null, edge = null }) {
         if (!source || !target || source.id === target.id) return { ok: false, reason: "" };
+
+        const portCheck = this.checkPorts({ source, target, sourceHandle, targetHandle, edge });
+        if (!portCheck.ok) return portCheck;
+
         if (typeof this.diagram.canConnect !== "function") return { ok: true, reason: "" };
 
         const edgeType = this.resolveEdgeType(source, target, sourceHandle, targetHandle);
@@ -4064,6 +4164,142 @@ export class WeavleJS {
     }
 
     /**
+     * The rules that follow from the port model (ARCHITECTURE.md 4.3), checked before diagram.canConnect:
+     * an output goes to an input, the data types must fit (isDataTypeCompatible) and a full port with
+     * onFull "refuse" (the default for a port with max) takes no more lines. A full port with
+     * onFull "replace" is fine: the new line replaces the old one (applyPortLimits).
+     */
+    checkPorts({ source, target, sourceHandle, targetHandle, edge = null }) {
+        const from = this.getPort(source, sourceHandle);
+        const to   = this.getPort(target, targetHandle);
+        const refuse = reason => ({ ok: false, reason });
+
+        if (from?.direction && to?.direction && from.direction === to.direction) {
+            return refuse(from.direction === "in" ? "Twee ingangen kun je niet verbinden" : "Twee uitgangen kun je niet verbinden");
+        }
+
+        if (from?.dataType && to?.dataType && !this.isDataTypeCompatible(from.dataType, to.dataType)) {
+            return refuse(`${this.getDataTypeLabel(from.dataType)} past niet op ${this.getDataTypeLabel(to.dataType)}`);
+        }
+
+        for (const [node, handle, port] of [[source, sourceHandle, from], [target, targetHandle, to]]) {
+            if (!port?.max || port.onFull === "replace") continue;
+            if (this.getPortEdges(node.id, handle, edge?.id).length >= port.max) {
+                return refuse(port.max === 1 ? "Deze poort is al verbonden" : "Deze poort heeft al het maximum aantal verbindingen");
+            }
+        }
+
+        return { ok: true, reason: "" };
+    }
+
+    /** Whether an output of data type from may feed an input of type to: diagram.isDataTypeCompatible, else equal or "any". */
+    isDataTypeCompatible(from, to) {
+        if (typeof this.diagram.isDataTypeCompatible === "function") return !!this.diagram.isDataTypeCompatible(from, to, this);
+        return from === to || from === "any" || to === "any";
+    }
+
+    /** Display name of a data type: diagram.dataTypes[type].label, else the type itself. */
+    getDataTypeLabel(type) {
+        return this.diagram.dataTypes?.[type]?.label || type;
+    }
+
+    /** The edges attached to one port of a node, leaving out the edge with id exceptId. */
+    getPortEdges(nodeId, handle, exceptId = null) {
+        return this.model.edges.filter(e => e.id !== exceptId && (
+            (e.sourceNodeId === nodeId && e.sourceHandle === handle) ||
+            (e.targetNodeId === nodeId && e.targetHandle === handle)
+        ));
+    }
+
+    /**
+     * A connection dragged from an input to an output, turned round so the output is the source
+     * (lines always run output → input). Other connections are returned unchanged.
+     */
+    orientConnection(connection) {
+        const from = this.getPort(connection.source, connection.sourceHandle);
+        const to   = this.getPort(connection.target, connection.targetHandle);
+        if (from?.direction !== "in" || to?.direction === "in") return connection;
+
+        return {
+            ...connection,
+            source:       connection.target,
+            sourceHandle: connection.targetHandle,
+            target:       connection.source,
+            targetHandle: connection.sourceHandle
+        };
+    }
+
+    /**
+     * Makes room for edge on its ports: on a port with max and onFull "replace" the oldest other lines
+     * go until edge fits (a node editor input: the new link replaces the old one). Returns the removed edges.
+     */
+    applyPortLimits(edge) {
+        const removed = [];
+
+        for (const [nodeId, handle] of [[edge.sourceNodeId, edge.sourceHandle], [edge.targetNodeId, edge.targetHandle]]) {
+            const port = this.getPort(this.getNode(nodeId), handle);
+            if (!port?.max || port.onFull !== "replace") continue;
+
+            const others = this.getPortEdges(nodeId, handle, edge.id);
+            removed.push(...others.slice(0, Math.max(0, others.length - port.max + 1)));
+        }
+
+        if (removed.length) {
+            this.model.edges = this.model.edges.filter(e => !removed.includes(e));
+            if (removed.some(e => e.id === this.state.selectedEdgeId)) this.state.selectedEdgeId = null;
+        }
+        return removed;
+    }
+
+    /**
+     * Sets the hover state while connecting / reconnecting: the port within reach of the cursor (on the
+     * node under it first, otherwise on any node — ports often sit on or just outside a node's border).
+     */
+    updateHoverPort(pos, maxDistance = 18) {
+        const hoveredNode = this.findNodeAt(pos.x, pos.y);
+        let hit = null;
+
+        const handle = hoveredNode ? this.findNearestHandleOnNode(hoveredNode, pos.x, pos.y, maxDistance) : null;
+        if (handle) {
+            hit = { nodeId: hoveredNode.id, handle };
+        } else {
+            let best = maxDistance;
+            for (const node of this.model.nodes) {
+                if (this.isNodeHidden(node)) continue;
+                for (const [name, p] of Object.entries(this.getPorts(node))) {
+                    const dist = Math.hypot(p.x - pos.x, p.y - pos.y);
+                    if (dist <= best) {
+                        best = dist;
+                        hit  = { nodeId: node.id, handle: name };
+                    }
+                }
+            }
+        }
+
+        this.state.hoverNodeId       = hit?.nodeId ?? hoveredNode?.id ?? null;
+        this.state.hoverHandleNodeId = hit?.nodeId ?? null;
+        this.state.hoverHandleName   = hit?.handle ?? null;
+    }
+
+    /**
+     * For a release over a node but not on a port: the first port of target the connection from
+     * source / sourceHandle may go to (so a node with named ports still accepts a drop on its body).
+     */
+    findConnectablePort(source, sourceHandle, target) {
+        const ports = Object.entries(this.getPorts(target));
+
+        for (const [handle] of ports) {
+            const connection = this.orientConnection({ source, sourceHandle, target, targetHandle: handle, edge: null });
+            if (this.checkConnection(connection).ok) return handle;
+        }
+
+        // None fits: the first port of the other direction, so the feedback can say why it is refused.
+        const direction = this.getPort(source, sourceHandle)?.direction;
+        const fallback  = ports.find(([, port]) => !direction || (port.direction && port.direction !== direction));
+        return fallback ? fallback[0] : null;
+    }
+
+    /**
      * The connection the user is drawing or reconnecting right now, as it would be made on release:
      * { source, target, sourceHandle, targetHandle, edge }, or null when there is no other node to attach to.
      */
@@ -4075,13 +4311,13 @@ export class WeavleJS {
             );
             if (!targetNodeId || !targetHandle || targetNodeId === this.state.connectingNodeId) return null;
 
-            return {
+            return this.orientConnection({
                 source:       this.getNode(this.state.connectingNodeId),
                 sourceHandle: this.state.connectingHandle,
                 target:       this.getNode(targetNodeId),
                 targetHandle,
                 edge:         null
-            };
+            });
         }
 
         if (this.state.reconnectingEdgeId) {
@@ -5550,7 +5786,7 @@ export class WeavleJS {
             // Edit in the same box the label is drawn in, with room for at least two lines.
             const box = fieldBox || this.getNodeLabelBox(node);
 
-            value    = node[field] || "";
+            value    = String(getFieldValue(node, field) ?? "");
             modelPos = { x: box.centerX, y: box.centerY };
             fontSize = box.fontSize;
             width    = Math.max(box.width + 12, 80);
@@ -5643,12 +5879,12 @@ export class WeavleJS {
 
         // Unchanged text: just close the editor (no undo step, no change event).
         const field = edit.field || "label";
-        if (!target || (target[field] || "") === value) {
+        if (!target || String(getFieldValue(target, field) ?? "") === value) {
             this.render();
             return;
         }
 
-        target[field] = value;
+        setFieldValue(target, field, value);
 
         this.pushHistory();
         this.emit("weavle:modelchanged", {
@@ -5718,7 +5954,7 @@ export class WeavleJS {
      * @param {string} id    Id of the clicked element.
      * @returns {boolean}    True if a double-click was detected and handled.
      */
-    handlePossibleDoubleClick(type, id) {
+    handlePossibleDoubleClick(type, id, pos = null) {
         const now                  = Date.now();
         const doubleClickThreshold = 350;
 
@@ -5736,7 +5972,17 @@ export class WeavleJS {
             this.state.lastClickTime = 0;
             this.state.lastClickType = null;
             this.state.lastClickId   = null;
-            this.startInlineLabelEdit(type, id);
+
+            // A node may edit something else than its label where it was clicked:
+            // diagram.getEditTarget(node, engine, pos) → { field, box } (field may be a path like
+            // "values.text"), null for the label, or false for nothing.
+            const node   = type === "node" ? this.getNode(id) : null;
+            const target = node && typeof this.diagram.getEditTarget === "function"
+                ? this.diagram.getEditTarget(node, this, pos)
+                : null;
+            if (target === false) return true;
+
+            this.startInlineLabelEdit(type, id, target || {});
             return true;
         }
 
@@ -6067,7 +6313,7 @@ export class WeavleJS {
             if (!points || points.length < 2) return;
 
             const path = this.createEdgePath(
-                this.buildRoundedOrthogonalPath(points, this.options.edgeCornerRadius),
+                this.buildEdgePathData(points, half),
                 false,
                 false,
                 this.getEdgeTypeDefinition(half),
@@ -6637,6 +6883,10 @@ export class WeavleJS {
      * ports facing away from the other node cost extra); the best few plus the current pair.
      */
     getPortPairCandidates(edge, source, target, limit = 5) {
+        // Ports with a direction (node editor inputs / outputs) mean something: only free sides swap.
+        const meaningful = this.getPort(source, edge.sourceHandle)?.direction || this.getPort(target, edge.targetHandle)?.direction;
+        if (meaningful) return [[edge.sourceHandle, edge.targetHandle]];
+
         const sourcePorts = Object.keys(this.getPorts(source));
         const targetPorts = Object.keys(this.getPorts(target));
         const sc = { x: source.x + source.width / 2, y: source.y + source.height / 2 };
@@ -8041,7 +8291,7 @@ export class WeavleJS {
 
         // Double-click detection for nodes.
         if (node) {
-            if (this.handlePossibleDoubleClick("node", node.id)) return;
+            if (this.handlePossibleDoubleClick("node", node.id, pos)) return;
         }
 
         // 1. Click on a connection handle → start drawing a new edge.
@@ -8325,17 +8575,7 @@ export class WeavleJS {
 
         // Drawing a new edge connection.
         if (this.state.connectingNodeId) {
-            const hoveredNode              = this.findNodeAt(pos.x, pos.y);
-            this.state.hoverNodeId         = hoveredNode ? hoveredNode.id : null;
-
-            if (hoveredNode) {
-                const nearestHandle            = this.findNearestHandleOnNode(hoveredNode, pos.x, pos.y, 18);
-                this.state.hoverHandleNodeId   = nearestHandle ? hoveredNode.id : null;
-                this.state.hoverHandleName     = nearestHandle;
-            } else {
-                this.state.hoverHandleNodeId   = null;
-                this.state.hoverHandleName     = null;
-            }
+            this.updateHoverPort(pos);
 
             this.state.connectionPreviewX  = pos.x;
             this.state.connectionPreviewY  = pos.y;
@@ -8346,17 +8586,7 @@ export class WeavleJS {
 
         // Reconnecting an existing edge endpoint.
         if (this.state.reconnectingEdgeId) {
-            const hoveredNode              = this.findNodeAt(pos.x, pos.y);
-            this.state.hoverNodeId         = hoveredNode ? hoveredNode.id : null;
-
-            if (hoveredNode) {
-                const nearestHandle            = this.findNearestHandleOnNode(hoveredNode, pos.x, pos.y, 18);
-                this.state.hoverHandleNodeId   = nearestHandle ? hoveredNode.id : null;
-                this.state.hoverHandleName     = nearestHandle;
-            } else {
-                this.state.hoverHandleNodeId   = null;
-                this.state.hoverHandleName     = null;
-            }
+            this.updateHoverPort(pos);
 
             this.state.reconnectionPreviewX = pos.x;
             this.state.reconnectionPreviewY = pos.y;
@@ -8633,6 +8863,7 @@ export class WeavleJS {
                 edge.bendPoints = [];
 
                 this.updateEdgeRoute(edge);
+                this.applyPortLimits(edge);
 
                 this.pushHistory();
                 this.emit("weavle:modelchanged", { model: this.getData() });
@@ -8707,10 +8938,10 @@ export class WeavleJS {
             if (pending && check.ok && targetNodeId && targetHandle && targetNodeId !== sourceNodeId) {
                 const newEdge = {
                     id:           this.generateId(),
-                    sourceNodeId: sourceNodeId,
-                    targetNodeId: targetNodeId,
-                    sourceHandle: sourceHandle,
-                    targetHandle: targetHandle,
+                    sourceNodeId: pending.source.id,
+                    targetNodeId: pending.target.id,
+                    sourceHandle: pending.sourceHandle,
+                    targetHandle: pending.targetHandle,
                     label:        "",
                     bendPoints:   [],
                     isAutoRoute: true
@@ -8719,6 +8950,7 @@ export class WeavleJS {
                 this.assignEdgeType(newEdge);
                 this.updateEdgeRoute(newEdge);
                 this.model.edges.push(newEdge);
+                this.applyPortLimits(newEdge);
                 this.pushHistory();
                 this.emit("weavle:modelchanged", { model: this.getData() });
             }

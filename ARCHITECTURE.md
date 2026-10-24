@@ -155,11 +155,11 @@ ports: [
 | Interaction on/off per add-in | Pedigree, Ishikawa | ✅ `interaction` (dragging, connecting, selecting edges) |
 | Actions as events (`weavle:action`) | Pedigree, integration with OutSystems | – |
 | Connection rules with feedback | Flowchart, BPMN, node editor | ✅ `canConnect`, `weavle:connectionrefused` |
-| Flexible ports (name, position, data type, maximum) | Node editor, pedigree | – |
+| Flexible ports (name, position, data type, maximum) | Node editor, pedigree | ✅ port objects from `getPorts`: `side`, `direction`, `dataType`, `max`, `onFull` |
 | Edge types with router, arrowhead and style | All | ✅ `edgeTypes`, `defaultEdgeType`, `getEdgeTypeForConnection` |
-| Routers: elbow, bezier, straight (besides orthogonal) | Pedigree, node editor | Partly: straight ✅ |
+| Routers: elbow, bezier, straight (besides orthogonal) | Pedigree, node editor | Partly: straight ✅, bezier ✅ |
 | HTML nodes via `foreignObject` | Pedigree, node editor | – |
-| Node data (fields) and rendering from data | Pedigree, node editor | – |
+| Node data (fields) and rendering from data | Pedigree, node editor | Partly: `node.values` + field paths in inline editing (`getEditTarget`) |
 | Containers (pools, lanes, groups): membership, moving along, `canContain`, `layoutContainer` | BPMN, later groups | ✅ |
 | Custom add-in actions (`handleAction`) and redirected dragging (`getDragTarget`) | BPMN, pedigree | ✅ |
 | Overlays on a node (for example an expandable list) | Pedigree | Partly (UI layer exists) |
@@ -170,7 +170,8 @@ ports: [
 
 ### Couplings that are still on the wrong side
 
-- Four ports (top, right, bottom, left) are assumed everywhere (roadmap step 4).
+- Orthogonal routing still derives exit directions from the four side names (`getHandleDirection`); named ports
+  work with the bezier router (`getPortSide`). Elbow router still open (roadmap step 4).
 - Nodes only have a `label`, no structured data.
 
 Solved in step 1: the `decision` exceptions (now `outline` and `extraObstacleMargin` per type), palette and
@@ -250,14 +251,18 @@ without sizes), the `"process"` shape fallback (now a plain box). UI colours com
 
 ### Node editor (free drawing, Blender style)
 
-- Nodes with a header and a list of inputs (left) and outputs (right), each with a label and a data type.
-  Optionally with input fields inside the node (HTML node).
-- Edges as bezier curves, coloured by data type.
+Status: built (`src/weavle-nodeeditor.js`, playground "Node-editor" with a sample).
+
+- Nodes with a header and a list of outputs (right) and inputs (left), each with a label and a data type.
+  Inputs may have a value box (shown while not connected); constants have value fields. Drawn in SVG; values are
+  edited inline (double-click, `getEditTarget`). HTML nodes (step 5) can come later.
+- Edges as bezier curves, coloured by data type (`edge.type` = the data type).
 - Rules:
-  - Data types must match.
-  - An input has at most one connection; an output may have several.
-  - No cycles.
-- Mainly a test for the port model, the bezier router and HTML nodes.
+  - Data types must match (engine port check).
+  - An input has at most one connection — a new link replaces the old one (`max: 1, onFull: "replace"`); an output
+    may have several.
+  - No cycles (`canConnect`).
+- Later: evaluating the graph (computing output values), dynamic ports, HTML nodes.
 
 ### Pedigree (derived, FamilySearch Landscape style)
 
@@ -503,10 +508,10 @@ Every step can be tested on its own and must not break what exists.
       demo to the add-in, and remove the `decision` exceptions from the engine.
 - [ ] **2. Interaction per add-in and actions as events** (`interaction` ✅, `weavle:action`).
 - [x] **3. Connection rules:** `canConnect` with feedback while dragging. First rules for BPMN and flowchart.
-- [ ] **4. Flexible ports and edge types:** the port model from 4.3, `edgeTypes`, and the routers
+- [~] **4. Flexible ports and edge types:** (port model and bezier done with step 6; elbow open) the port model from 4.3, `edgeTypes`, and the routers
       elbow, bezier and straight.
 - [ ] **5. HTML nodes** via `foreignObject`.
-- [ ] **6. Node editor add-in.**
+- [x] **6. Node editor add-in.**
 - [ ] **7. Derived mode and layout:** `toGraph`, layout hook with options and animation, expanding and lazy loading.
 - [ ] **8. Pedigree add-in.**
 - [ ] **9. Themes and per-item styles** (section 7, steps 7.10). Independent of the steps above; can be done

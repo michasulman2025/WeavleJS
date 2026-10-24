@@ -24,6 +24,8 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
 - `src/weavle-bpmn.js` — `export function createBpmnDefinition()`.
 - `src/weavle-ishikawa.js` — `export function createIshikawaDefinition()` (fishbone, automatic layout).
 - `src/weavle-fta.js` — `export function createFtaDefinition()` (fault tree, automatic top-down layout).
+- `src/weavle-nodeeditor.js` — `export function createNodeEditorDefinition()`, `nodeEditorNode`, `nodeEditorLink`,
+  `NODE_TYPES`, `DATA_TYPES` (node editor, bezier links). Sample: `src/samples/nodeeditor-page-logic.js`.
 - `src/weavle-orgchart.js` — `export function createOrgChartDefinition()`, `orgChartFromList`, `orgChartToList`
   (org chart, automatic top-down layout, flat list in / out).
 - `src/weavle-layout.js` — `computeLayeredLayout(graph, options)`, the layered layout behind "Flow optimaliseren".
@@ -174,6 +176,23 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
   `detachNode` and `filterConnectableActions` (drops refused "addConnectedNode" node tools; `buildCandidateNode`).
   `getEdgesBetween(sourceId, targetId, { directed, exceptId })` helps definitions refuse duplicates. Flowchart / BPMN rules
   live in their `canConnect`.
+- Port model (ARCHITECTURE.md 4.3): `getPorts(node)` values may carry `side`, `direction` ("in" | "out"), `dataType`,
+  `label`, `max`, `onFull` ("refuse" default | "replace"); `getPort(node, handle)`, `getPortSide(node, handle)`.
+  `checkPorts` (inside `checkConnection`): no in → in / out → out, `isDataTypeCompatible` (`diagram.isDataTypeCompatible`,
+  else equal or "any"; names from `diagram.dataTypes[t].label`), full "refuse" ports. `orientConnection` turns a drag from
+  an input round (lines run output → input); `applyPortLimits(edge)` removes the old link on a full "replace" port.
+  `updateHoverPort` finds a port within 18 px even off the node; `findConnectablePort` picks a port when released on a
+  node body. `getPortPairCandidates` keeps ports with a direction (optimise edges never swaps them).
+- Bezier router: `edgeTypes[type].router: "bezier"` → `buildBezierRoute` returns 4 points (start, 2 control points, end;
+  stored like any route); `buildEdgePathData(points, edge)` draws them as a cubic curve (else rounded orthogonal) —
+  used for edges, previews (`state.connectionPreviewEdge`) and split halves. `diagram.showPortHandles === false` = the
+  shapes draw their own ports (elements with `data-handle-position` start links). `diagram.getEditTarget(node, engine,
+  pos)` → `{ field, box }` | null | false picks what a double-click edits; fields may be paths (`"values.b"`,
+  `getFieldValue` / `setFieldValue`).
+- Node editor (`weavle-nodeeditor.js`): `NODE_TYPES` (title, category, outputs / fields / inputs with `value` defaults),
+  rows outputs → fields → inputs, height from rows (`sizeOf`, width-only resize), handles `out-<id>` / `in-<id>`, values in
+  `node.values` (defaults filled by `onNodeCreated`), header title via `getLabelLayout`, edge type = data type, rule
+  `canConnect` = no cycles; `drawNode` draws toolbar icons scaled down without text.
 - The engine names no node or shape types: highlight outlines come from `nodeTypes[type].outline` (`getNodeOutline`),
   extra routing clearance from `nodeTypes[type].extraObstacleMargin`; a type without shape function draws
   `createFallbackShape`. `addNode()` fills id / size / label from the definition.

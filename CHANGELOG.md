@@ -7,6 +7,20 @@
   previews the new line to the highlighted card instead, and shows no line over empty space.
 
 ### Added
+- **Node editor diagram type** (roadmap step 6; `createNodeEditorDefinition()` in `src/weavle-nodeeditor.js`, OutSystems
+  `diagramType: "nodeeditor"`): nodes with a coloured header, outputs right and inputs left with labels and data types
+  (boolean, number, text), value boxes on unconnected inputs and constant nodes (double-click to type a value), bezier
+  links in the colour of their data type. Rules: output → input only, matching data types, one link per input (a new
+  link replaces the old one), no cycles; dragging from an input works too. 15 node types in 5 groups (input, logic,
+  numbers, text, output); helpers `nodeEditorNode` / `nodeEditorLink`. Playground: "Node-editor" with a sample
+  (`src/samples/nodeeditor-page-logic.js`).
+- Engine, port model: ports from `getPorts` may carry `side`, `direction`, `dataType`, `label`, `max` and `onFull`
+  (`"refuse"` / `"replace"`); the engine checks directions, data types (`isDataTypeCompatible`, `dataTypes` labels) and
+  full ports before `canConnect`, turns a drag from an input round, and finds a port near the cursor even outside the
+  node. Optimise edges keeps ports that have a direction.
+- Engine: bezier router (`edgeTypes[type].router: "bezier"`), also for the previews while connecting / reconnecting.
+  `diagram.showPortHandles: false` for shapes that draw their own ports; `diagram.getEditTarget(node, engine, pos)`
+  chooses what a double-click edits, and inline editing takes field paths (`"values.b"`).
 - **Connection rules** (roadmap step 3): a definition answers `canConnect({ source, target, sourceHandle, targetHandle,
   edgeType, edge }, engine)` with true, false, a reason (string) or `{ ok, reason }`. While drawing or reconnecting a
   line, a refused target gets a red glow and port, the preview turns red and dashed, and the reason shows next to the

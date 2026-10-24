@@ -1,4 +1,4 @@
-/*! WeavleJS v0.9.0 | built 2026-10-23 15:42 UTC | (c) 2026 Micha Sulman | MIT License */
+/*! WeavleJS v0.9.0 | built 2026-10-23 16:21 UTC | (c) 2026 Micha Sulman | MIT License */
 //#region src/weavle-flowchart.js
 var e = "http://www.w3.org/2000/svg";
 function t(t, n, r) {
@@ -2585,7 +2585,21 @@ var ce = [
 	textColor: null,
 	fontWeight: null,
 	fontStyle: null
-}, de = {
+};
+function de(e, t) {
+	return String(t).split(".").reduce((e, t) => e?.[t], e);
+}
+function fe(e, t, n) {
+	let r = String(t).split("."), i = r.pop(), a = e;
+	for (let e of r) (!a[e] || typeof a[e] != "object") && (a[e] = {}), a = a[e];
+	a[i] = n;
+}
+var pe = {
+	top: "bottom",
+	right: "left",
+	bottom: "top",
+	left: "right"
+}, me = {
 	selection: ["--weavle-selection-color"],
 	accent: [
 		"--weavle-handle-fill",
@@ -2601,20 +2615,20 @@ var ce = [
 	uiText: ["--weavle-ui-text"],
 	uiBorder: ["--weavle-ui-border"]
 };
-function fe(e) {
+function he(e) {
 	let t = {};
 	if (!e) return t;
 	for (let n of ce) e[n] !== void 0 && e[n] !== null && (t[n] = e[n]);
 	return t;
 }
-function pe(e) {
+function ge(e) {
 	let t = String(e || "").trim();
 	return /^#[0-9a-f]{6}$/i.test(t) ? t.toLowerCase() : /^#[0-9a-f]{3}$/i.test(t) ? "#" + [...t.slice(1)].map((e) => e + e).join("").toLowerCase() : "#000000";
 }
-function me(e, ...t) {
-	return Object.assign({}, e, ...t.map(fe));
+function _e(e, ...t) {
+	return Object.assign({}, e, ...t.map(he));
 }
-var he = class {
+var ve = class {
 	constructor(e, t = {}, n = null) {
 		this.container = typeof e == "string" ? document.querySelector(e) : e, this.options = Object.assign({
 			width: 1200,
@@ -2948,7 +2962,7 @@ var he = class {
 			}
 			let r = this.getHandlePoint(t, e.sourceHandle), i = this.getHandlePoint(n, e.targetHandle), a = e.routePoints, o = this.state.draggingNodeId || this.state.resizingNodeId;
 			if (o && (e.sourceNodeId === o || e.targetNodeId === o) && (a = e.isAutoRoute === !1 ? this.getManualEdgePreviewRoute(e) : this.getEdgeRoute(r, i, e.sourceHandle, e.targetHandle, e)), !Array.isArray(a) || a.length < 2) return;
-			let s = this.buildRoundedOrthogonalPath(a, this.options.edgeCornerRadius), c = e.id === this.state.selectedEdgeId;
+			let s = this.buildEdgePathData(a, e), c = e.id === this.state.selectedEdgeId;
 			this.getInteraction().selectEdges && this.layers.edges.appendChild(this.createEdgeHitPath(s, e.id));
 			let l = this.createEdgePath(s, !1, c, this.getEdgeTypeDefinition(e), this.getEdgeStyle(e));
 			if (l.setAttribute("data-edge-id", e.id), e.style?.preset && l.classList.add(`weavle-edge--preset-${e.style.preset}`), this.layers.edges.appendChild(l), e.label) {
@@ -2980,14 +2994,14 @@ var he = class {
 			if (!t || !n) return;
 			let r = this.getReconnectPreviewRoute(e);
 			if (!r || r.length === 0) return;
-			let i = this.buildRoundedOrthogonalPath(r, this.options.edgeCornerRadius), a = this.createEdgePath(i, !0, !0);
+			let i = this.buildEdgePathData(r, e), a = this.createEdgePath(i, !0, !0);
 			this.markRefusedPreview(a), this.layers.overlay.appendChild(a);
 			return;
 		}
 		if (this.state.connectingNodeId) {
 			let e = this.getConnectionPreviewRoute();
 			if (!e || e.length === 0) return;
-			let t = this.buildRoundedOrthogonalPath(e, this.options.edgeCornerRadius), n = this.createEdgePath(t, !0);
+			let t = this.buildEdgePathData(e, this.state.connectionPreviewEdge), n = this.createEdgePath(t, !0);
 			this.markRefusedPreview(n), this.layers.overlay.appendChild(n);
 			return;
 		}
@@ -3033,7 +3047,7 @@ var he = class {
 			let e = document.createElementNS(t, "title");
 			e.textContent = s.getAttribute("data-full-label"), n.insertBefore(e, n.firstChild);
 		}
-		if (i && this.getInteraction().connect && this.createSelectionHandles(e).forEach((e) => n.appendChild(e)), i && !this.options.readOnly && this.state.selectedNodeIds.length === 1 && !this.state.connectingNodeId && !this.state.reconnectingEdgeId && this.getResizeRules(e) && this.createResizeHandles(e).forEach((e) => n.appendChild(e)), a && this.state.hoverHandleName) {
+		if (i && this.getInteraction().connect && this.diagram.showPortHandles !== !1 && this.createSelectionHandles(e).forEach((e) => n.appendChild(e)), i && !this.options.readOnly && this.state.selectedNodeIds.length === 1 && !this.state.connectingNodeId && !this.state.reconnectingEdgeId && this.getResizeRules(e) && this.createResizeHandles(e).forEach((e) => n.appendChild(e)), a && this.state.hoverHandleName) {
 			let t = this.createHotHandle(e, this.state.hoverHandleName, this.isConnectionRefused());
 			t && n.appendChild(t);
 		}
@@ -3467,6 +3481,10 @@ var he = class {
 			algorithm: "straight",
 			found: !0
 		}), [e, t];
+		if (this.getEdgeTypeDefinition(i).router === "bezier") return i && (i.routingMeta = {
+			algorithm: "bezier",
+			found: !0
+		}), this.buildBezierRoute(e, t, this.getPortSide(this.getNode(i?.sourceNodeId), n), this.getPortSide(this.getNode(i?.targetNodeId), r));
 		let a = this.tryStraightRoute(e, t, i);
 		if (a) return this.debug("straight"), this.simplify(a);
 		let o = this.trySimpleOrthogonalRoute(e, t, n, r, i);
@@ -3875,6 +3893,28 @@ var he = class {
 			}
 		];
 	}
+	buildBezierRoute(e, t, n, r) {
+		let i = Math.min(200, Math.max(40, Math.abs(t.x - e.x) / 2, Math.abs(t.y - e.y) / 4)), a = this.getHandleDirection(n), o = this.getHandleDirection(r);
+		return [
+			e,
+			{
+				x: e.x + a.x * i,
+				y: e.y + a.y * i
+			},
+			{
+				x: t.x + o.x * i,
+				y: t.y + o.y * i
+			},
+			t
+		];
+	}
+	buildEdgePathData(e, t = null) {
+		if (e?.length === 4 && this.getEdgeTypeDefinition(t).router === "bezier") {
+			let [t, n, r, i] = e;
+			return `M ${t.x} ${t.y} C ${n.x} ${n.y}, ${r.x} ${r.y}, ${i.x} ${i.y}`;
+		}
+		return this.buildRoundedOrthogonalPath(e, this.options.edgeCornerRadius);
+	}
 	buildRoundedOrthogonalPath(e, t) {
 		if (this.debug("buildRoundedOrthogonalPath points:", e, t), !e || e.length < 2) return "";
 		if (e.length === 2) return `M ${e[0].x} ${e[0].y} L ${e[1].x} ${e[1].y}`;
@@ -3905,7 +3945,7 @@ var he = class {
 		}
 		if (n && !r) {
 			let e = this.getNode(this.state.connectingNodeId), t = this.getNode(n);
-			e && t && (r = this.getBestHandleForTargetNode(e, t));
+			e && t && (r = this.getBestHandleForTargetNode(e, t), this.getPorts(t)[r] || (r = this.findConnectablePort(e, this.state.connectingHandle, t)));
 		}
 		return {
 			targetNodeId: n,
@@ -3919,19 +3959,27 @@ var he = class {
 	getConnectionPreviewRoute() {
 		let e = this.model.nodes.find((e) => e.id === this.state.connectingNodeId);
 		if (!e) return [];
-		let { targetNodeId: t, targetHandle: n } = this.resolveConnectionTarget(this.state.connectionPreviewX, this.state.connectionPreviewY);
-		if (t && n && t !== e.id) return this.routeTemporaryEdge(this.assignEdgeType({
-			id: "__preview__",
-			sourceNodeId: e.id,
-			targetNodeId: t,
-			sourceHandle: this.state.connectingHandle,
-			targetHandle: n,
-			isAutoRoute: !0
-		}));
-		let r = this.getHandlePoint(e, this.state.connectingHandle), i = {
+		let t = this.getPendingConnection();
+		if (t) {
+			let e = this.assignEdgeType({
+				id: "__preview__",
+				sourceNodeId: t.source.id,
+				targetNodeId: t.target.id,
+				sourceHandle: t.sourceHandle,
+				targetHandle: t.targetHandle,
+				isAutoRoute: !0
+			});
+			return this.state.connectionPreviewEdge = e, this.routeTemporaryEdge(e);
+		}
+		let n = this.getHandlePoint(e, this.state.connectingHandle), r = {
 			x: this.state.connectionPreviewX,
 			y: this.state.connectionPreviewY
-		}, a = this.getHandleExitPoint(r, this.state.connectingHandle, 16), o = [r, ...this.buildOrthogonalPoints(a, i, this.state.connectingHandle, null)];
+		}, i = this.resolveEdgeType(e, null, this.state.connectingHandle, null);
+		if (this.state.connectionPreviewEdge = { type: i }, this.getEdgeTypeDefinition(this.state.connectionPreviewEdge).router === "bezier") {
+			let t = this.getPortSide(e, this.state.connectingHandle);
+			return this.buildBezierRoute(n, r, t, pe[t]);
+		}
+		let a = this.getHandleExitPoint(n, this.state.connectingHandle, 16), o = [n, ...this.buildOrthogonalPoints(a, r, this.state.connectingHandle, null)];
 		return this.compactPoints(o);
 	}
 	getReconnectPreviewRoute(e) {
@@ -3952,13 +4000,18 @@ var he = class {
 			}));
 		}
 		let a, o, s = e.sourceHandle, c = e.targetHandle;
-		return this.state.reconnectingSide === "source" ? (a = {
+		if (this.state.reconnectingSide === "source" ? (a = {
 			x: this.state.reconnectionPreviewX,
 			y: this.state.reconnectionPreviewY
 		}, o = this.getHandlePoint(n, e.targetHandle), s = null) : (a = this.getHandlePoint(t, e.sourceHandle), o = {
 			x: this.state.reconnectionPreviewX,
 			y: this.state.reconnectionPreviewY
-		}, c = null), s && c ? this.getEdgeRoute(a, o, s, c, e) : this.buildOrthogonalPoints(a, o, s, c);
+		}, c = null), s && c) return this.getEdgeRoute(a, o, s, c, e);
+		if (this.getEdgeTypeDefinition(e).router === "bezier") {
+			let e = s ? this.getPortSide(t, s) : this.getPortSide(n, c);
+			return s ? this.buildBezierRoute(a, o, e, pe[e]) : this.buildBezierRoute(a, o, pe[e], e);
+		}
+		return this.buildOrthogonalPoints(a, o, s, c);
 	}
 	compactPoints(e) {
 		if (this.debug("compactPoints"), !e || e.length === 0) return [];
@@ -4278,6 +4331,18 @@ var he = class {
 		let n = this.getPorts(e);
 		return n[t] || n.right;
 	}
+	getPort(e, t) {
+		return !e || !t ? null : this.getPorts(e)[t] || null;
+	}
+	getPortSide(e, t) {
+		let n = this.getPort(e, t)?.side || t;
+		return [
+			"top",
+			"right",
+			"bottom",
+			"left"
+		].includes(n) ? n : "right";
+	}
 	getHandleDirection(e) {
 		switch (e) {
 			case "top": return {
@@ -4337,30 +4402,38 @@ var he = class {
 			ok: !1,
 			reason: ""
 		};
-		if (typeof this.diagram.canConnect != "function") return {
-			ok: !0,
-			reason: ""
-		};
-		let a = this.resolveEdgeType(e, t, n, r), o = this.diagram.canConnect({
+		let a = this.checkPorts({
 			source: e,
 			target: t,
 			sourceHandle: n,
 			targetHandle: r,
-			edgeType: a,
 			edge: i
-		}, this);
-		return o == null || o === !0 ? {
+		});
+		if (!a.ok) return a;
+		if (typeof this.diagram.canConnect != "function") return {
 			ok: !0,
 			reason: ""
-		} : o === !1 ? {
+		};
+		let o = this.resolveEdgeType(e, t, n, r), s = this.diagram.canConnect({
+			source: e,
+			target: t,
+			sourceHandle: n,
+			targetHandle: r,
+			edgeType: o,
+			edge: i
+		}, this);
+		return s == null || s === !0 ? {
+			ok: !0,
+			reason: ""
+		} : s === !1 ? {
 			ok: !1,
 			reason: ""
-		} : typeof o == "string" ? {
+		} : typeof s == "string" ? {
 			ok: !1,
-			reason: o
+			reason: s
 		} : {
-			ok: o.ok !== !1,
-			reason: o.reason || ""
+			ok: s.ok !== !1,
+			reason: s.reason || ""
 		};
 	}
 	canConnect(e) {
@@ -4369,16 +4442,99 @@ var he = class {
 	getEdgesBetween(e, t, { directed: n = !0, exceptId: r = null } = {}) {
 		return this.model.edges.filter((i) => i.id !== r && (i.sourceNodeId === e && i.targetNodeId === t || !n && i.sourceNodeId === t && i.targetNodeId === e));
 	}
+	checkPorts({ source: e, target: t, sourceHandle: n, targetHandle: r, edge: i = null }) {
+		let a = this.getPort(e, n), o = this.getPort(t, r), s = (e) => ({
+			ok: !1,
+			reason: e
+		});
+		if (a?.direction && o?.direction && a.direction === o.direction) return s(a.direction === "in" ? "Twee ingangen kun je niet verbinden" : "Twee uitgangen kun je niet verbinden");
+		if (a?.dataType && o?.dataType && !this.isDataTypeCompatible(a.dataType, o.dataType)) return s(`${this.getDataTypeLabel(a.dataType)} past niet op ${this.getDataTypeLabel(o.dataType)}`);
+		for (let [c, l, u] of [[
+			e,
+			n,
+			a
+		], [
+			t,
+			r,
+			o
+		]]) if (u?.max && u.onFull !== "replace" && this.getPortEdges(c.id, l, i?.id).length >= u.max) return s(u.max === 1 ? "Deze poort is al verbonden" : "Deze poort heeft al het maximum aantal verbindingen");
+		return {
+			ok: !0,
+			reason: ""
+		};
+	}
+	isDataTypeCompatible(e, t) {
+		return typeof this.diagram.isDataTypeCompatible == "function" ? !!this.diagram.isDataTypeCompatible(e, t, this) : e === t || e === "any" || t === "any";
+	}
+	getDataTypeLabel(e) {
+		return this.diagram.dataTypes?.[e]?.label || e;
+	}
+	getPortEdges(e, t, n = null) {
+		return this.model.edges.filter((r) => r.id !== n && (r.sourceNodeId === e && r.sourceHandle === t || r.targetNodeId === e && r.targetHandle === t));
+	}
+	orientConnection(e) {
+		let t = this.getPort(e.source, e.sourceHandle), n = this.getPort(e.target, e.targetHandle);
+		return t?.direction !== "in" || n?.direction === "in" ? e : {
+			...e,
+			source: e.target,
+			sourceHandle: e.targetHandle,
+			target: e.source,
+			targetHandle: e.sourceHandle
+		};
+	}
+	applyPortLimits(e) {
+		let t = [];
+		for (let [n, r] of [[e.sourceNodeId, e.sourceHandle], [e.targetNodeId, e.targetHandle]]) {
+			let i = this.getPort(this.getNode(n), r);
+			if (!i?.max || i.onFull !== "replace") continue;
+			let a = this.getPortEdges(n, r, e.id);
+			t.push(...a.slice(0, Math.max(0, a.length - i.max + 1)));
+		}
+		return t.length && (this.model.edges = this.model.edges.filter((e) => !t.includes(e)), t.some((e) => e.id === this.state.selectedEdgeId) && (this.state.selectedEdgeId = null)), t;
+	}
+	updateHoverPort(e, t = 18) {
+		let n = this.findNodeAt(e.x, e.y), r = null, i = n ? this.findNearestHandleOnNode(n, e.x, e.y, t) : null;
+		if (i) r = {
+			nodeId: n.id,
+			handle: i
+		};
+		else {
+			let n = t;
+			for (let t of this.model.nodes) if (!this.isNodeHidden(t)) for (let [i, a] of Object.entries(this.getPorts(t))) {
+				let o = Math.hypot(a.x - e.x, a.y - e.y);
+				o <= n && (n = o, r = {
+					nodeId: t.id,
+					handle: i
+				});
+			}
+		}
+		this.state.hoverNodeId = r?.nodeId ?? n?.id ?? null, this.state.hoverHandleNodeId = r?.nodeId ?? null, this.state.hoverHandleName = r?.handle ?? null;
+	}
+	findConnectablePort(e, t, n) {
+		let r = Object.entries(this.getPorts(n));
+		for (let [i] of r) {
+			let r = this.orientConnection({
+				source: e,
+				sourceHandle: t,
+				target: n,
+				targetHandle: i,
+				edge: null
+			});
+			if (this.checkConnection(r).ok) return i;
+		}
+		let i = this.getPort(e, t)?.direction, a = r.find(([, e]) => !i || e.direction && e.direction !== i);
+		return a ? a[0] : null;
+	}
 	getPendingConnection() {
 		if (this.state.connectingNodeId) {
 			let { targetNodeId: e, targetHandle: t } = this.resolveConnectionTarget(this.state.connectionPreviewX, this.state.connectionPreviewY);
-			return !e || !t || e === this.state.connectingNodeId ? null : {
+			return !e || !t || e === this.state.connectingNodeId ? null : this.orientConnection({
 				source: this.getNode(this.state.connectingNodeId),
 				sourceHandle: this.state.connectingHandle,
 				target: this.getNode(e),
 				targetHandle: t,
 				edge: null
-			};
+			});
 		}
 		if (this.state.reconnectingEdgeId) {
 			let e = this.model.edges.find((e) => e.id === this.state.reconnectingEdgeId), t = this.state.hoverHandleNodeId, n = this.state.hoverHandleName;
@@ -5171,7 +5327,7 @@ var he = class {
 		if (typeof this.diagram.canStyleNode == "function" && this.diagram.canStyleNode(e, this) === !1) return null;
 		let t = Object.entries(this.getPresets()), n = !!this.options.allowCustomStyles;
 		if (!t.length && !n) return null;
-		let r = e.style || {}, i = Object.keys(fe(r)).length > 0, a = [{
+		let r = e.style || {}, i = Object.keys(he(r)).length > 0, a = [{
 			type: "setStyle",
 			style: null,
 			label: "Standaard",
@@ -5201,7 +5357,7 @@ var he = class {
 				input: "color",
 				property: e,
 				label: n,
-				value: pe(t[e])
+				value: ge(t[e])
 			})));
 		}
 		return {
@@ -5254,7 +5410,7 @@ var he = class {
 			let e = this.model.nodes.find((e) => e.id === t);
 			if (!e) return;
 			let l = r || this.getNodeLabelBox(e);
-			i = e[n] || "", a = {
+			i = String(de(e, n) ?? ""), a = {
 				x: l.centerX,
 				y: l.centerY
 			}, c = l.fontSize, o = Math.max(l.width + 12, 80), s = Math.max(l.height, l.lineHeight * 2) + 8;
@@ -5288,11 +5444,11 @@ var he = class {
 		let t = e.element.value.trim(), n = e.type === "node" ? this.model.nodes.find((t) => t.id === e.id) : this.model.edges.find((t) => t.id === e.id);
 		this.state.editingLabel = null, e.element.remove();
 		let r = e.field || "label";
-		if (!n || (n[r] || "") === t) {
+		if (!n || String(de(n, r) ?? "") === t) {
 			this.render();
 			return;
 		}
-		n[r] = t, this.pushHistory(), this.emit("weavle:modelchanged", { model: this.getData() }), this.render();
+		fe(n, r, t), this.pushHistory(), this.emit("weavle:modelchanged", { model: this.getData() }), this.render();
 	}
 	cancelInlineLabelEdit() {
 		let e = this.state.editingLabel;
@@ -5315,9 +5471,14 @@ var he = class {
 			e.label = n.trim(), this.state.selectedEdgeId = null, this.selectSingleNode(e.id), this.pushHistory(), this.emit("weavle:modelchanged", { model: this.getData() }), this.render();
 		}
 	}
-	handlePossibleDoubleClick(e, t) {
-		let n = Date.now(), r = this.state.lastClickType === e && this.state.lastClickId === t && n - this.state.lastClickTime <= 350;
-		return this.state.lastClickTime = n, this.state.lastClickType = e, this.state.lastClickId = t, r ? (this.state.lastClickTime = 0, this.state.lastClickType = null, this.state.lastClickId = null, this.startInlineLabelEdit(e, t), !0) : !1;
+	handlePossibleDoubleClick(e, t, n = null) {
+		let r = Date.now(), i = this.state.lastClickType === e && this.state.lastClickId === t && r - this.state.lastClickTime <= 350;
+		if (this.state.lastClickTime = r, this.state.lastClickType = e, this.state.lastClickId = t, i) {
+			this.state.lastClickTime = 0, this.state.lastClickType = null, this.state.lastClickId = null;
+			let r = e === "node" ? this.getNode(t) : null, i = r && typeof this.diagram.getEditTarget == "function" ? this.diagram.getEditTarget(r, this, n) : null;
+			return i === !1 || this.startInlineLabelEdit(e, t, i || {}), !0;
+		}
+		return !1;
 	}
 	findAlignmentGuides(e, t = 8) {
 		let n = this.getNodeCenter(e), r = null, i = null, a = Infinity, o = Infinity, s = new Set(this.state.draggingNodeIds || []);
@@ -5471,7 +5632,7 @@ var he = class {
 				id: "__split__"
 			});
 			if (!t || t.length < 2) return;
-			let n = this.createEdgePath(this.buildRoundedOrthogonalPath(t, this.options.edgeCornerRadius), !1, !1, this.getEdgeTypeDefinition(e), this.getEdgeStyle(e));
+			let n = this.createEdgePath(this.buildEdgePathData(t, e), !1, !1, this.getEdgeTypeDefinition(e), this.getEdgeStyle(e));
 			n.classList.add("weavle-edge--split-preview"), this.layers.edges.appendChild(n), e.label && this.layers.edges.appendChild(this.createEdgeLabelFromPoints(t, e.label, this.getEdgeStyle(e)));
 		});
 	}
@@ -5827,6 +5988,7 @@ var he = class {
 		o && (e.sourceHandle = o.sourceHandle, e.targetHandle = o.targetHandle, e.routePoints = o.points, e.routingMeta = o.meta);
 	}
 	getPortPairCandidates(e, t, n, r = 5) {
+		if (this.getPort(t, e.sourceHandle)?.direction || this.getPort(n, e.targetHandle)?.direction) return [[e.sourceHandle, e.targetHandle]];
 		let i = Object.keys(this.getPorts(t)), a = Object.keys(this.getPorts(n)), o = {
 			x: t.x + t.width / 2,
 			y: t.y + t.height / 2
@@ -6205,7 +6367,7 @@ var he = class {
 	}
 	getNodeStyle(e) {
 		let t = e?.type, n = this.diagram.nodeTypes?.[t], r = this.getTheme(), i = r.diagrams?.[this.diagram.id] || {}, a = this.getDefaultTheme(), o = this.getNodeVariant(e);
-		return me(le, ...n ? [
+		return _e(le, ...n ? [
 			a.node,
 			n.colors,
 			n.style,
@@ -6219,7 +6381,7 @@ var he = class {
 	}
 	getEdgeStyle(e) {
 		let t = this.getEdgeTypeDefinition(e), n = this.getDefaultTheme(), r = this.getTheme(), i = r.diagrams?.[this.diagram.id] || {};
-		return me(ue, n.edge, t, t.style, n.edgeTypes?.[t.type], r.edge, i.edge, t.fixedStyle, r.edgeTypes?.[t.type], i.edgeTypes?.[t.type], ...this.getItemStyleLayers(e));
+		return _e(ue, n.edge, t, t.style, n.edgeTypes?.[t.type], r.edge, i.edge, t.fixedStyle, r.edgeTypes?.[t.type], i.edgeTypes?.[t.type], ...this.getItemStyleLayers(e));
 	}
 	getItemStyleLayers(e) {
 		let t = e?.style;
@@ -6236,7 +6398,7 @@ var he = class {
 	applyItemStyle(e, t) {
 		let n = {
 			...typeof t?.preset == "string" && t.preset ? { preset: t.preset } : {},
-			...fe(t)
+			...he(t)
 		}, r = Object.keys(n).length ? n : null, i = JSON.stringify(r), a = !1;
 		for (let t of e) JSON.stringify(t.style ?? null) !== i && (r ? t.style = { ...r } : delete t.style, a = !0);
 		return a ? (this.pushHistory(), this.emit("weavle:modelchanged", { model: this.getData() }), this.render(), !0) : !1;
@@ -6273,7 +6435,7 @@ var he = class {
 	applyThemeUi() {
 		let e = this.getTheme(), t = e.ui || {}, n = this.container.style;
 		this.themeCssVars = this.themeCssVars || /* @__PURE__ */ new Set();
-		for (let [e, r] of Object.entries(de)) for (let i of r) t[e] ? (n.setProperty(i, t[e]), this.themeCssVars.add(i)) : this.themeCssVars.has(i) && (n.removeProperty(i), this.themeCssVars.delete(i));
+		for (let [e, r] of Object.entries(me)) for (let i of r) t[e] ? (n.setProperty(i, t[e]), this.themeCssVars.add(i)) : this.themeCssVars.has(i) && (n.removeProperty(i), this.themeCssVars.delete(i));
 		e.font?.family ? this.svg.setAttribute("font-family", e.font.family) : this.svg.removeAttribute("font-family");
 	}
 	clearThemeUi() {
@@ -6419,7 +6581,7 @@ var he = class {
 			}
 		}
 		let n = this.getInteraction(), r = n.connect ? this.findHandleAtEventTarget(e.target) : null, i = n.selectEdges ? this.findEdgeEndpointAtEventTarget(e.target) : null, a = n.selectEdges ? this.findEdgeSegmentHandleAtEventTarget(e.target) : null, o = n.selectEdges ? this.findEdgeAtEventTarget(e.target) : null, s = this.getMousePosition(e), c = this.findNodeAt(s.x, s.y), l = e.ctrlKey || e.metaKey;
-		if (o && this.handlePossibleDoubleClick("edge", o) || c && this.handlePossibleDoubleClick("node", c.id)) return;
+		if (o && this.handlePossibleDoubleClick("edge", o) || c && this.handlePossibleDoubleClick("node", c.id, s)) return;
 		if (r) {
 			this.clearNodeToolSurface(), this.state.connectingNodeId = r.nodeId, this.state.connectingHandle = r.handle, this.state.connectionPreviewX = s.x, this.state.connectionPreviewY = s.y, this.selectSingleNode(r.nodeId), this.render(), this.emitSelectionChanged();
 			return;
@@ -6506,21 +6668,11 @@ var he = class {
 			return;
 		}
 		if (this.state.lastMouseX = t.x, this.state.lastMouseY = t.y, this.state.connectingNodeId) {
-			let e = this.findNodeAt(t.x, t.y);
-			if (this.state.hoverNodeId = e ? e.id : null, e) {
-				let n = this.findNearestHandleOnNode(e, t.x, t.y, 18);
-				this.state.hoverHandleNodeId = n ? e.id : null, this.state.hoverHandleName = n;
-			} else this.state.hoverHandleNodeId = null, this.state.hoverHandleName = null;
-			this.state.connectionPreviewX = t.x, this.state.connectionPreviewY = t.y, this.updateConnectionCheck(), this.render();
+			this.updateHoverPort(t), this.state.connectionPreviewX = t.x, this.state.connectionPreviewY = t.y, this.updateConnectionCheck(), this.render();
 			return;
 		}
 		if (this.state.reconnectingEdgeId) {
-			let e = this.findNodeAt(t.x, t.y);
-			if (this.state.hoverNodeId = e ? e.id : null, e) {
-				let n = this.findNearestHandleOnNode(e, t.x, t.y, 18);
-				this.state.hoverHandleNodeId = n ? e.id : null, this.state.hoverHandleName = n;
-			} else this.state.hoverHandleNodeId = null, this.state.hoverHandleName = null;
-			this.state.reconnectionPreviewX = t.x, this.state.reconnectionPreviewY = t.y, this.updateConnectionCheck(), this.render();
+			this.updateHoverPort(t), this.state.reconnectionPreviewX = t.x, this.state.reconnectionPreviewY = t.y, this.updateConnectionCheck(), this.render();
 			return;
 		}
 		if (this.state.draggingSegmentEdgeId) {
@@ -6587,7 +6739,7 @@ var he = class {
 		}
 		if (this.state.reconnectingEdgeId) {
 			let e = this.model.edges.find((e) => e.id === this.state.reconnectingEdgeId), t = this.state.reconnectingSide, n = this.state.hoverHandleNodeId, r = this.state.hoverHandleName, i = this.getPendingConnection(), a = i ? this.checkConnection(i) : null;
-			this.resetReconnectionState(), i && !a.ok && this.emitConnectionRefused(i, a), e && i && a.ok && (t === "source" ? (e.sourceNodeId = n, e.sourceHandle = r) : t === "target" && (e.targetNodeId = n, e.targetHandle = r), e.isAutoRoute = !0, this.assignEdgeType(e), e.routePoints = [], e.bendPoints = [], this.updateEdgeRoute(e), this.pushHistory(), this.emit("weavle:modelchanged", { model: this.getData() })), this.render();
+			this.resetReconnectionState(), i && !a.ok && this.emitConnectionRefused(i, a), e && i && a.ok && (t === "source" ? (e.sourceNodeId = n, e.sourceHandle = r) : t === "target" && (e.targetNodeId = n, e.targetHandle = r), e.isAutoRoute = !0, this.assignEdgeType(e), e.routePoints = [], e.bendPoints = [], this.updateEdgeRoute(e), this.applyPortLimits(e), this.pushHistory(), this.emit("weavle:modelchanged", { model: this.getData() })), this.render();
 			return;
 		}
 		if (this.state.creatingNodeType) {
@@ -6606,21 +6758,23 @@ var he = class {
 			return;
 		}
 		if (this.state.connectingNodeId) {
-			let t = this.state.connectingNodeId, n = this.state.connectingHandle, r = this.getMousePosition(e), { targetNodeId: i, targetHandle: a } = this.resolveConnectionTarget(r.x, r.y);
-			this.state.connectionPreviewX = r.x, this.state.connectionPreviewY = r.y;
-			let o = this.getPendingConnection(), s = o ? this.checkConnection(o) : null;
-			if (this.resetConnectionState(), o && !s.ok && this.emitConnectionRefused(o, s), o && s.ok && i && a && i !== t) {
+			let t = this.state.connectingNodeId;
+			this.state.connectingHandle;
+			let n = this.getMousePosition(e), { targetNodeId: r, targetHandle: i } = this.resolveConnectionTarget(n.x, n.y);
+			this.state.connectionPreviewX = n.x, this.state.connectionPreviewY = n.y;
+			let a = this.getPendingConnection(), o = a ? this.checkConnection(a) : null;
+			if (this.resetConnectionState(), a && !o.ok && this.emitConnectionRefused(a, o), a && o.ok && r && i && r !== t) {
 				let e = {
 					id: this.generateId(),
-					sourceNodeId: t,
-					targetNodeId: i,
-					sourceHandle: n,
-					targetHandle: a,
+					sourceNodeId: a.source.id,
+					targetNodeId: a.target.id,
+					sourceHandle: a.sourceHandle,
+					targetHandle: a.targetHandle,
 					label: "",
 					bendPoints: [],
 					isAutoRoute: !0
 				};
-				this.assignEdgeType(e), this.updateEdgeRoute(e), this.model.edges.push(e), this.pushHistory(), this.emit("weavle:modelchanged", { model: this.getData() });
+				this.assignEdgeType(e), this.updateEdgeRoute(e), this.model.edges.push(e), this.applyPortLimits(e), this.pushHistory(), this.emit("weavle:modelchanged", { model: this.getData() });
 			}
 			this.render();
 			return;
@@ -6728,15 +6882,15 @@ var he = class {
 			e.label = t, this.selectSingleNode(e.id), this.state.selectedEdgeId = null, this.emit("weavle:modelchanged", { model: this.getData() }), this.render();
 		}
 	}
-}, E = "http://www.w3.org/2000/svg", D = .5, ge = 26, _e = 4, ve = 10, ye = 90, be = 8, xe = 22, Se = 12, Ce = 50, we = 36, Te = 40, Ee = {
+}, E = "http://www.w3.org/2000/svg", ye = .5, be = 26, xe = 4, Se = 10, Ce = 90, we = 8, Te = 22, Ee = 12, De = 50, Oe = 36, ke = 40, Ae = {
 	category: 150,
 	cause: 160,
 	subCause: 130
-}, De = {
+}, je = {
 	category: 100,
 	cause: 28,
 	subCause: 24
-}, Oe = {
+}, Me = {
 	effect: {
 		placement: "inside",
 		fontSize: 15,
@@ -6765,25 +6919,25 @@ var he = class {
 		paddingY: 1,
 		maxLines: 3
 	}
-}, ke = 1.25, O = {
+}, Ne = 1.25, Pe = {
 	fill: "transparent",
 	stroke: "none"
-}, k = {
+}, D = {
 	effect: "category",
 	category: "cause",
 	cause: "subCause"
-}, Ae = {
+}, Fe = {
 	category: "bone",
 	cause: "causeLine",
 	subCause: "subCauseLine"
-}, je = [
+}, Ie = [
 	"Mens",
 	"Machine",
 	"Methode",
 	"Materiaal",
 	"Meting",
 	"Milieu"
-], Me = {
+], Le = {
 	effect(e, t) {
 		let { x: n, y: r, width: i, height: a } = e, o = Math.min(a / 2, i / 3), s = document.createElementNS(E, "g"), c = t.diagram.getSpineStart?.(e, t);
 		if (c != null) {
@@ -6802,7 +6956,7 @@ var he = class {
 		return n.setAttribute("x", e.x - 2), n.setAttribute("y", e.y - 1), n.setAttribute("width", e.width + 4), n.setAttribute("height", e.height + 2), n.setAttribute("rx", 3), t.applyNodeStyle(n, e), n;
 	}
 };
-function A(e) {
+function O(e) {
 	let t = e.model.nodes, n = new Map(t.map((e) => [e.id, e])), r = /* @__PURE__ */ new Map();
 	for (let t of e.model.edges) {
 		let e = n.get(t.sourceNodeId), i = n.get(t.targetNodeId);
@@ -6814,42 +6968,42 @@ function A(e) {
 		children: (e) => t.filter((t) => r.get(t.id) === e)
 	};
 }
-function Ne(e, t, n) {
+function Re(e, t, n) {
 	return {
 		id: e.generateId(),
 		sourceNodeId: t.id,
 		targetNodeId: n.id,
 		sourceHandle: "right",
 		targetHandle: "left",
-		type: Ae[t.type] || "bone"
+		type: Fe[t.type] || "bone"
 	};
 }
-function Pe(e, t) {
-	let n = Oe[t.type], r = e.getNodeStyle(t), { lines: i } = e.wrapLabel(t.label || "", Ee[t.type], n.maxLines, n.fontSize, r), a = Math.max(0, ...i.map((t) => e.measureLabelText(t, n.fontSize, r)));
-	t.width = Math.max(De[t.type], Math.ceil(a + 2 * n.paddingX + 2)), t.height = Math.ceil(Math.max(1, i.length) * n.fontSize * ke + 2 * n.paddingY);
+function ze(e, t) {
+	let n = Me[t.type], r = e.getNodeStyle(t), { lines: i } = e.wrapLabel(t.label || "", Ae[t.type], n.maxLines, n.fontSize, r), a = Math.max(0, ...i.map((t) => e.measureLabelText(t, n.fontSize, r)));
+	t.width = Math.max(je[t.type], Math.ceil(a + 2 * n.paddingX + 2)), t.height = Math.ceil(Math.max(1, i.length) * n.fontSize * Ne + 2 * n.paddingY);
 }
-function Fe(e, t, n, r, i) {
-	let a = (e) => i + r * e, o = (e) => -e * D, s = [n], c = /* @__PURE__ */ new Map(), l = 0, u = ge;
+function Be(e, t, n, r, i) {
+	let a = (e) => i + r * e, o = (e) => -e * ye, s = [n], c = /* @__PURE__ */ new Map(), l = 0, u = be;
 	for (let i of [...t.children(n)].reverse()) {
-		Pe(e, i);
+		ze(e, i);
 		let n = t.children(i);
-		n.forEach((t) => Pe(e, t));
-		let d = r < 0 ? Math.max(xe, i.height + 6) : xe, f = n.length ? d + Math.max(...n.map((e) => e.height)) + 2 : 0, p = r < 0 ? 0 : i.height + 2, m = r < 0 ? Math.max(i.height + 2, f) : f;
-		u += p + _e;
+		n.forEach((t) => ze(e, t));
+		let d = r < 0 ? Math.max(Te, i.height + 6) : Te, f = n.length ? d + Math.max(...n.map((e) => e.height)) + 2 : 0, p = r < 0 ? 0 : i.height + 2, m = r < 0 ? Math.max(i.height + 2, f) : f;
+		u += p + xe;
 		let h = u;
-		u += m + ve;
+		u += m + Se;
 		let g = a(h), _ = o(h);
-		i.x = _ - be - (r < 0 ? i.height * D : 0) - i.width, i.y = g - i.height - 1, s.push(i);
-		let v = i.x - 4, y = i.x - be, b = Infinity;
+		i.x = _ - we - (r < 0 ? i.height * ye : 0) - i.width, i.y = g - i.height - 1, s.push(i);
+		let v = i.x - 4, y = i.x - we, b = Infinity;
 		for (let e of n) {
-			let t = Math.min(y - d * D, b - Se - e.width / 2, o(h + d + e.height) - be - e.width / 2), n = g + r * d, i = t + d * D;
+			let t = Math.min(y - d * ye, b - Ee - e.width / 2, o(h + d + e.height) - we - e.width / 2), n = g + r * d, i = t + d * ye;
 			e.x = t - e.width / 2, e.y = r < 0 ? n - e.height - 1 : n + 1, s.push(e), c.set(e.id, [{
 				x: t,
 				y: n
 			}, {
 				x: i,
 				y: g
-			}]), b = e.x, y = i - Se, v = Math.min(v, i - 10), l = Math.min(l, e.x);
+			}]), b = e.x, y = i - Ee, v = Math.min(v, i - 10), l = Math.min(l, e.x);
 		}
 		c.set(i.id, [{
 			x: v,
@@ -6859,8 +7013,8 @@ function Fe(e, t, n, r, i) {
 			y: g
 		}]), l = Math.min(l, v, i.x);
 	}
-	Pe(e, n);
-	let d = Math.max(u + 4, ye), f = {
+	ze(e, n);
+	let d = Math.max(u + 4, Ce), f = {
 		x: o(d),
 		y: a(d)
 	};
@@ -6874,16 +7028,16 @@ function Fe(e, t, n, r, i) {
 		anchor: f
 	};
 }
-function Ie(e, t) {
+function Ve(e, t) {
 	t.clear();
-	let n = A(e), r = n.effect;
+	let n = O(e), r = n.effect;
 	if (!r) return;
-	for (let t of e.model.nodes) t.type === "category" && !n.parentOf(t) && e.model.edges.push(Ne(e, t, r));
-	let i = A(e), a = i.children(r).filter((e) => e.type === "category"), o = r.y + r.height / 2, s = a.map((t, n) => ({
+	for (let t of e.model.nodes) t.type === "category" && !n.parentOf(t) && e.model.edges.push(Re(e, t, r));
+	let i = O(e), a = i.children(r).filter((e) => e.type === "category"), o = r.y + r.height / 2, s = a.map((t, n) => ({
 		category: t,
 		column: Math.floor(n / 2),
-		...Fe(e, i, t, n % 2 == 0 ? -1 : 1, o)
-	})), c = Math.ceil(s.length / 2), l = r.x - Ce;
+		...Be(e, i, t, n % 2 == 0 ? -1 : 1, o)
+	})), c = Math.ceil(s.length / 2), l = r.x - De;
 	for (let e = c - 1; e >= 0; e--) {
 		let n = s.filter((t) => t.column === e), i = Math.min(...n.map((e) => e.minX)), a = Math.max(...n.map((e) => e.maxX)), c = l - a;
 		for (let e of n) {
@@ -6909,7 +7063,7 @@ function Ie(e, t) {
 				}
 			]);
 		}
-		l = c + i - we;
+		l = c + i - Oe;
 	}
 	let u = new Map(t);
 	t.clear();
@@ -6924,7 +7078,7 @@ function Ie(e, t) {
 		});
 	}
 }
-var Le = { nodeTypes: {
+var He = { nodeTypes: {
 	effect: {
 		fill: "#FDE8E7",
 		stroke: "#B42318"
@@ -6933,15 +7087,15 @@ var Le = { nodeTypes: {
 		fill: "#EAF4FB",
 		stroke: "#1B5278"
 	},
-	cause: O,
-	subCause: O
+	cause: Pe,
+	subCause: Pe
 } };
-function Re() {
+function Ue() {
 	let e = /* @__PURE__ */ new Map();
 	return {
 		id: "ishikawa",
-		shapes: Me,
-		defaultTheme: Le,
+		shapes: Le,
+		defaultTheme: He,
 		nodeTypes: {
 			effect: {
 				defaultLabel: "Probleem",
@@ -6954,12 +7108,12 @@ function Re() {
 			},
 			cause: {
 				defaultLabel: "Oorzaak",
-				fixedStyle: O,
+				fixedStyle: Pe,
 				shape: "text"
 			},
 			subCause: {
 				defaultLabel: "Suboorzaak",
-				fixedStyle: O,
+				fixedStyle: Pe,
 				shape: "text"
 			}
 		},
@@ -6987,7 +7141,7 @@ function Re() {
 			}
 		},
 		getEdgeTypeForConnection({ source: e }) {
-			return Ae[e?.type] || "bone";
+			return Fe[e?.type] || "bone";
 		},
 		createInitialModel() {
 			let e = {
@@ -6999,7 +7153,7 @@ function Re() {
 				width: 180,
 				height: 90
 			}, t = [e], n = [];
-			return je.forEach((r, i) => {
+			return Ie.forEach((r, i) => {
 				let a = `category-${i + 1}`;
 				t.push({
 					id: a,
@@ -7023,7 +7177,7 @@ function Re() {
 			};
 		},
 		layoutDiagram(t) {
-			Ie(t, e);
+			Ve(t, e);
 		},
 		routeEdge({ sourcePoint: t, targetPoint: n, edge: r, engine: i }) {
 			let a = e.get(r?.id), o = a && i.getNode(r.sourceNodeId);
@@ -7035,15 +7189,15 @@ function Re() {
 			}));
 		},
 		getDragTarget(e, t) {
-			return A(t).effect || null;
+			return O(t).effect || null;
 		},
 		getSpineStart(e, t) {
 			if (!t?.getNode(e.id)) return null;
 			let n = t.model.edges.filter((t) => t.targetNodeId === e.id && t.routePoints?.length >= 3).map((e) => e.routePoints[1].x);
-			return Math.min(e.x - Ce, ...n) - Te;
+			return Math.min(e.x - De, ...n) - ke;
 		},
 		getDependentNodes(e, t) {
-			return k[e.type] ? A(t).children(e) : [];
+			return D[e.type] ? O(t).children(e) : [];
 		},
 		canDeleteNode(e) {
 			return e.type !== "effect";
@@ -7057,18 +7211,18 @@ function Re() {
 		},
 		handleCanvasAction(e, t) {
 			if (e.type !== "fishboneAddCategory") return !1;
-			let n = A(t).effect;
-			return n ? (ze(t, n, null), !0) : !1;
+			let n = O(t).effect;
+			return n ? (We(t, n, null), !0) : !1;
 		},
 		getContextActions(e, t) {
-			let n = A(t), r = n.parentOf(e), i = r ? n.children(r) : [], a = i.indexOf(e), o = (e) => this.nodeTypes[e].defaultLabel.toLowerCase(), s = [];
+			let n = O(t), r = n.parentOf(e), i = r ? n.children(r) : [], a = i.indexOf(e), o = (e) => this.nodeTypes[e].defaultLabel.toLowerCase(), s = [];
 			return e.type === "effect" ? (s.push({
 				type: "fishboneAddChild",
 				label: "Categorie toevoegen",
 				nodeType: "category"
-			}), s) : (k[e.type] && s.push({
+			}), s) : (D[e.type] && s.push({
 				type: "fishboneAddChild",
-				label: `${Be(o(k[e.type]))} toevoegen`,
+				label: `${Ge(o(D[e.type]))} toevoegen`,
 				icon: "branch"
 			}), s.push(e.type === "category" ? {
 				type: "fishboneAddSibling",
@@ -7076,7 +7230,7 @@ function Re() {
 				nodeType: "category"
 			} : {
 				type: "fishboneAddSibling",
-				label: `${Be(o(e.type))} toevoegen`,
+				label: `${Ge(o(e.type))} toevoegen`,
 				icon: "plus"
 			}), a > 0 && s.push({
 				type: "fishboneMove",
@@ -7094,12 +7248,12 @@ function Re() {
 			}), s);
 		},
 		handleAction(e, t, n) {
-			let r = A(n);
+			let r = O(n);
 			switch (e.type) {
-				case "fishboneAddChild": return k[t.type] ? (ze(n, t, null), !0) : !1;
+				case "fishboneAddChild": return D[t.type] ? (We(n, t, null), !0) : !1;
 				case "fishboneAddSibling": {
 					let e = r.parentOf(t);
-					return e ? (ze(n, e, t), !0) : !1;
+					return e ? (We(n, e, t), !0) : !1;
 				}
 				case "fishboneMove": {
 					let i = r.parentOf(t), a = i ? r.children(i) : [], o = a[a.indexOf(t) + e.direction];
@@ -7137,7 +7291,7 @@ function Re() {
 			return "action-surface";
 		},
 		getLabelLayout(e) {
-			return Oe[e.type] || {};
+			return Me[e.type] || {};
 		},
 		getResizeRules(e) {
 			return e.type === "effect" && {
@@ -7149,8 +7303,8 @@ function Re() {
 		}
 	};
 }
-function ze(e, t, n) {
-	let r = k[t.type], i = {
+function We(e, t, n) {
+	let r = D[t.type], i = {
 		id: e.generateId(),
 		type: r,
 		label: e.getDefaultLabelForType(r),
@@ -7159,86 +7313,86 @@ function ze(e, t, n) {
 		width: 0,
 		height: 0
 	}, a = e.model.nodes, o = n ? a.indexOf(n) : -1;
-	o >= 0 ? a.splice(o + 1, 0, i) : a.push(i), e.model.edges.push(Ne(e, i, t)), e.selectSingleNode(i.id), e.emitSelectionChanged(), setTimeout(() => {
+	o >= 0 ? a.splice(o + 1, 0, i) : a.push(i), e.model.edges.push(Re(e, i, t)), e.selectSingleNode(i.id), e.emitSelectionChanged(), setTimeout(() => {
 		e.getNode(i.id) && !e.state.editingLabel && e.startInlineLabelEdit("node", i.id);
 	}, 0);
 }
-function Be(e) {
+function Ge(e) {
 	return e.charAt(0).toUpperCase() + e.slice(1);
 }
 //#endregion
 //#region src/weavle-fta.js
-var Ve = "http://www.w3.org/2000/svg", He = 24, Ue = 16, We = 44, Ge = 28, j = 150, M = 46, Ke = 120, qe = 40, Je = {
+var Ke = "http://www.w3.org/2000/svg", qe = 24, Je = 16, Ye = 44, Xe = 28, Ze = 150, Qe = 46, $e = 120, et = 40, tt = {
 	placement: "inside",
 	fontSize: 13,
 	paddingX: 8,
 	paddingY: 7,
 	maxLines: 5
-}, Ye = {
+}, nt = {
 	placement: "below",
 	fontSize: 12,
 	belowWidth: 120,
 	belowGap: 5,
 	maxLines: 4
-}, Xe = {
+}, rt = {
 	placement: "inside",
 	fontSize: 12,
 	paddingX: 6,
 	paddingY: 6,
 	widthFactor: .78,
 	maxLines: 3
-}, Ze = {
+}, it = {
 	placement: "inside",
 	fontSize: 10,
 	paddingX: 2,
 	paddingY: 2,
 	maxLines: 1
-}, Qe = 1.25, $e = .18, N = [
+}, at = 1.25, ot = .18, k = [
 	"orGate",
 	"andGate",
 	"xorGate",
 	"priorityAndGate",
 	"votingGate",
 	"inhibitGate"
-], et = ["topEvent", "event"], tt = [
+], st = ["topEvent", "event"], ct = [
 	"basicEvent",
 	"undevelopedEvent",
 	"houseEvent",
 	"transfer"
-], P = ["event", ...tt], F = (e) => N.includes(e?.type), I = (e) => et.includes(e?.type);
-function L(e, t) {
-	let n = document.createElementNS(Ve, e);
+], A = ["event", ...ct], j = (e) => k.includes(e?.type), M = (e) => st.includes(e?.type);
+function N(e, t) {
+	let n = document.createElementNS(Ke, e);
 	for (let [e, r] of Object.entries(t)) n.setAttribute(e, r);
 	return n;
 }
-function nt(e, t, n) {
-	let r = L("polygon", { points: e.map((e) => `${e[0]},${e[1]}`).join(" ") });
+function lt(e, t, n) {
+	let r = N("polygon", { points: e.map((e) => `${e[0]},${e[1]}`).join(" ") });
 	return n.applyNodeStyle(r, t), r;
 }
-function rt(e, t, n, r, i) {
+function ut(e, t, n, r, i) {
 	let a = e + n / 2;
-	return `M ${e} ${i} Q ${a} ${i - r * $e * 2} ${e + n} ${i} Q ${e + n} ${t + r * .35} ${a} ${t} Q ${e} ${t + r * .35} ${e} ${i} Z`;
+	return `M ${e} ${i} Q ${a} ${i - r * ot * 2} ${e + n} ${i} Q ${e + n} ${t + r * .35} ${a} ${t} Q ${e} ${t + r * .35} ${e} ${i} Z`;
 }
-function it(e, t, n, r) {
+function dt(e, t, n, r) {
 	let i = r * .5;
 	return `M ${e} ${t + r} L ${e} ${t + i} A ${n / 2} ${i} 0 0 1 ${e + n} ${t + i} L ${e + n} ${t + r} Z`;
 }
-function R(e, t, n) {
-	let r = L("path", { d: e });
+function P(e, t, n) {
+	let r = N("path", { d: e });
 	return n.applyNodeStyle(r, t), r;
 }
-function at(e, t, n) {
+function ft(e, t, n) {
 	let r = n.getNodeStyle(t);
-	return L("path", {
+	return N("path", {
 		d: e,
 		fill: "none",
 		stroke: r.stroke,
 		"stroke-width": String(r.strokeWidth ?? 1.5)
 	});
 }
-var ot = {
+var pt = {
 	eventBox(e, t) {
-		let n = L("rect", {
+		let n = N("rect", {
 			x: e.x,
 			y: e.y,
 			width: e.width,
@@ -7248,7 +7402,7 @@ var ot = {
 		return t.applyNodeStyle(n, e), n;
 	},
 	basicEvent(e, t) {
-		let n = Math.min(e.width, e.height) / 2, r = L("circle", {
+		let n = Math.min(e.width, e.height) / 2, r = N("circle", {
 			cx: e.x + e.width / 2,
 			cy: e.y + e.height / 2,
 			r: n
@@ -7257,7 +7411,7 @@ var ot = {
 	},
 	undevelopedEvent(e, t) {
 		let { x: n, y: r, width: i, height: a } = e;
-		return nt([
+		return lt([
 			[n + i / 2, r],
 			[n + i, r + a / 2],
 			[n + i / 2, r + a],
@@ -7266,7 +7420,7 @@ var ot = {
 	},
 	houseEvent(e, t) {
 		let { x: n, y: r, width: i, height: a } = e;
-		return nt([
+		return lt([
 			[n + i / 2, r],
 			[n + i, r + a * .38],
 			[n + i, r + a],
@@ -7276,14 +7430,14 @@ var ot = {
 	},
 	transfer(e, t) {
 		let { x: n, y: r, width: i, height: a } = e;
-		return nt([
+		return lt([
 			[n + i / 2, r],
 			[n + i, r + a],
 			[n, r + a]
 		], e, t);
 	},
 	conditionEvent(e, t) {
-		let n = L("ellipse", {
+		let n = N("ellipse", {
 			cx: e.x + e.width / 2,
 			cy: e.y + e.height / 2,
 			rx: e.width / 2,
@@ -7293,19 +7447,19 @@ var ot = {
 	},
 	orGate(e, t) {
 		let { x: n, y: r, width: i, height: a } = e;
-		return R(rt(n, r, i, a, r + a), e, t);
+		return P(ut(n, r, i, a, r + a), e, t);
 	},
 	xorGate(e, t) {
-		let { x: n, y: r, width: i, height: a } = e, o = L("g", {});
-		return o.appendChild(R(rt(n, r, i, a - 6, r + a - 6), e, t)), o.appendChild(at(`M ${n} ${r + a} Q ${n + i / 2} ${r + a - 2 * a * $e} ${n + i} ${r + a}`, e, t)), o;
+		let { x: n, y: r, width: i, height: a } = e, o = N("g", {});
+		return o.appendChild(P(ut(n, r, i, a - 6, r + a - 6), e, t)), o.appendChild(ft(`M ${n} ${r + a} Q ${n + i / 2} ${r + a - 2 * a * ot} ${n + i} ${r + a}`, e, t)), o;
 	},
 	votingGate(e, t) {
-		let { x: n, y: r, width: i, height: a } = e, o = L("g", {});
-		o.appendChild(R(rt(n, r, i, a, r + a), e, t));
-		let { k: s, n: c } = t.getNode(e.id) ? st(t, e) : {
+		let { x: n, y: r, width: i, height: a } = e, o = N("g", {});
+		o.appendChild(P(ut(n, r, i, a, r + a), e, t));
+		let { k: s, n: c } = t.getNode(e.id) ? mt(t, e) : {
 			k: "k",
 			n: "n"
-		}, l = t.getNodeStyle(e), u = L("text", {
+		}, l = t.getNodeStyle(e), u = N("text", {
 			x: n + i / 2,
 			y: r + a * .6,
 			"text-anchor": "middle",
@@ -7319,15 +7473,15 @@ var ot = {
 	},
 	andGate(e, t) {
 		let { x: n, y: r, width: i, height: a } = e;
-		return R(it(n, r, i, a), e, t);
+		return P(dt(n, r, i, a), e, t);
 	},
 	priorityAndGate(e, t) {
-		let { x: n, y: r, width: i, height: a } = e, o = L("g", {});
-		return o.appendChild(R(it(n, r, i, a), e, t)), o.appendChild(at(`M ${n} ${r + a * .8} L ${n + i} ${r + a * .8}`, e, t)), o;
+		let { x: n, y: r, width: i, height: a } = e, o = N("g", {});
+		return o.appendChild(P(dt(n, r, i, a), e, t)), o.appendChild(ft(`M ${n} ${r + a * .8} L ${n + i} ${r + a * .8}`, e, t)), o;
 	},
 	inhibitGate(e, t) {
 		let { x: n, y: r, width: i, height: a } = e;
-		return nt([
+		return lt([
 			[n + i / 2, r],
 			[n + i, r + a / 4],
 			[n + i, r + a * 3 / 4],
@@ -7337,7 +7491,7 @@ var ot = {
 		], e, t);
 	}
 };
-function z(e) {
+function F(e) {
 	let t = e.model.nodes, n = new Map(t.map((e) => [e.id, e])), r = /* @__PURE__ */ new Map();
 	for (let t of e.model.edges) {
 		let e = n.get(t.sourceNodeId), i = n.get(t.targetNodeId);
@@ -7350,17 +7504,17 @@ function z(e) {
 		children: i,
 		inputs: (e) => i(e).filter((e) => e.type !== "conditionEvent"),
 		condition: (e) => i(e).find((e) => e.type === "conditionEvent") || null,
-		gateOf: (e) => i(e).find(F) || null
+		gateOf: (e) => i(e).find(j) || null
 	};
 }
-function st(e, t) {
-	let n = z(e).inputs(t).length;
+function mt(e, t) {
+	let n = F(e).inputs(t).length;
 	return {
 		k: Math.max(1, Math.min(n || 1, Number(t.k) || 2)),
 		n
 	};
 }
-function ct(e, t, n) {
+function ht(e, t, n) {
 	return {
 		id: e.generateId(),
 		sourceNodeId: t.id,
@@ -7370,50 +7524,50 @@ function ct(e, t, n) {
 		type: "link"
 	};
 }
-function lt(e, t) {
-	let n = t.type === "conditionEvent", r = n ? Xe : Je, i = n ? Ke : j, a = e.getNodeStyle(t), o = i * (r.widthFactor ?? 1) - 2 * r.paddingX, { lines: s } = e.wrapLabel(t.label || "", o, r.maxLines, r.fontSize, a), c = Math.max(1, s.length) * r.fontSize * Qe;
-	t.width = i, t.height = Math.max(n ? qe : M, Math.ceil((c + 2 * r.paddingY) / (n ? .8 : 1)));
+function gt(e, t) {
+	let n = t.type === "conditionEvent", r = n ? rt : tt, i = n ? $e : Ze, a = e.getNodeStyle(t), o = i * (r.widthFactor ?? 1) - 2 * r.paddingX, { lines: s } = e.wrapLabel(t.label || "", o, r.maxLines, r.fontSize, a), c = Math.max(1, s.length) * r.fontSize * at;
+	t.width = i, t.height = Math.max(n ? et : Qe, Math.ceil((c + 2 * r.paddingY) / (n ? .8 : 1)));
 }
-function ut(e) {
+function _t(e) {
 	return {
 		x: e.x + e.width / 2,
 		y: e.y
 	};
 }
-function dt(e) {
+function vt(e) {
 	let t = e.y + e.height, n = [
 		"orGate",
 		"xorGate",
 		"votingGate"
-	].includes(e.type) ? e.height * $e : 0;
+	].includes(e.type) ? e.height * ot : 0;
 	return {
 		x: e.x + e.width / 2,
 		y: t - n
 	};
 }
-function ft(e, t, n) {
-	if (tt.includes(n.type)) return Math.max(n.width, Ye.belowWidth);
+function yt(e, t, n) {
+	if (ct.includes(n.type)) return Math.max(n.width, nt.belowWidth);
 	let r = n.type === "inhibitGate" && t.condition(n);
-	return r ? n.width + 2 * (Ge + r.width) : n.width;
+	return r ? n.width + 2 * (Xe + r.width) : n.width;
 }
-function pt(e, t) {
+function bt(e, t) {
 	t.clear();
-	let n = z(e), r = n.top;
+	let n = F(e), r = n.top;
 	if (!r) return;
 	let i = e.diagram.getDefaultSize;
-	for (let t of e.model.nodes) I(t) || t.type === "conditionEvent" ? lt(e, t) : (!t.width || !t.height) && Object.assign(t, i(t.type));
+	for (let t of e.model.nodes) M(t) || t.type === "conditionEvent" ? gt(e, t) : (!t.width || !t.height) && Object.assign(t, i(t.type));
 	let a = /* @__PURE__ */ new Map(), o = (t) => {
-		let r = n.inputs(t), i = r.reduce((e, t) => e + o(t), 0) + He * Math.max(0, r.length - 1), s = Math.max(ft(e, n, t), i);
+		let r = n.inputs(t), i = r.reduce((e, t) => e + o(t), 0) + qe * Math.max(0, r.length - 1), s = Math.max(yt(e, n, t), i);
 		return a.set(t, s), s;
 	}, s = /* @__PURE__ */ new Map(), c = (e, t, r) => {
 		let i = a.get(e);
 		e.x = t + i / 2 - e.width / 2, e.y = r;
 		let o = n.inputs(e);
 		if (o.length) {
-			let n = dt(e), r = n.y + (F(e) ? We : Ue), l = (n.y + r) / 2, u = t + (i - (o.reduce((e, t) => e + a.get(t), 0) + He * (o.length - 1))) / 2;
+			let n = vt(e), r = n.y + (j(e) ? Ye : Je), l = (n.y + r) / 2, u = t + (i - (o.reduce((e, t) => e + a.get(t), 0) + qe * (o.length - 1))) / 2;
 			for (let e of o) {
-				c(e, u, r), u += a.get(e) + He;
-				let t = ut(e);
+				c(e, u, r), u += a.get(e) + qe;
+				let t = _t(e);
 				s.set(e.id, t.x === n.x ? [t, n] : [
 					t,
 					{
@@ -7431,7 +7585,7 @@ function pt(e, t) {
 		let l = e.type === "inhibitGate" && n.condition(e);
 		if (l) {
 			let t = e.y + e.height / 2;
-			l.x = e.x + e.width + Ge, l.y = t - l.height / 2, s.set(l.id, [{
+			l.x = e.x + e.width + Xe, l.y = t - l.height / 2, s.set(l.id, [{
 				x: l.x,
 				y: t
 			}, {
@@ -7452,10 +7606,10 @@ function pt(e, t) {
 		});
 	}
 }
-var B = {
+var I = {
 	fill: "#EEF0F3",
 	stroke: "#3A4451"
-}, mt = { nodeTypes: {
+}, xt = { nodeTypes: {
 	topEvent: {
 		fill: "#FDE8E7",
 		stroke: "#B42318",
@@ -7486,19 +7640,19 @@ var B = {
 		stroke: "#3A4451",
 		dash: "4,3"
 	},
-	orGate: B,
-	andGate: B,
-	xorGate: B,
-	priorityAndGate: B,
-	votingGate: B,
-	inhibitGate: B
+	orGate: I,
+	andGate: I,
+	xorGate: I,
+	priorityAndGate: I,
+	votingGate: I,
+	inhibitGate: I
 } };
-function ht() {
+function St() {
 	let e = /* @__PURE__ */ new Map();
 	return {
 		id: "fta",
-		shapes: ot,
-		defaultTheme: mt,
+		shapes: pt,
+		defaultTheme: xt,
 		nodeTypes: {
 			topEvent: {
 				defaultLabel: "Topgebeurtenis",
@@ -7583,8 +7737,8 @@ function ht() {
 					label: "Topgebeurtenis",
 					x: 400,
 					y: 80,
-					width: j,
-					height: M
+					width: Ze,
+					height: Qe
 				},
 				{
 					id: "gate-1",
@@ -7631,7 +7785,7 @@ function ht() {
 			};
 		},
 		layoutDiagram(t) {
-			pt(t, e);
+			bt(t, e);
 		},
 		routeEdge({ sourcePoint: t, targetPoint: n, edge: r, engine: i }) {
 			let a = e.get(r?.id), o = a && i.getNode(r.sourceNodeId);
@@ -7643,10 +7797,10 @@ function ht() {
 			}));
 		},
 		getDragTarget(e, t) {
-			return z(t).top || null;
+			return F(t).top || null;
 		},
 		getDependentNodes(e, t) {
-			return z(t).children(e);
+			return F(t).children(e);
 		},
 		canDeleteNode(e) {
 			return e.type !== "topEvent";
@@ -7655,7 +7809,7 @@ function ht() {
 			return [];
 		},
 		getContextActions(e, t) {
-			let n = z(t), r = n.parentOf(e), i = (e) => t.getTypeTitle(e), a = (e, t, n, r = {}) => ({
+			let n = F(t), r = n.parentOf(e), i = (e) => t.getTypeTitle(e), a = (e, t, n, r = {}) => ({
 				type: "group",
 				label: e,
 				...r,
@@ -7666,19 +7820,19 @@ function ht() {
 					active: r.current === e
 				}))
 			}), o = [];
-			if (I(e)) {
+			if (M(e)) {
 				let t = n.gateOf(e);
-				t ? (o.push(a("Oorzaak toevoegen", "ftaAddInput", P, { icon: "branch" })), o.push(a("Poort wijzigen", "ftaChangeGate", N, {
+				t ? (o.push(a("Oorzaak toevoegen", "ftaAddInput", A, { icon: "branch" })), o.push(a("Poort wijzigen", "ftaChangeGate", k, {
 					nodeType: t.type,
 					current: t.type
-				}))) : o.push(a("Poort toevoegen", "ftaAddGate", N, { icon: "branch" }));
+				}))) : o.push(a("Poort toevoegen", "ftaAddGate", k, { icon: "branch" }));
 			}
-			if (F(e)) {
-				if (o.push(a("Invoer toevoegen", "ftaAddInput", P, { icon: "branch" })), o.push(a("Type wijzigen", "ftaChangeGate", N, {
+			if (j(e)) {
+				if (o.push(a("Invoer toevoegen", "ftaAddInput", A, { icon: "branch" })), o.push(a("Type wijzigen", "ftaChangeGate", k, {
 					icon: "wrench",
 					current: e.type
 				})), e.type === "votingGate") {
-					let { k: n, n: r } = st(t, e);
+					let { k: n, n: r } = mt(t, e);
 					o.push({
 						type: "group",
 						label: "Drempel (k uit n)",
@@ -7697,12 +7851,12 @@ function ht() {
 					nodeType: "conditionEvent"
 				});
 			}
-			if (P.includes(e.type) && F(r)) {
-				let t = n.children(e).length ? ["event"] : P;
+			if (A.includes(e.type) && j(r)) {
+				let t = n.children(e).length ? ["event"] : A;
 				t.length > 1 && o.push(a("Type wijzigen", "changeType", t, {
 					icon: "wrench",
 					current: e.type
-				})), o.push(a("Ernaast toevoegen", "ftaAddSibling", P, { icon: "plus" }));
+				})), o.push(a("Ernaast toevoegen", "ftaAddSibling", A, { icon: "plus" }));
 				let i = n.inputs(r), s = i.indexOf(e);
 				s > 0 && o.push({
 					type: "ftaMove",
@@ -7722,25 +7876,25 @@ function ht() {
 			}), o;
 		},
 		handleAction(e, t, n) {
-			let r = z(n);
+			let r = F(n);
 			switch (e.type) {
 				case "ftaAddGate": {
-					if (!I(t) || r.gateOf(t)) return !1;
-					let i = V(n, t, e.nodeType, null), a = V(n, i, "basicEvent", null);
-					return i.type === "inhibitGate" ? V(n, i, "conditionEvent", null) : V(n, i, "basicEvent", null), H(n, a), !0;
+					if (!M(t) || r.gateOf(t)) return !1;
+					let i = L(n, t, e.nodeType, null), a = L(n, i, "basicEvent", null);
+					return i.type === "inhibitGate" ? L(n, i, "conditionEvent", null) : L(n, i, "basicEvent", null), wt(n, a), !0;
 				}
 				case "ftaAddInput": {
-					let i = F(t) ? t : r.gateOf(t);
-					return !i && I(t) && (i = V(n, t, "orGate", null)), i ? (H(n, V(n, i, e.nodeType, gt(n, i))), !0) : !1;
+					let i = j(t) ? t : r.gateOf(t);
+					return !i && M(t) && (i = L(n, t, "orGate", null)), i ? (wt(n, L(n, i, e.nodeType, Ct(n, i))), !0) : !1;
 				}
 				case "ftaAddSibling": {
 					let i = r.parentOf(t);
-					return F(i) ? (H(n, V(n, i, e.nodeType, t)), !0) : !1;
+					return j(i) ? (wt(n, L(n, i, e.nodeType, t)), !0) : !1;
 				}
-				case "ftaAddCondition": return t.type !== "inhibitGate" || r.condition(t) ? !1 : (H(n, V(n, t, "conditionEvent", null)), !0);
+				case "ftaAddCondition": return t.type !== "inhibitGate" || r.condition(t) ? !1 : (wt(n, L(n, t, "conditionEvent", null)), !0);
 				case "ftaChangeGate": {
-					let n = F(t) ? t : r.gateOf(t);
-					if (!n || !N.includes(e.nodeType) || n.type === e.nodeType) return !1;
+					let n = j(t) ? t : r.gateOf(t);
+					if (!n || !k.includes(e.nodeType) || n.type === e.nodeType) return !1;
 					let i = r.condition(n);
 					return i && e.nodeType !== "inhibitGate" && (i.type = "basicEvent", i.width = i.height = 0), n.type = e.nodeType, n.type !== "votingGate" && delete n.k, !0;
 				}
@@ -7752,7 +7906,7 @@ function ht() {
 					return [s[c], s[l]] = [s[l], s[c]], !0;
 				}
 				case "changeType": {
-					if (!P.includes(e.nodeType) || e.nodeType === t.type || r.children(t).length && e.nodeType !== "event") return !1;
+					if (!A.includes(e.nodeType) || e.nodeType === t.type || r.children(t).length && e.nodeType !== "event") return !1;
 					let n = this.nodeTypes[t.type]?.defaultLabel;
 					return t.type = e.nodeType, (!t.label || t.label === n) && (t.label = this.nodeTypes[t.type].defaultLabel), t.width = t.height = 0, !0;
 				}
@@ -7762,12 +7916,12 @@ function ht() {
 		getDefaultSize(e) {
 			return {
 				topEvent: {
-					width: j,
-					height: M
+					width: Ze,
+					height: Qe
 				},
 				event: {
-					width: j,
-					height: M
+					width: Ze,
+					height: Qe
 				},
 				basicEvent: {
 					width: 44,
@@ -7786,8 +7940,8 @@ function ht() {
 					height: 40
 				},
 				conditionEvent: {
-					width: Ke,
-					height: qe
+					width: $e,
+					height: et
 				}
 			}[e] || {
 				width: 44,
@@ -7798,18 +7952,18 @@ function ht() {
 			return "action-surface";
 		},
 		getLabelLayout(e) {
-			return I(e) ? Je : e.type === "conditionEvent" ? Xe : F(e) ? Ze : Ye;
+			return M(e) ? tt : e.type === "conditionEvent" ? rt : j(e) ? it : nt;
 		},
 		getResizeRules() {
 			return !1;
 		}
 	};
 }
-function gt(e, t) {
-	let n = z(e).inputs(t);
+function Ct(e, t) {
+	let n = F(e).inputs(t);
 	return n[n.length - 1] || null;
 }
-function V(e, t, n, r) {
+function L(e, t, n, r) {
 	let i = {
 		id: e.generateId(),
 		type: n,
@@ -7819,62 +7973,62 @@ function V(e, t, n, r) {
 		width: 0,
 		height: 0
 	}, a = e.model.nodes, o = r ? a.indexOf(r) : -1;
-	return o >= 0 ? a.splice(o + 1, 0, i) : a.push(i), e.model.edges.push(ct(e, i, t)), i;
+	return o >= 0 ? a.splice(o + 1, 0, i) : a.push(i), e.model.edges.push(ht(e, i, t)), i;
 }
-function H(e, t) {
+function wt(e, t) {
 	e.selectSingleNode(t.id), e.emitSelectionChanged(), setTimeout(() => {
 		e.getNode(t.id) && !e.state.editingLabel && e.startInlineLabelEdit("node", t.id);
 	}, 0);
 }
 //#endregion
 //#region src/weavle-orgchart.js
-var _t = "http://www.w3.org/2000/svg", U = 180, W = 52, vt = 4, yt = 10, bt = 8, xt = 2, St = 20, Ct = 40, wt = 60, Tt = 3, Et = 24, Dt = 10, Ot = 16, kt = 20, At = 14, G = {
+var Tt = "http://www.w3.org/2000/svg", R = 180, z = 52, Et = 4, Dt = 10, Ot = 8, kt = 2, At = 20, jt = 40, Mt = 60, Nt = 3, Pt = 24, Ft = 10, It = 16, Lt = 20, Rt = 14, B = {
 	fontSize: 13,
 	maxLines: 2
-}, K = {
+}, V = {
 	fontSize: 11,
 	maxLines: 2
-}, q = 1.25, jt = ["person", "vacancy"], Mt = (e) => !e.type || e.type === "reportsTo", J = (e) => e.type === "dottedLine";
-function Y(e, t) {
-	let n = document.createElementNS(_t, e);
+}, H = 1.25, zt = ["person", "vacancy"], Bt = (e) => !e.type || e.type === "reportsTo", U = (e) => e.type === "dottedLine";
+function W(e, t) {
+	let n = document.createElementNS(Tt, e);
 	for (let [e, r] of Object.entries(t)) n.setAttribute(e, r);
 	return n;
 }
-function Nt(e, t, n) {
-	let r = n.get(t.id), i = r ? r.nameH : G.fontSize * q, a = K.fontSize * q, o = t.width - 20, s = e.getNodeStyle(t), { lines: c } = e.wrapLabel(t.role || "", o, K.maxLines, K.fontSize, {
+function Vt(e, t, n) {
+	let r = n.get(t.id), i = r ? r.nameH : B.fontSize * H, a = V.fontSize * H, o = t.width - 20, s = e.getNodeStyle(t), { lines: c } = e.wrapLabel(t.role || "", o, V.maxLines, V.fontSize, {
 		...s,
 		fontWeight: "normal"
-	}), l = t.y + vt + bt + i + xt, u = Math.max(1, c.length) * a;
+	}), l = t.y + Et + Ot + i + kt, u = Math.max(1, c.length) * a;
 	return {
 		lines: c,
 		lineHeight: a,
 		width: o,
 		height: u,
-		fontSize: K.fontSize,
+		fontSize: V.fontSize,
 		centerX: t.x + t.width / 2,
 		centerY: l + u / 2
 	};
 }
-function Pt(e) {
+function Ht(e) {
 	let t = (t, n) => {
-		let { x: r, y: i, width: a, height: o } = t, s = n.getNodeStyle(t), c = Y("g", {}), l = Y("rect", {
+		let { x: r, y: i, width: a, height: o } = t, s = n.getNodeStyle(t), c = W("g", {}), l = W("rect", {
 			x: r,
 			y: i,
 			width: a,
 			height: o,
 			rx: 6
 		});
-		if (n.applyNodeStyle(l, t), c.appendChild(l), c.appendChild(Y("rect", {
+		if (n.applyNodeStyle(l, t), c.appendChild(l), c.appendChild(W("rect", {
 			x: r + 1,
 			y: i + 1,
 			width: Math.max(0, a - 2),
-			height: vt,
+			height: Et,
 			rx: 3,
 			fill: s.stroke,
 			"pointer-events": "none",
 			class: "weavle-orgchart-accent"
 		})), t.role && n.getNode(t.id)) {
-			let r = Nt(n, t, e), i = Y("text", {
+			let r = Vt(n, t, e), i = W("text", {
 				"text-anchor": "middle",
 				"font-size": r.fontSize,
 				fill: s.textColor || s.stroke,
@@ -7883,7 +8037,7 @@ function Pt(e) {
 				class: "weavle-orgchart-role"
 			}), a = r.centerY - r.height / 2 + r.lineHeight / 2 + r.fontSize * .35;
 			r.lines.forEach((e, t) => {
-				let n = Y("tspan", {
+				let n = W("tspan", {
 					x: r.centerX,
 					y: a + t * r.lineHeight
 				});
@@ -7897,10 +8051,10 @@ function Pt(e) {
 		vacancy: t
 	};
 }
-function X(e) {
+function G(e) {
 	let t = e.model.nodes, n = new Map(t.map((e) => [e.id, e])), r = /* @__PURE__ */ new Map();
 	for (let t of e.model.edges) {
-		if (!Mt(t)) continue;
+		if (!Bt(t)) continue;
 		let e = n.get(t.sourceNodeId), i = n.get(t.targetNodeId);
 		e && i && e !== i && !r.has(e.id) && r.set(e.id, i);
 	}
@@ -7928,10 +8082,10 @@ function X(e) {
 		assistants: (e) => a(e).filter(o),
 		team: (e) => a(e).filter((e) => !o(e)),
 		descendants: s,
-		dottedOf: (t) => e.model.edges.filter((e) => J(e) && e.sourceNodeId === t.id).map((e) => n.get(e.targetNodeId)).filter(Boolean)
+		dottedOf: (t) => e.model.edges.filter((e) => U(e) && e.sourceNodeId === t.id).map((e) => n.get(e.targetNodeId)).filter(Boolean)
 	};
 }
-function Ft(e, t, n, r = "reportsTo") {
+function Ut(e, t, n, r = "reportsTo") {
 	return {
 		id: e.generateId(),
 		sourceNodeId: t.id,
@@ -7941,39 +8095,39 @@ function Ft(e, t, n, r = "reportsTo") {
 		type: r
 	};
 }
-function It(e, t, n) {
-	e.model.edges = e.model.edges.filter((e) => e.sourceNodeId !== t.id || !Mt(e) && !(n && J(e) && e.targetNodeId === n.id)), n && e.model.edges.push(Ft(e, t, n));
+function Wt(e, t, n) {
+	e.model.edges = e.model.edges.filter((e) => e.sourceNodeId !== t.id || !Bt(e) && !(n && U(e) && e.targetNodeId === n.id)), n && e.model.edges.push(Ut(e, t, n));
 }
-function Z(e, t) {
+function Gt(e, t) {
 	if (t.collapsed) return !1;
 	let n = e.team(t);
-	return e.assistants(t).length === 0 && n.length >= Tt && n.every((t) => e.reports(t).length === 0);
+	return e.assistants(t).length === 0 && n.length >= Nt && n.every((t) => e.reports(t).length === 0);
 }
-function Lt(e, t) {
-	let n = e.getNodeStyle(t), r = e.wrapLabel(t.label || "", 160, G.maxLines, G.fontSize, n), i = t.role ? e.wrapLabel(t.role, 160, K.maxLines, K.fontSize, {
+function Kt(e, t) {
+	let n = e.getNodeStyle(t), r = e.wrapLabel(t.label || "", 160, B.maxLines, B.fontSize, n), i = t.role ? e.wrapLabel(t.role, 160, V.maxLines, V.fontSize, {
 		...n,
 		fontWeight: "normal"
-	}) : { lines: [] }, a = Math.max(1, r.lines.length) * G.fontSize * q, o = i.lines.length * K.fontSize * q;
-	return t.width = U, t.height = Math.max(W, Math.ceil(20 + a + (o ? xt + o : 0))), {
+	}) : { lines: [] }, a = Math.max(1, r.lines.length) * B.fontSize * H, o = i.lines.length * V.fontSize * H;
+	return t.width = R, t.height = Math.max(z, Math.ceil(20 + a + (o ? kt + o : 0))), {
 		nameH: a,
 		hiddenCount: 0
 	};
 }
-function Rt(e, t, n, r, i) {
+function qt(e, t, n, r, i) {
 	t.clear(), n.clear(), r.clear(), i.clear();
-	let a = X(e);
+	let a = G(e);
 	if (!a.roots.length) return;
 	for (let t of e.model.nodes) t.type === "person" && (a.managerOf(t) ? a.reports(t).length && i.set(t.id, "manager") : i.set(t.id, "top"));
 	for (let t of e.model.nodes) n.set(t.id, {
-		...Lt(e, t),
+		...Kt(e, t),
 		hasReports: a.reports(t).length > 0
 	});
 	let o = (e) => a.assistants(e).length ? 400 : 0, s = /* @__PURE__ */ new Map(), c = (e) => {
 		let t = a.team(e), n = e.width;
 		if (!e.collapsed) {
-			if (Z(a, e)) t.forEach(c), n = Math.max(e.width, 204);
+			if (Gt(a, e)) t.forEach(c), n = Math.max(e.width, 204);
 			else {
-				let r = t.reduce((e, t) => e + c(t), 0) + St * Math.max(0, t.length - 1);
+				let r = t.reduce((e, t) => e + c(t), 0) + At * Math.max(0, t.length - 1);
 				n = Math.max(e.width, r, o(e));
 			}
 		}
@@ -7991,11 +8145,11 @@ function Rt(e, t, n, r, i) {
 			e.x = t + r / 2 - e.width / 2, e.y = n, u(e);
 			return;
 		}
-		if (Z(a, e)) {
+		if (Gt(a, e)) {
 			e.x = t, e.y = n;
-			let r = t + Et / 2, a = n + e.height + Ot;
+			let r = t + Pt / 2, a = n + e.height + It;
 			for (let n of i) {
-				d(n, t + Et, a);
+				d(n, t + Pt, a);
 				let i = n.y + n.height / 2;
 				l.set(n.id, [
 					{
@@ -8010,17 +8164,17 @@ function Rt(e, t, n, r, i) {
 						x: r,
 						y: e.y + e.height
 					}
-				]), a += n.height + Dt;
+				]), a += n.height + Ft;
 			}
 			return;
 		}
 		e.x = t + r / 2 - e.width / 2, e.y = n, o.x = e.x + e.width / 2;
 		let c = o.y, f = a.assistants(e);
 		for (let e = 0; e < f.length; e += 2) {
-			let t = f.slice(e, e + 2), n = c + At;
+			let t = f.slice(e, e + 2), n = c + Rt;
 			t.forEach((e, t) => {
 				let r = t === 0;
-				e.x = r ? o.x + kt : o.x - kt - e.width, e.y = n;
+				e.x = r ? o.x + Lt : o.x - Lt - e.width, e.y = n;
 				let i = n + e.height / 2, a = r ? e.x : e.x + e.width;
 				l.set(e.id, [
 					{
@@ -8036,9 +8190,9 @@ function Rt(e, t, n, r, i) {
 			}), c = n + Math.max(...t.map((e) => e.height));
 		}
 		if (!i.length) return;
-		let p = c + Ct, m = c + Ct / 2, h = t + (r - (i.reduce((e, t) => e + s.get(t), 0) + St * (i.length - 1))) / 2;
+		let p = c + jt, m = c + jt / 2, h = t + (r - (i.reduce((e, t) => e + s.get(t), 0) + At * (i.length - 1))) / 2;
 		for (let e of i) {
-			d(e, h, p), h += s.get(e) + St;
+			d(e, h, p), h += s.get(e) + At;
 			let t = {
 				x: e.x + e.width / 2,
 				y: e.y
@@ -8058,13 +8212,13 @@ function Rt(e, t, n, r, i) {
 		}
 	}, f = a.roots[0];
 	c(f);
-	let p = Z(a, f) ? f.x : f.x + f.width / 2 - s.get(f) / 2, m = f.y;
-	for (let e of a.roots) e !== f && c(e), d(e, p, m), p += s.get(e) + wt;
+	let p = Gt(a, f) ? f.x : f.x + f.width / 2 - s.get(f) / 2, m = f.y;
+	for (let e of a.roots) e !== f && c(e), d(e, p, m), p += s.get(e) + Mt;
 	for (let n of e.model.edges) {
 		let r = e.getNode(n.sourceNodeId);
 		if (!r) continue;
-		if (J(n)) {
-			zt(n, r, e.getNode(n.targetNodeId));
+		if (U(n)) {
+			Jt(n, r, e.getNode(n.targetNodeId));
 			continue;
 		}
 		let i = l.get(n.sourceNodeId);
@@ -8077,12 +8231,12 @@ function Rt(e, t, n, r, i) {
 		});
 	}
 }
-function zt(e, t, n) {
+function Jt(e, t, n) {
 	if (!n) return;
 	let r = n.x + n.width / 2 - (t.x + t.width / 2);
-	Math.abs(r) < U ? (e.sourceHandle = "right", e.targetHandle = "right") : (e.sourceHandle = r > 0 ? "right" : "left", e.targetHandle = r > 0 ? "left" : "right");
+	Math.abs(r) < R ? (e.sourceHandle = "right", e.targetHandle = "right") : (e.sourceHandle = r > 0 ? "right" : "left", e.targetHandle = r > 0 ? "left" : "right");
 }
-var Bt = {
+var Yt = {
 	nodeTypes: {
 		person: {
 			fill: "#FFFFFF",
@@ -8114,10 +8268,10 @@ var Bt = {
 		dottedLine: { stroke: "#7A5AB8" }
 	}
 };
-function Vt(e) {
+function Xt(e) {
 	return Array.isArray(e) ? e.map(String) : e == null || e === "" ? [] : String(e).split(",").map((e) => e.trim()).filter(Boolean);
 }
-function Ht(e) {
+function Zt(e) {
 	let t = Array.isArray(e) ? e : [], n = new Set(t.map((e) => String(e.id))), r = t.map((e) => {
 		let t = e.vacancy === !0 || e.type === "vacancy", n = {
 			id: String(e.id),
@@ -8125,8 +8279,8 @@ function Ht(e) {
 			label: e.name ?? e.label ?? (t ? "Vacature" : ""),
 			x: 0,
 			y: 0,
-			width: U,
-			height: W
+			width: R,
+			height: z
 		}, r = e.role ?? e.title;
 		return r && (n.role = String(r)), e.assistant === !0 && (n.assistant = !0), e.style && (n.style = e.style), n;
 	}), i = (e, t, n, r) => ({
@@ -8140,16 +8294,16 @@ function Ht(e) {
 	for (let e of t) {
 		let t = String(e.id), r = e.managerId != null && e.managerId !== "" ? String(e.managerId) : null;
 		r && n.has(r) && a.push(i(`reportsTo-${t}`, t, r, "reportsTo"));
-		for (let o of Vt(e.dottedManagerIds)) o !== t && o !== r && n.has(o) && a.push(i(`dottedLine-${t}-${o}`, t, o, "dottedLine"));
+		for (let o of Xt(e.dottedManagerIds)) o !== t && o !== r && n.has(o) && a.push(i(`dottedLine-${t}-${o}`, t, o, "dottedLine"));
 	}
 	return {
 		nodes: r,
 		edges: a
 	};
 }
-function Ut(e) {
+function Qt(e) {
 	let t = e?.nodes || [], n = /* @__PURE__ */ new Map(), r = new Map(t.map((e) => [e.id, []]));
-	for (let t of e?.edges || []) J(t) ? r.get(t.sourceNodeId)?.push(t.targetNodeId) : Mt(t) && !n.has(t.sourceNodeId) && n.set(t.sourceNodeId, t.targetNodeId);
+	for (let t of e?.edges || []) U(t) ? r.get(t.sourceNodeId)?.push(t.targetNodeId) : Bt(t) && !n.has(t.sourceNodeId) && n.set(t.sourceNodeId, t.targetNodeId);
 	return t.map((e) => ({
 		id: e.id,
 		managerId: n.get(e.id) || "",
@@ -8160,18 +8314,18 @@ function Ut(e) {
 		dottedManagerIds: r.get(e.id) || []
 	}));
 }
-function Wt() {
+function $t() {
 	let e = /* @__PURE__ */ new Map(), t = /* @__PURE__ */ new Map(), n = /* @__PURE__ */ new Set(), r = /* @__PURE__ */ new Map(), i = (e, t) => {
 		t.length && queueMicrotask(() => t.forEach(([t, n]) => e.emitDiagramEvent(t, n)));
 	}, a = (e, t, n, r, i) => {
 		let a = t.managerOf(n);
-		It(e, n, r), i.push(["managerchanged", {
+		Wt(e, n, r), i.push(["managerchanged", {
 			nodeId: n.id,
 			oldManagerId: a?.id || "",
 			newManagerId: r?.id || ""
 		}]);
 	}, o = (e, t, n) => n !== t && n !== e.managerOf(t) && !e.dottedOf(t).includes(n), s = (e, t, n, r) => {
-		e.model.edges.push(Ft(e, t, n, "dottedLine")), r.push(["dottedlineadded", {
+		e.model.edges.push(Ut(e, t, n, "dottedLine")), r.push(["dottedlineadded", {
 			nodeId: t.id,
 			managerId: n.id
 		}]);
@@ -8181,8 +8335,8 @@ function Wt() {
 	};
 	return {
 		id: "orgchart",
-		shapes: Pt(t),
-		defaultTheme: Bt,
+		shapes: Ht(t),
+		defaultTheme: Yt,
 		nodeTypes: {
 			person: {
 				defaultLabel: "Naam",
@@ -8218,10 +8372,10 @@ function Wt() {
 		getEdgeTypeForConnection() {
 			return "reportsTo";
 		},
-		modelFromList: Ht,
-		modelToList: Ut,
+		modelFromList: Zt,
+		modelToList: Qt,
 		createInitialModel() {
-			return Ht([
+			return Zt([
 				{
 					id: "manager",
 					name: "Naam",
@@ -8242,7 +8396,7 @@ function Wt() {
 			]);
 		},
 		layoutDiagram(i) {
-			Rt(i, e, t, n, r);
+			qt(i, e, t, n, r);
 		},
 		isNodeHidden(e) {
 			return n.has(e.id);
@@ -8272,9 +8426,9 @@ function Wt() {
 			}] : [];
 		},
 		routeEdge({ sourcePoint: t, targetPoint: n, sourceHandle: r, targetHandle: i, edge: a, engine: o }) {
-			if (a && J(a)) return o.buildRoutedEdgePoints(t, n, r, i, a);
+			if (a && U(a)) return o.buildRoutedEdgePoints(t, n, r, i, a);
 			let s = a && o.getNode(a.sourceNodeId);
-			if (s && Gt(o, a)) return Kt(o, s);
+			if (s && en(o, a)) return tn(o, s);
 			let c = e.get(a?.id);
 			if (!c || !s) return [t, n];
 			let l = s.x - c.at.x, u = s.y - c.at.y;
@@ -8284,7 +8438,7 @@ function Wt() {
 			}));
 		},
 		getDependentNodes(e, t) {
-			return X(t).reports(e);
+			return G(t).reports(e);
 		},
 		getDropTarget(e, t, { pos: n, draggedIds: r }) {
 			let i = new Set(r);
@@ -8292,18 +8446,18 @@ function Wt() {
 		},
 		onNodeDrop(e, t, n, { altKey: r }) {
 			if (!t) return;
-			let l = X(n), u = [];
+			let l = G(n), u = [];
 			r ? o(l, e, t) && s(n, e, t, u) : t !== l.managerOf(e) && (delete e.assistant, delete t.collapsed, c(n, l, e, t), a(n, l, e, t, u)), i(n, u);
 		},
 		canDeleteNode(e, t) {
-			let n = X(t);
+			let n = G(t);
 			return n.roots.length !== 1 || n.roots[0] !== e;
 		},
 		getCanvasActions() {
 			return [];
 		},
 		getContextActions(e, t) {
-			let n = X(t), r = n.managerOf(e), i = n.reports(e), a = (e) => t.getTypeTitle(e), o = (e) => jt.map((t) => ({
+			let n = G(t), r = n.managerOf(e), i = n.reports(e), a = (e) => t.getTypeTitle(e), o = (e) => zt.map((t) => ({
 				type: e,
 				nodeType: t,
 				label: a(t)
@@ -8375,7 +8529,7 @@ function Wt() {
 					nodeType: e.type
 				}))
 			});
-			let l = r ? n.isAssistant(e) ? n.assistants(r) : n.team(r) : n.roots, u = l.indexOf(e), d = r && !n.isAssistant(e) && Z(n, r);
+			let l = r ? n.isAssistant(e) ? n.assistants(r) : n.team(r) : n.roots, u = l.indexOf(e), d = r && !n.isAssistant(e) && Gt(n, r);
 			return u > 0 && s.push({
 				type: "ocMove",
 				direction: -1,
@@ -8396,44 +8550,44 @@ function Wt() {
 			}), s;
 		},
 		handleAction(e, n, r) {
-			let c = X(r), l = [];
+			let c = G(r), l = [];
 			switch (e.type) {
 				case "ocAddReport":
 				case "ocAddAssistant": {
 					delete n.collapsed;
-					let t = qt(r, n, e.nodeType, c.reports(n).at(-1) || null);
-					return e.type === "ocAddAssistant" && (t.assistant = !0), Jt(r, t), !0;
+					let t = nn(r, n, e.nodeType, c.reports(n).at(-1) || null);
+					return e.type === "ocAddAssistant" && (t.assistant = !0), rn(r, t), !0;
 				}
 				case "ocAddColleague": {
 					let t = c.managerOf(n);
-					return t ? (Jt(r, qt(r, t, e.nodeType, n)), !0) : !1;
+					return t ? (rn(r, nn(r, t, e.nodeType, n)), !0) : !1;
 				}
 				case "ocToggleCollapse": return c.reports(n).length ? (n.collapsed ? delete n.collapsed : n.collapsed = !0, !0) : !1;
 				case "ocToggleAssistant": return !c.managerOf(n) || c.reports(n).length ? !1 : (n.assistant ? delete n.assistant : n.assistant = !0, !0);
 				case "ocEditRole": return r.startInlineLabelEdit("node", n.id, {
 					field: "role",
-					box: Nt(r, n, t)
+					box: Vt(r, n, t)
 				}), !1;
 				case "ocAddDotted": return r.startNodePick({
-					filter: (e) => o(X(r), n, e),
+					filter: (e) => o(G(r), n, e),
 					onPick: (e) => {
 						let t = [];
 						s(r, n, e, t), r.pushHistory(), r.emitModelChanged(), r.render(), i(r, t);
 					}
 				}), !1;
 				case "ocRemoveDotted": {
-					let t = r.model.edges, a = t.find((t) => J(t) && t.sourceNodeId === n.id && t.targetNodeId === e.targetId);
+					let t = r.model.edges, a = t.find((t) => U(t) && t.sourceNodeId === n.id && t.targetNodeId === e.targetId);
 					return a ? (r.model.edges = t.filter((e) => e !== a), l.push(["dottedlineremoved", {
 						nodeId: n.id,
 						managerId: e.targetId
 					}]), i(r, l), !0) : !1;
 				}
 				case "ocAddManager": {
-					let e = c.managerOf(n), t = qt(r, e, "person", null), o = r.model.nodes;
+					let e = c.managerOf(n), t = nn(r, e, "person", null), o = r.model.nodes;
 					return o.splice(o.indexOf(t), 1), o.splice(o.indexOf(n), 0, t), e || Object.assign(t, {
 						x: n.x,
 						y: n.y
-					}), n.assistant && (t.assistant = !0, delete n.assistant), a(r, c, n, t, l), i(r, l), Jt(r, t), !0;
+					}), n.assistant && (t.assistant = !0, delete n.assistant), a(r, c, n, t, l), i(r, l), rn(r, t), !0;
 				}
 				case "ocPromote": {
 					let e = c.managerOf(n), t = e && c.managerOf(e);
@@ -8460,7 +8614,7 @@ function Wt() {
 					}), r.model.edges = r.model.edges.filter((e) => e.sourceNodeId !== n.id && e.targetNodeId !== n.id), r.clearSelection?.(), r.clearNodeToolSurface?.(), r.emitSelectionChanged(), i(r, l), !0;
 				}
 				case "changeType": {
-					if (!jt.includes(e.nodeType) || e.nodeType === n.type) return !1;
+					if (!zt.includes(e.nodeType) || e.nodeType === n.type) return !1;
 					let t = this.nodeTypes[n.type]?.defaultLabel;
 					return n.type = e.nodeType, (!n.label || n.label === t) && (n.label = this.nodeTypes[n.type].defaultLabel), !0;
 				}
@@ -8469,22 +8623,22 @@ function Wt() {
 		},
 		getDefaultSize() {
 			return {
-				width: U,
-				height: W
+				width: R,
+				height: z
 			};
 		},
 		getNodeInteractionMode() {
 			return "action-surface";
 		},
 		getLabelLayout(e) {
-			let n = 12 + (t.get(e.id)?.nameH ?? G.fontSize * q) / 2;
+			let n = 12 + (t.get(e.id)?.nameH ?? B.fontSize * H) / 2;
 			return {
 				placement: "inside",
-				fontSize: G.fontSize,
-				maxLines: G.maxLines,
-				paddingX: yt,
+				fontSize: B.fontSize,
+				maxLines: B.maxLines,
+				paddingX: Dt,
 				paddingY: 0,
-				offsetY: n - (e.height || W) / 2
+				offsetY: n - (e.height || z) / 2
 			};
 		},
 		getResizeRules() {
@@ -8492,11 +8646,11 @@ function Wt() {
 		}
 	};
 }
-function Gt(e, t) {
+function en(e, t) {
 	let n = e.state.draggingNodeIds || (e.state.draggingNodeId ? [e.state.draggingNodeId] : null);
 	return !!n && n.includes(t.sourceNodeId) && !n.includes(t.targetNodeId);
 }
-function Kt(e, t) {
+function tn(e, t) {
 	let n = {
 		x: t.x + t.width / 2,
 		y: t.y
@@ -8519,53 +8673,667 @@ function Kt(e, t) {
 		i
 	];
 }
-function qt(e, t, n, r) {
+function nn(e, t, n, r) {
 	let i = {
 		id: e.generateId(),
 		type: n,
 		label: e.getDefaultLabelForType(n),
 		x: t?.x ?? 0,
 		y: t?.y ?? 0,
-		width: U,
-		height: W
+		width: R,
+		height: z
 	}, a = e.model.nodes, o = r ? a.indexOf(r) : -1;
-	return o >= 0 ? a.splice(o + 1, 0, i) : a.push(i), t && e.model.edges.push(Ft(e, i, t)), i;
+	return o >= 0 ? a.splice(o + 1, 0, i) : a.push(i), t && e.model.edges.push(Ut(e, i, t)), i;
 }
-function Jt(e, t) {
+function rn(e, t) {
 	e.selectSingleNode(t.id), e.emitSelectionChanged(), setTimeout(() => {
 		e.getNode(t.id) && !e.state.editingLabel && e.startInlineLabelEdit("node", t.id);
 	}, 0);
 }
 //#endregion
+//#region src/weavle-nodeeditor.js
+var an = "http://www.w3.org/2000/svg", on = 190, K = 28, sn = 26, cn = 6, ln = 12, un = 5.5, q = 12, dn = 19, J = {
+	boolean: {
+		label: "Boolean",
+		color: "#4F7DF0"
+	},
+	number: {
+		label: "Getal",
+		color: "#E5484D"
+	},
+	string: {
+		label: "Tekst",
+		color: "#22B07D"
+	}
+}, fn = {
+	input: {
+		label: "Invoer",
+		color: "#2F6F8F"
+	},
+	logic: {
+		label: "Logica",
+		color: "#6B4FA8"
+	},
+	number: {
+		label: "Getallen",
+		color: "#A8483E"
+	},
+	text: {
+		label: "Tekst",
+		color: "#2E8060"
+	},
+	output: {
+		label: "Uitvoer",
+		color: "#8A6A1F"
+	}
+}, Y = {
+	currentUser: {
+		title: "Huidige gebruiker",
+		category: "input",
+		outputs: [
+			{
+				id: "loggedIn",
+				label: "Ingelogd",
+				type: "boolean"
+			},
+			{
+				id: "admin",
+				label: "Beheerder",
+				type: "boolean"
+			},
+			{
+				id: "fullName",
+				label: "Volledige naam",
+				type: "string"
+			},
+			{
+				id: "email",
+				label: "E-mail",
+				type: "string"
+			}
+		]
+	},
+	window: {
+		title: "Venster",
+		category: "input",
+		outputs: [{
+			id: "width",
+			label: "Breedte",
+			type: "number"
+		}, {
+			id: "height",
+			label: "Hoogte",
+			type: "number"
+		}]
+	},
+	text: {
+		title: "Tekst",
+		category: "input",
+		fields: [{
+			id: "value",
+			label: "Tekst",
+			type: "string",
+			value: ""
+		}],
+		outputs: [{
+			id: "value",
+			label: "Tekst",
+			type: "string"
+		}]
+	},
+	number: {
+		title: "Getal",
+		category: "input",
+		fields: [{
+			id: "value",
+			label: "Waarde",
+			type: "number",
+			value: "0"
+		}],
+		outputs: [{
+			id: "value",
+			label: "Getal",
+			type: "number"
+		}]
+	},
+	boolean: {
+		title: "Ja / nee",
+		category: "input",
+		fields: [{
+			id: "value",
+			label: "Waarde",
+			type: "boolean",
+			value: "waar"
+		}],
+		outputs: [{
+			id: "value",
+			label: "Boolean",
+			type: "boolean"
+		}]
+	},
+	and: {
+		title: "EN",
+		category: "logic",
+		outputs: [{
+			id: "result",
+			label: "Boolean",
+			type: "boolean"
+		}],
+		inputs: [{
+			id: "a",
+			label: "Boolean",
+			type: "boolean"
+		}, {
+			id: "b",
+			label: "Boolean",
+			type: "boolean"
+		}]
+	},
+	or: {
+		title: "OF",
+		category: "logic",
+		outputs: [{
+			id: "result",
+			label: "Boolean",
+			type: "boolean"
+		}],
+		inputs: [{
+			id: "a",
+			label: "Boolean",
+			type: "boolean"
+		}, {
+			id: "b",
+			label: "Boolean",
+			type: "boolean"
+		}]
+	},
+	not: {
+		title: "Omkeren",
+		category: "logic",
+		outputs: [{
+			id: "result",
+			label: "Boolean",
+			type: "boolean"
+		}],
+		inputs: [{
+			id: "value",
+			label: "Boolean",
+			type: "boolean"
+		}]
+	},
+	lessThan: {
+		title: "Kleiner dan",
+		category: "number",
+		outputs: [{
+			id: "result",
+			label: "Boolean",
+			type: "boolean"
+		}],
+		inputs: [{
+			id: "a",
+			label: "Getal",
+			type: "number",
+			value: "0"
+		}, {
+			id: "b",
+			label: "Getal",
+			type: "number",
+			value: "0"
+		}]
+	},
+	add: {
+		title: "Optellen",
+		category: "number",
+		outputs: [{
+			id: "result",
+			label: "Getal",
+			type: "number"
+		}],
+		inputs: [{
+			id: "a",
+			label: "Getal",
+			type: "number",
+			value: "0"
+		}, {
+			id: "b",
+			label: "Getal",
+			type: "number",
+			value: "0"
+		}]
+	},
+	joinText: {
+		title: "Tekst samenvoegen",
+		category: "text",
+		outputs: [{
+			id: "result",
+			label: "Tekst",
+			type: "string"
+		}],
+		inputs: [{
+			id: "first",
+			label: "Eerste",
+			type: "string",
+			value: ""
+		}, {
+			id: "second",
+			label: "Tweede",
+			type: "string",
+			value: ""
+		}]
+	},
+	chooseText: {
+		title: "Tekst kiezen",
+		category: "text",
+		outputs: [{
+			id: "result",
+			label: "Tekst",
+			type: "string"
+		}],
+		inputs: [
+			{
+				id: "test",
+				label: "Test",
+				type: "boolean"
+			},
+			{
+				id: "ifTrue",
+				label: "Indien waar",
+				type: "string",
+				value: ""
+			},
+			{
+				id: "ifFalse",
+				label: "Anders",
+				type: "string",
+				value: ""
+			}
+		]
+	},
+	numberToText: {
+		title: "Getal naar tekst",
+		category: "text",
+		outputs: [{
+			id: "result",
+			label: "Tekst",
+			type: "string"
+		}],
+		inputs: [{
+			id: "value",
+			label: "Getal",
+			type: "number",
+			value: "0"
+		}]
+	},
+	pageSettings: {
+		title: "Pagina-instellingen",
+		category: "output",
+		inputs: [
+			{
+				id: "title",
+				label: "Paginatitel",
+				type: "string",
+				value: ""
+			},
+			{
+				id: "description",
+				label: "Omschrijving",
+				type: "string",
+				value: ""
+			},
+			{
+				id: "showDashboard",
+				label: "Toon dashboard",
+				type: "boolean"
+			},
+			{
+				id: "showSignup",
+				label: "Toon aanmelden",
+				type: "boolean"
+			}
+		]
+	}
+};
+function X(e) {
+	let t = Y[e] || {};
+	return [
+		...(t.outputs || []).map((e) => ({
+			kind: "out",
+			...e,
+			handle: `out-${e.id}`
+		})),
+		...(t.fields || []).map((e) => ({
+			kind: "field",
+			...e
+		})),
+		...(t.inputs || []).map((e) => ({
+			kind: "in",
+			...e,
+			handle: `in-${e.id}`
+		}))
+	];
+}
+function pn(e) {
+	return {
+		width: on,
+		height: 40 + X(e).length * sn
+	};
+}
+function mn(e, t) {
+	return e.y + K + cn + t * sn + sn / 2;
+}
+function hn(e, t, n) {
+	return e.model.edges.some((e) => e.targetNodeId === t.id && e.targetHandle === n);
+}
+function gn(e, t, n, r) {
+	if (n.kind === "out" || n.kind === "in" && (n.value === void 0 || hn(e, t, n.handle))) return null;
+	let i = mn(t, r);
+	return {
+		x: t.x + ln,
+		y: i - dn / 2,
+		width: t.width - 24,
+		height: dn
+	};
+}
+function _n(e) {
+	let t = {};
+	for (let n of X(e)) n.kind !== "out" && n.value !== void 0 && (t[n.id] = n.value);
+	return t;
+}
+function vn(e, t) {
+	return e.values?.[t.id] ?? t.value ?? "";
+}
+function Z(e, t) {
+	let n = document.createElementNS(an, e);
+	for (let [e, r] of Object.entries(t)) n.setAttribute(e, r);
+	return n;
+}
+function yn(e, t) {
+	let n = Z("text", {
+		"font-size": q,
+		"pointer-events": "none",
+		...t
+	});
+	return n.textContent = e, n;
+}
+function bn(e, t, n) {
+	return e.wrapLabel(String(t), n, 1, q).lines[0] || "";
+}
+function xn(e, t, n = !1) {
+	let r = pn(e.type);
+	if (!n && e.height < r.height - 1) {
+		let n = e.height / r.height, i = Z("g", { transform: `translate(${e.x} ${e.y}) scale(${n})` });
+		return i.appendChild(xn({
+			...e,
+			x: 0,
+			y: 0,
+			width: e.width / n,
+			height: r.height
+		}, t, !0)), i;
+	}
+	let { x: i, y: a, width: o, height: s } = e, c = Y[e.type] || {}, l = t.getNodeStyle(e), u = fn[c.category]?.color || l.stroke, d = Z("g", {}), f = Z("rect", {
+		x: i,
+		y: a,
+		width: o,
+		height: s,
+		rx: 6
+	});
+	return t.applyNodeStyle(f, e), d.appendChild(f), d.appendChild(Z("rect", {
+		x: i + 1,
+		y: a + 1,
+		width: Math.max(0, o - 2),
+		height: 27,
+		rx: 5,
+		fill: u,
+		"pointer-events": "none",
+		class: "weavle-nodeeditor-header"
+	})), d.appendChild(Z("rect", {
+		x: i + 1,
+		y: a + K - 6,
+		width: Math.max(0, o - 2),
+		height: 6,
+		fill: u,
+		"pointer-events": "none"
+	})), X(e.type).forEach((r, a) => {
+		let s = mn(e, a), c = gn(t, e, r, a);
+		if (n) c && d.appendChild(Z("rect", {
+			x: c.x,
+			y: c.y,
+			width: c.width,
+			height: c.height,
+			rx: 4,
+			fill: "#2A2E35"
+		}));
+		else if (c) {
+			d.appendChild(Z("rect", {
+				x: c.x,
+				y: c.y,
+				width: c.width,
+				height: c.height,
+				rx: 4,
+				fill: "#2A2E35",
+				stroke: "#4A505A",
+				"pointer-events": "none",
+				class: "weavle-nodeeditor-value"
+			}));
+			let n = yn(r.label, {
+				x: c.x + 6,
+				y: s + 4,
+				fill: "#C9CED6"
+			});
+			d.appendChild(n);
+			let i = c.width - 12 - t.measureLabelText(r.label, q) - 10;
+			d.appendChild(yn(bn(t, vn(e, r), Math.max(10, i)), {
+				x: c.x + c.width - 6,
+				y: s + 4,
+				"text-anchor": "end",
+				fill: l.textColor || "#FFFFFF"
+			}));
+		} else {
+			let e = r.kind === "out";
+			d.appendChild(yn(bn(t, r.label, o - 24), {
+				x: e ? i + o - ln : i + ln,
+				y: s + 4,
+				"text-anchor": e ? "end" : "start",
+				fill: l.textColor || "#FFFFFF"
+			}));
+		}
+		r.handle && d.appendChild(Z("circle", {
+			cx: r.kind === "out" ? i + o : i,
+			cy: s,
+			r: un,
+			fill: J[r.type]?.color || "#999999",
+			stroke: "#1E2228",
+			"stroke-width": 1.5,
+			"data-handle-position": r.handle,
+			cursor: "crosshair",
+			class: "weavle-nodeeditor-port"
+		}));
+	}), d;
+}
+var Sn = {
+	nodeTypes: Object.fromEntries(Object.keys(Y).map((e) => [e, {
+		fill: "#3A3F47",
+		stroke: "#1E2228",
+		textColor: "#FFFFFF",
+		fontWeight: "600"
+	}])),
+	edgeTypes: Object.fromEntries(Object.entries(J).map(([e, t]) => [e, {
+		stroke: t.color,
+		strokeWidth: 2.5
+	}]))
+};
+function Cn(e, t, n, r, i = void 0) {
+	return {
+		id: t,
+		type: e,
+		x: n,
+		y: r,
+		...pn(e),
+		label: Y[e]?.title || e,
+		values: {
+			..._n(e),
+			...i || {}
+		}
+	};
+}
+function wn(e, t, n, r, i) {
+	return {
+		id: e,
+		sourceNodeId: t,
+		targetNodeId: r,
+		sourceHandle: `out-${n}`,
+		targetHandle: `in-${i}`,
+		label: "",
+		isAutoRoute: !0
+	};
+}
+function Tn() {
+	return {
+		id: "nodeeditor",
+		shapes: { node: xn },
+		defaultTheme: Sn,
+		dataTypes: J,
+		nodeTypes: Object.fromEntries(Object.entries(Y).map(([e, t]) => [e, {
+			defaultLabel: t.title,
+			title: t.title,
+			shape: "node"
+		}])),
+		palette: Object.entries(fn).map(([e, t]) => ({
+			group: t.label,
+			types: Object.keys(Y).filter((t) => Y[t].category === e)
+		})),
+		showPortHandles: !1,
+		getDefaultSize(e) {
+			return pn(e);
+		},
+		onNodeCreated(e) {
+			e.values = {
+				..._n(e.type),
+				...e.values || {}
+			};
+		},
+		getResizeRules(e) {
+			let { height: t } = pn(e.type);
+			return {
+				minWidth: 150,
+				maxWidth: 420,
+				minHeight: t,
+				maxHeight: t,
+				handles: ["e", "w"]
+			};
+		},
+		getLabelLayout(e) {
+			let t = Math.max(e.height, K);
+			return {
+				placement: "inside",
+				fontSize: 13,
+				maxLines: 1,
+				paddingX: 10,
+				paddingY: 0,
+				heightFactor: K / t,
+				offsetY: -(t - K) / 2
+			};
+		},
+		getPorts(e) {
+			let t = {};
+			return X(e.type).forEach((n, r) => {
+				if (!n.handle) return;
+				let i = n.kind === "out";
+				t[n.handle] = {
+					x: i ? e.x + e.width : e.x,
+					y: mn(e, r),
+					side: i ? "right" : "left",
+					direction: i ? "out" : "in",
+					dataType: n.type,
+					label: n.label,
+					...i ? {} : {
+						max: 1,
+						onFull: "replace"
+					}
+				};
+			}), t;
+		},
+		defaultEdgeType: "string",
+		edgeTypes: Object.fromEntries(Object.keys(J).map((e) => [e, {
+			router: "bezier",
+			marker: "none"
+		}])),
+		getEdgeTypeForConnection({ source: e, sourceHandle: t }, n) {
+			let r = n.getPort(e, t)?.dataType;
+			return J[r] ? r : "string";
+		},
+		canConnect({ source: e, target: t, edge: n }, r) {
+			let i = /* @__PURE__ */ new Map();
+			for (let e of r.model.edges) e.id !== n?.id && (i.has(e.sourceNodeId) || i.set(e.sourceNodeId, []), i.get(e.sourceNodeId).push(e.targetNodeId));
+			let a = /* @__PURE__ */ new Set(), o = [t.id];
+			for (; o.length;) {
+				let t = o.pop();
+				if (t === e.id) return "Deze verbinding maakt een kringloop";
+				a.has(t) || (a.add(t), o.push(...i.get(t) || []));
+			}
+			return !0;
+		},
+		canSplitEdge() {
+			return !1;
+		},
+		getEditTarget(e, t, n) {
+			if (!n) return null;
+			let r = X(e.type);
+			for (let i = 0; i < r.length; i++) {
+				let a = gn(t, e, r[i], i);
+				if (a && n.x >= a.x && n.x <= a.x + a.width && n.y >= a.y && n.y <= a.y + a.height) return {
+					field: `values.${r[i].id}`,
+					box: {
+						centerX: a.x + a.width / 2,
+						centerY: a.y + a.height / 2,
+						width: a.width,
+						height: a.height,
+						fontSize: q,
+						lineHeight: q * 1.25
+					}
+				};
+			}
+			return null;
+		},
+		getContextActions() {
+			return [{
+				type: "deleteNode",
+				label: "Verwijderen"
+			}];
+		}
+	};
+}
+//#endregion
 //#region src/weavle-outsystems.js
-var Yt = {
+var En = {
 	bpmn: S,
 	flowchart: c,
-	ishikawa: Re,
-	fta: ht,
-	orgchart: Wt
-}, Xt = {
+	ishikawa: Ue,
+	fta: St,
+	orgchart: $t,
+	nodeeditor: Tn
+}, Dn = {
 	nodes: [],
 	edges: []
 };
-function Zt(e, t) {
-	Yt[e] = t;
+function On(e, t) {
+	En[e] = t;
 }
-function Qt() {
-	return Object.keys(Yt);
+function kn() {
+	return Object.keys(En);
 }
-function $t(e) {
-	return nn(e)?._weavle || null;
+function An(e) {
+	return Nn(e)?._weavle || null;
 }
-function en(e, t = {}) {
-	let n = nn(e);
+function jn(e, t = {}) {
+	let n = Nn(e);
 	if (!n) throw Error(`Weavle.mount: container "${e}" not found`);
 	n._weavle?.destroy();
 	let r = typeof t.diagramType == "function" ? "custom" : t.diagramType || "bpmn", i = (e) => {
-		let n = e === "custom" && typeof t.diagramType == "function" ? t.diagramType : Yt[e];
-		if (!n) throw Error(`Weavle: unknown diagram type "${e}" (known: ${Qt().join(", ")})`);
+		let n = e === "custom" && typeof t.diagramType == "function" ? t.diagramType : En[e];
+		if (!n) throw Error(`Weavle: unknown diagram type "${e}" (known: ${kn().join(", ")})`);
 		return n;
-	}, a = { ...Q(t.options) || {} }, o = r, s = new he(n, { ...a }, i(o)()), c = null, l = (e) => ({
+	}, a = { ...Q(t.options) || {} }, o = r, s = new ve(n, { ...a }, i(o)()), c = null, l = (e) => ({
 		diagramType: o,
 		...e
 	}), u = (e) => typeof s.diagram.modelToList == "function" ? s.diagram.modelToList(e) : null, d = null, f = {
@@ -8592,11 +9360,11 @@ function en(e, t = {}) {
 	for (let [e, t] of Object.entries(f)) n.addEventListener(e, t);
 	let p = () => s.emit("weavle:modelchanged", { model: s.getData() }), m = (e) => {
 		let r = i(e);
-		s.destroy(), o = e, s = new he(n, { ...a }, r()), t.onSelectionChanged?.("", "", "[]");
+		s.destroy(), o = e, s = new ve(n, { ...a }, r()), t.onSelectionChanged?.("", "", "[]");
 	}, h = (e) => {
 		let { diagramType: t, ...n } = e;
 		s.load(JSON.parse(JSON.stringify({
-			...Xt,
+			...Dn,
 			...n
 		})));
 	}, g = {
@@ -8604,7 +9372,7 @@ function en(e, t = {}) {
 			return s;
 		},
 		setModel(e) {
-			let t = (typeof e == "string" ? Q(e) : e) || Xt, n = t.diagramType || r, i = $({
+			let t = (typeof e == "string" ? Q(e) : e) || Dn, n = t.diagramType || r, i = $({
 				...t,
 				diagramType: n
 			});
@@ -8626,7 +9394,7 @@ function en(e, t = {}) {
 		},
 		setDiagramType(e, t) {
 			if (e === o && t == null) return !1;
-			let n = (typeof t == "string" ? Q(t) : t) || Xt;
+			let n = (typeof t == "string" ? Q(t) : t) || Dn;
 			return e !== o && m(e), h(n), p(), !0;
 		},
 		undo() {
@@ -8639,10 +9407,10 @@ function en(e, t = {}) {
 			s.clear();
 		},
 		optimizeEdges(e) {
-			return s.optimizeEdges({ nodeIds: tn(e) });
+			return s.optimizeEdges({ nodeIds: Mn(e) });
 		},
 		optimizeLayout(e) {
-			return s.optimizeLayout({ nodeIds: tn(e) });
+			return s.optimizeLayout({ nodeIds: Mn(e) });
 		},
 		setLayoutDirection(e) {
 			s.setLayoutDirection(e), a.layoutDirection = s.options.layoutDirection;
@@ -8697,13 +9465,13 @@ function en(e, t = {}) {
 			s.destroy(), n._weavle === g && delete n._weavle;
 		}
 	};
-	return n._weavle = g, g.setModel(t.model ?? Xt), g;
+	return n._weavle = g, g.setModel(t.model ?? Dn), g;
 }
-function tn(e) {
+function Mn(e) {
 	let t = e ? typeof e == "string" ? JSON.parse(e) : e : null;
 	return t && t.length ? t : null;
 }
-function nn(e) {
+function Nn(e) {
 	return e ? typeof e == "string" ? document.getElementById(e) || document.querySelector(e) : e : null;
 }
 function Q(e) {
@@ -8714,8 +9482,8 @@ function $(e) {
 }
 //#endregion
 //#region src/index.js
-var rn = "0.9.0";
+var Pn = "0.9.0";
 //#endregion
-export { he as WeavleJS, S as createBpmnDefinition, c as createFlowchartDefinition, ht as createFtaDefinition, Re as createIshikawaDefinition, Wt as createOrgChartDefinition, Qt as getDiagramTypes, $t as getInstance, en as mount, Ht as orgChartFromList, Ut as orgChartToList, Zt as registerDiagramType, rn as version };
+export { J as DATA_TYPES, Y as NODE_TYPES, ve as WeavleJS, S as createBpmnDefinition, c as createFlowchartDefinition, St as createFtaDefinition, Ue as createIshikawaDefinition, Tn as createNodeEditorDefinition, $t as createOrgChartDefinition, kn as getDiagramTypes, An as getInstance, jn as mount, wn as nodeEditorLink, Cn as nodeEditorNode, Zt as orgChartFromList, Qt as orgChartToList, On as registerDiagramType, Pn as version };
 
 //# sourceMappingURL=weavle.es.js.map

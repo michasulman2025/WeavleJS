@@ -13,6 +13,8 @@ import { createFtaDefinition } from "./weavle-fta.js";
 import { createDatacenterOutageSample } from "./samples/fta-datacenter-outage.js";
 import { createOrgChartDefinition } from "./weavle-orgchart.js";
 import { createAcmeOrgChartSample } from "./samples/orgchart-acme.js";
+import { createNodeEditorDefinition } from "./weavle-nodeeditor.js";
+import { createPageLogicSample } from "./samples/nodeeditor-page-logic.js";
 import { houseStyleTheme } from "./samples/theme-house-style.js";
 import { createOrderProcessSample } from "./samples/bpmn-order-process.js";
 
@@ -84,6 +86,8 @@ function getDiagramDefinition(key) {
       return createFtaDefinition();
     case "orgchart":
       return createOrgChartDefinition();
+    case "nodeeditor":
+      return createNodeEditorDefinition();
     case "flowchart":
     default:
       return createFlowchartDefinition();
@@ -101,6 +105,10 @@ function getSampleForDiagram(key) {
 
   if (key === "orgchart") {
     return createAcmeOrgChartSample();
+  }
+
+  if (key === "nodeeditor") {
+    return createPageLogicSample();
   }
 
   if (key === "bpmn") {
