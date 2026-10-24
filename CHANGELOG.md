@@ -16,6 +16,19 @@
   different families would overlap. The focus card stands out with a halo and a tint. Options `ancestorGenerations` (3),
   `descendantGenerations` (2), `showSiblings`. Playground: "Stamboom" with a fictional sample
   (`src/samples/pedigree-de-vries.js`).
+- Pedigree step 2: vertical view (option `orientation: "vertical"`, ancestors at the top, partners side by side,
+  standing cards with the photo on top, marriages as a ring icon with the details as tooltip). `setOrientation(o, engine)`
+  switches without an undo step and keeps the focus card in place on screen (event `orientationchanged`). Playground:
+  select "Weergave" for the Stamboom.
+- Pedigree step 3: one partner at a time (host field `preferredFamilyId`, else the last relationship) with a badge
+  on the card (rings + number of relationships) whose menu switches the relationship shown (event
+  `preferredpartnerchanged`). Empty slots "Vader / Moeder / Partner / Kind toevoegen" (dashed, one click sends the
+  request); a "+" button with the add menu; node tools with Toevoegen, Relatie tonen, Bewerken, Verwijderen. All
+  requests are diagram events with a `requestId`: `addparent`, `addpartner`, `addchild`, `addsibling`, `editperson`,
+  `removeperson`. Nothing of this in read-only mode except the badge.
+- Engine: node button action `{ type: "openNodeTools", menu }` (named menus via `getContextActions(node, engine,
+  { menu })`, a single group opens its submenu), node buttons with an own glyph (`path`), and
+  `diagram.getNodeClickAction(node, engine)` for nodes that run an action on a click.
 - Engine: label layout `align: "start"` — lines start at the left edge of the label box.
 - **Node editor diagram type** (roadmap step 6; `createNodeEditorDefinition()` in `src/weavle-nodeeditor.js`, OutSystems
   `diagramType: "nodeeditor"`): nodes with a coloured header, outputs right and inputs left with labels and data types

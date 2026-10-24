@@ -67,6 +67,10 @@ let hostListenersAttached = false;
 
 const selDiagram = document.getElementById("selDiagram");
 
+// Pedigree only: horizontal / vertical.
+const grpOrientation = document.getElementById("grpOrientation");
+const selOrientation = document.getElementById("selOrientation");
+
 if (selDiagram) {
   selDiagram.value = currentDiagramKey;
 }
@@ -89,7 +93,7 @@ function getDiagramDefinition(key) {
     case "orgchart":
       return createOrgChartDefinition();
     case "pedigree":
-      return createPedigreeDefinition();
+      return createPedigreeDefinition({ orientation: selOrientation.value });
     case "nodeeditor":
       return createNodeEditorDefinition();
     case "flowchart":
@@ -280,6 +284,8 @@ function createEditor() {
     attachEditorEventListeners();
     hostListenersAttached = true;
   }
+
+  grpOrientation.hidden = typeof currentDiagramDefinition.setOrientation !== "function";
 
   renderShapeButtons();
   refreshSelectionInfo();
@@ -615,6 +621,11 @@ rngCornerRadius.addEventListener("input", () => {
 });
 
 rngCornerRadius.addEventListener("change", rebuildEditorPreserveModel);
+
+// The orientation is a view setting of the definition: switch it without rebuilding the editor.
+selOrientation.addEventListener("change", () => {
+  currentDiagramDefinition.setOrientation?.(selOrientation.value, editor);
+});
 
 selDiagram.addEventListener("change", () => {
   currentDiagramKey = selDiagram.value;

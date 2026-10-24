@@ -1,8 +1,9 @@
 /*
   Sample family tree for the playground (fictional): the host's data as { focusId, persons, families }.
   Focus Jan Hendrik de Vries with his wife, four siblings, three generations of ancestors on both sides
-  (with gaps: unknown parents, a single known parent) and a fourth generation that stays hidden, plus
-  children and grandchildren — one daughter married twice, one great-grandchild out of range.
+  (with gaps: unknown parents, a single known parent, one whose parents the host has but did not send) and a
+  fourth generation that stays hidden, plus children and grandchildren — one daughter with three relationships
+  (the second preferred), one great-grandchild out of range.
   Positions don't matter — the pedigree definition lays everything out on load.
 */
 
@@ -31,7 +32,7 @@ export const DE_VRIES_FAMILY = {
         { id: "pieterv",  name: "Pieter Visser",        gender: "male",   birthYear: 1875, deathYear: 1948, parentFamilyId: "f-klaas" },
         { id: "geertje",  name: "Geertje Postma",       gender: "female", birthYear: 1878, deathYear: 1960, parentFamilyId: "f-douwe-baukje" },
         { id: "gerrit",   name: "Gerrit Bakker",        gender: "male",   birthYear: 1872, deathYear: 1944 },
-        { id: "hiltje",   name: "Hiltje Kuipers",       gender: "female", birthYear: 1876, deathYear: 1939 },
+        { id: "hiltje",   name: "Hiltje Kuipers",       gender: "female", birthYear: 1876, deathYear: 1939, hasMoreAncestors: true },
 
         // Generation 3.
         { id: "hendrik1838", name: "Hendrik de Vries",  gender: "male",   birthYear: 1838, deathYear: 1901, parentFamilyId: "f-jan-sjoerdtje" },
@@ -47,9 +48,11 @@ export const DE_VRIES_FAMILY = {
         // Children of Jan and Grietje, with partners.
         { id: "hendrik57", name: "Hendrik de Vries",    gender: "male",   birthYear: 1957, living: true, parentFamilyId: "f-jan-grietje" },
         { id: "marieke",  name: "Marieke Smit",         gender: "female", birthYear: 1959, living: true },
-        { id: "anna",     name: "Anna de Vries",        gender: "female", birthYear: 1960, living: true, parentFamilyId: "f-jan-grietje" },
+        { id: "anna",     name: "Anna de Vries",        gender: "female", birthYear: 1960, living: true, parentFamilyId: "f-jan-grietje",
+          preferredFamilyId: "f-erik-anna" },
         { id: "peter",    name: "Peter Jansen",         gender: "male",   birthYear: 1958, living: true },
         { id: "erik",     name: "Erik Mulder",          gender: "male",   birthYear: 1962, living: true },
+        { id: "bram",     name: "Bram Visser",          gender: "male",   birthYear: 1965, living: true },
         { id: "willem64", name: "Willem de Vries",      gender: "male",   birthYear: 1964, living: true, parentFamilyId: "f-jan-grietje" },
 
         // Grandchildren.
@@ -75,6 +78,7 @@ export const DE_VRIES_FAMILY = {
         { id: "f-hendrik-marieke", partner1Id: "hendrik57",   partner2Id: "marieke",  marriageDate: "1983",         marriagePlace: "Groningen" },
         { id: "f-anna-peter",      partner1Id: "peter",       partner2Id: "anna",     marriageDate: "1982" },
         { id: "f-erik-anna",       partner1Id: "erik",        partner2Id: "anna",     marriageDate: "1992",         marriagePlace: "Zwolle" },
+        { id: "f-anna-bram",       partner1Id: "bram",        partner2Id: "anna",     marriageDate: "2012",         marriagePlace: "Deventer" },
         { id: "f-lisa",            partner1Id: "",            partner2Id: "lisa" }
     ]
 };

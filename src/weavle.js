@@ -1212,7 +1212,8 @@ export class WeavleJS {
         const variant = this.getNodeVariant(node);
         group.setAttribute("class", `weavle-node weavle-node--${node.type}` +
             (variant ? ` weavle-node--variant-${variant}` : "") +
-            (node.style?.preset ? ` weavle-node--preset-${node.style.preset}` : ""));
+            (node.style?.preset ? ` weavle-node--preset-${node.style.preset}` : "") +
+            (this.getNodeClickAction(node) ? " is-clickable" : ""));
 
         const isSelected = this.isNodeSelected(node.id);
         const isPrimarySelected = node.id === this.state.primarySelectedNodeId;
@@ -1296,6 +1297,9 @@ export class WeavleJS {
      *   action       passed to handleContextAction on click (like a node tool), e.g. { type: "ocToggleCollapse" }
      *   x, y         centre, in model coordinates
      *   icon         "plus" | "minus" (optional)    text   short text, e.g. "+6" (optional; makes it a pill)
+     *   path         own glyph: SVG path data around (0, 0), about 12 px wide, stroked in the glyph colour;
+     *                with text it goes left of the text
+     *   action       { type: "openNodeTools", menu } opens the node's tools (getContextActions with { menu })
      *   title        tooltip
      *   show         "always" (default) | "hover": only while the node is hovered or selected
      *   readOnly     true: also works in read-only mode (view actions such as collapsing)
@@ -1326,7 +1330,8 @@ export class WeavleJS {
             const fill  = button.fill  || style.stroke;
             const color = button.color || "#FFFFFF";
             const r     = 8;
-            const width = button.text ? Math.max(2 * r, 10 + String(button.text).length * 7) : 2 * r;
+            const glyph = button.path ? 15 : 0;   // room for an own glyph left of the text
+            const width = button.text ? Math.max(2 * r, 10 + glyph + String(button.text).length * 7) : 2 * r;
 
             const group = el("g", {
                 class: "weavle-node-button" +
@@ -1347,13 +1352,23 @@ export class WeavleJS {
                 fill, stroke: "#FFFFFF", "stroke-width": 1.5, class: "weavle-node-button-bg"
             }));
 
+            if (button.path) {
+                const at = button.text ? button.x - width / 2 + 5 + 6 : button.x;
+                group.appendChild(el("path", {
+                    d: button.path, transform: `translate(${at} ${button.y})`, stroke: color, "stroke-width": 1.4,
+                    fill: "none", "pointer-events": "none"
+                }));
+            }
+
             if (button.text) {
                 const text = el("text", {
-                    x: button.x, y: button.y + 4, "text-anchor": "middle", "font-size": 11, "font-weight": "600",
+                    x: button.x + glyph / 2, y: button.y + 4, "text-anchor": "middle", "font-size": 11, "font-weight": "600",
                     fill: color, "pointer-events": "none"
                 });
                 text.textContent = button.text;
                 group.appendChild(text);
+            } else if (button.path) {
+                // Drawn above.
             } else if (button.icon === "plus" || button.icon === "minus") {
                 const d = `M ${button.x - 4} ${button.y} L ${button.x + 4} ${button.y}` +
                           (button.icon === "plus" ? ` M ${button.x} ${button.y - 4} L ${button.x} ${button.y + 4}` : "");
@@ -4978,7 +4993,7 @@ export class WeavleJS {
      * The engine resolves interaction mode, creates the shell,
      * asks the diagram/plugin to render the content, and mounts it.
      */
-    renderNodeToolSurface(node) {
+    renderNodeToolSurface(node, { menu = null } = {}) {
         this.clearNodeToolSurface();
         if (!node) return;
 
@@ -4990,7 +5005,7 @@ export class WeavleJS {
             return;
         }
 
-        const actions = this.getNodeContextActions(node);
+        const actions = this.getNodeContextActions(node, menu);
         if (!actions || actions.length === 0) {
             return;
         }
@@ -5001,6 +5016,14 @@ export class WeavleJS {
 
         this.nodeToolEl = surfaceEl;
         this.state.nodeToolNodeId = node.id;
+        this.state.nodeToolMenu   = menu;
+
+        // A named menu that is one group (e.g. a "+" button's add menu) opens its submenu right away.
+        if (menu && actions.length === 1 && actions[0].children) {
+            const item = surfaceEl.querySelector(".weavle-tool-item");
+            const btn  = item?.querySelector(".weavle-tool-button");
+            if (btn) this.toggleToolSubmenu(surfaceEl, item, btn, actions[0], node);
+        }
     }
 
     /** Rebuilds the open node tool surface (if any) for its node; drops it if the node is gone or deselected. */
@@ -5010,7 +5033,7 @@ export class WeavleJS {
 
         const node = this.getNode(id);
         if (node && this.isNodeSelected(id) && this.getSelectedNodeIds().length === 1) {
-            this.renderNodeToolSurface(node);
+            this.renderNodeToolSurface(node, { menu: this.state.nodeToolMenu });
         } else {
             this.clearNodeToolSurface();
         }
@@ -5602,7 +5625,7 @@ export class WeavleJS {
             return;
         }
 
-        this.renderNodeToolSurface(node);
+        this.renderNodeToolSurface(node, { menu: this.state.nodeToolMenu });
     }
 
     getToolSurfaceDockHost() {
@@ -5630,14 +5653,27 @@ export class WeavleJS {
         return null;
     }
 
-    getNodeContextActions(node) {
+    /**
+     * The node tools: diagram.getContextActions(node, engine, { menu }). `menu` names a smaller menu a node
+     * button asked for (action { type: "openNodeTools", menu }); null is the full set, plus "Stijl".
+     */
+    getNodeContextActions(node, menu = null) {
         const actions = this.diagram && typeof this.diagram.getContextActions === "function"
-            ? this.filterConnectableActions(this.diagram.getContextActions(node, this) || [], node)
+            ? this.filterConnectableActions(this.diagram.getContextActions(node, this, { menu }) || [], node)
             : [];
+        if (menu) return actions;
 
         // Built in: "Stijl" (theme presets, own colours) for every node the definition lets be styled.
         const style = this.getStyleAction(node);
         return style ? [...actions, style] : actions;
+    }
+
+    /**
+     * What a plain click on the node does instead of selecting it: diagram.getNodeClickAction(node, engine)
+     * → an action for handleContextAction (e.g. an empty "add father" slot), or null (select as usual).
+     */
+    getNodeClickAction(node) {
+        return typeof this.diagram.getNodeClickAction === "function" ? this.diagram.getNodeClickAction(node, this) || null : null;
     }
 
     /**
@@ -5688,6 +5724,14 @@ export class WeavleJS {
 
     handleContextAction(action, node) {
         if (!action || !node) return;
+
+        // A node button that opens the node's tools, optionally a named smaller menu.
+        if (action.type === "openNodeTools") {
+            this.selectSingleNode(node.id);
+            this.emitSelectionChanged();
+            this.renderNodeToolSurface(node, { menu: action.menu || null });
+            return;
+        }
 
         if (action.type === "addConnectedNode") {
             const newNode = this.createConnectedNode(node, action.nodeType);
@@ -8287,6 +8331,18 @@ export class WeavleJS {
         const pos               = this.getMousePosition(evt);
         const node              = this.findNodeAt(pos.x, pos.y);
         const isCtrlToggle     = evt.ctrlKey || evt.metaKey;
+
+        // A node with a click action (getNodeClickAction) runs it instead of being selected or dragged.
+        const clickAction = node && evt.button === 0 && !handleInfo ? this.getNodeClickAction(node) : null;
+        if (clickAction) {
+            evt.preventDefault();
+            this.clearSelection();
+            this.clearNodeToolSurface();
+            this.emitSelectionChanged();
+            this.handleContextAction(clickAction, node);
+            this.render();
+            return;
+        }
 
         // Double-click detection for edges.
         if (edgeId) {

@@ -25,10 +25,16 @@
   holds the focus with its partners and (showSiblings) its siblings; ancestors of the focus and its
   partner(s) go one way, descendants the other. Persons and families outside the range are hidden
   (isNodeHidden). The layout works in two abstract axes — generation (ancestors +) and spread (order
-  within a generation) — and an orientation maps them to x / y (step 1: horizontal, ancestors to the
-  right). Lines are elbows computed by the layout (routeEdge).
+  within a generation) — and an orientation maps them to x / y: HORIZONTAL (ancestors to the right,
+  partners stacked) or VERTICAL (ancestors at the top, partners side by side, standing cards). Lines are
+  elbows computed by the layout (routeEdge). setOrientation(o, engine) switches without an undo step.
 
-  Step 1 of the build: viewing only. Dragging, connecting, editing and deleting are off.
+  A person is shown with one relationship at a time (shownFamily); a badge says how many there are and
+  switches. Empty slots ("Vader toevoegen", ...) are generated nodes (addPlaceholders). The chart changes no
+  data: adding, editing and removing go to the host as diagram events with a requestId, e.g.
+      addparent { requestId, personId, role, familyId }     addchild { requestId, personId, familyId }
+      addpartner, addsibling, editperson, removeperson      preferredpartnerchanged { personId, familyId }
+  Dragging, connecting, inline editing and deleting are off.
 */
 
 const NS = "http://www.w3.org/2000/svg";
@@ -47,11 +53,27 @@ const HORIZONTAL = {
     rect:    (base, s0, depth, extent) => ({ x: base, y: s0, width: depth, height: extent })
 };
 
+// Vertical: generations are rows, ancestors at the top; partners side by side with a narrow band (a ring
+// icon) between them. The generation axis points up, so a = base … base + depth maps to y = -(base + depth) … -base.
+const VERTICAL = {
+    depth:   150,
+    extent:  120,
+    band:    18,
+    genGap:  64,
+    gap:     26,
+    point:   (a, s) => ({ x: s, y: -a }),
+    rect:    (base, s0, depth, extent) => ({ x: s0, y: -(base + depth), width: extent, height: depth })
+};
+
+const ORIENTATIONS = { horizontal: HORIZONTAL, vertical: VERTICAL };
+const orientationOf = name => ORIENTATIONS[name] || HORIZONTAL;
+
 const JUNCTION_GAP  = 14;   // the family junction sits this far out on the descendant side of its couple
 const JUNCTION_STEP = 8;    // further families of the same person step out by this much each
 
 const FAMILY_SIZE   = 2;    // the family node is a small box on its junction
 const FRAME_PAD     = 5;    // the frame around partners reaches this far past their cards
+const MARGIN        = 40;   // a fresh chart starts this far from the canvas's top-left; it never sticks out there
 const LANE_STEP     = 16;   // distance between the vertical lanes of child lines in one gap
 const LANE_ROOM     = 32;   // at most this much room for all lanes together
 
@@ -61,16 +83,28 @@ const RADIUS       = 5;
 const AVATAR_R     = 18;
 const AVATAR_X     = 33;    // avatar centre from the card's left edge
 const TEXT_LEFT    = 60;    // name and dates start here
-const TEXT_RIGHT   = 10;
+const TEXT_RIGHT   = 28;    // room for the "+" button in the top-right corner
 const NAME_SIZE    = 13;
 const DATES_SIZE   = 11;
 const MARRIAGE_SIZE = 10.5;
 
+// Card contents (vertical).
+const V_AVATAR_R   = 26;
+const V_AVATAR_Y   = 42;    // avatar centre from the card's top
+const V_NAME_Y     = 92;    // centre of the name block (up to two lines)
+const V_DATES_Y    = 124;   // baseline of the years line; the reference id goes below it
+const V_PAD        = 8;
+
 const DEFAULT_OPTIONS = {
     ancestorGenerations:   3,
     descendantGenerations: 2,
-    showSiblings:          true
+    showSiblings:          true,
+    showPlaceholders:      true,
+    orientation:           "horizontal"
 };
+
+// Two rings (the relationship badge), around (0, 0).
+const RINGS_PATH = "M -6.6 -0.8 a 3.4 3.4 0 1 0 6.8 0 a 3.4 3.4 0 1 0 -6.8 0 M -0.2 0.8 a 3.4 3.4 0 1 0 6.8 0 a 3.4 3.4 0 1 0 -6.8 0";
 
 let instanceCount = 0;
 
@@ -85,8 +119,10 @@ function svgEl(tag, attrs) {
 const personNodeId = id => `p:${id}`;
 const familyNodeId = id => `f:${id}`;
 
-const isPerson = node => node.type === "person";
-const isFamily = node => node.type === "family";
+const isPerson      = node => node.type === "person";
+const isFamily      = node => node.type === "family";
+const isPlaceholder = node => node.type === "placeholder";
+const isCard        = node => isPerson(node) || isPlaceholder(node);
 
 /** "1870–1943", "1870–?", "Levend" — empty when nothing is known. */
 function lifespan(person) {
@@ -119,7 +155,7 @@ function readPedigree(engine) {
     for (const edge of engine.model.edges) {
         const person = byId.get(edge.sourceNodeId);
         const family = byId.get(edge.targetNodeId);
-        if (!person || !family || !isPerson(person) || !isFamily(family)) continue;
+        if (!person || !family || !isCard(person) || !isFamily(family)) continue;
 
         if (edge.type === "partner") {
             const slots = partners.get(family.id) || [null, null];
@@ -139,16 +175,119 @@ function readPedigree(engine) {
     for (const list of families.values()) list.sort(byModelOrder);
     for (const list of children.values()) list.sort(byBirth);
 
-    const persons = nodes.filter(isPerson);
+    const persons    = nodes.filter(isPerson);
+    const familiesOf = person => families.get(person.id) || [];
 
     return {
         focus:        persons.find(p => p.focus) || persons[0] || null,
+        slotsOf:      family => partners.get(family.id) || [null, null],
         partnersOf:   family => (partners.get(family.id) || [null, null]).filter(Boolean),
-        familiesOf:   person => families.get(person.id) || [],
+        familiesOf,
         parentFamily: person => parents.get(person.id) || null,
         childrenOf:   family => children.get(family.id) || [],
-        otherPartner: (family, person) => (partners.get(family.id) || []).find(p => p && p !== person) || null
+        otherPartner: (family, person) => (partners.get(family.id) || []).find(p => p && p !== person) || null,
+
+        // The one family shown with a person (one partner at a time): the one picked in the chart
+        // (view state), else the host's preferred one, else the last.
+        shownFamily:  person => {
+            const list = familiesOf(person);
+            const find = id => id && list.find(f => f.id === id);
+            return find(person.shownFamilyId) || find(person.preferredFamilyId) || list.at(-1) || null;
+        }
     };
+}
+
+// ── Placeholders ────────────────────────────────────────────
+
+/*
+  Empty slots ("Vader toevoegen", ...) are generated nodes (node.generated) that the layout adds before
+  every pass and that never reach the host's lists: placeholder cards, plus a generated family where
+  there is none yet (unknown parents, a focus without partner) and the partner / child edges that hang
+  them into the tree. The normal layout then places them like persons.
+*/
+
+const PLACEHOLDER_TEXT = {
+    father:  "Vader toevoegen",
+    mother:  "Moeder toevoegen",
+    partner: "Partner toevoegen",
+    child:   "Kind toevoegen"
+};
+
+/**
+ * Replaces the generated nodes and edges: within the ancestor range, two empty parents for a person
+ * whose parents are unknown (unless the host has more), the missing parent of a single-parent family;
+ * for the focus, an empty partner without a family and an empty child in a family without children.
+ */
+function addPlaceholders(engine, options) {
+    engine.model.nodes = engine.model.nodes.filter(n => !n.generated);
+    engine.model.edges = engine.model.edges.filter(e => !e.generated);
+    if (engine.options.readOnly || !options.showPlaceholders) return;
+
+    const data  = readPedigree(engine);
+    const focus = data.focus;
+    if (!focus) return;
+
+    const o     = orientationOf(options.orientation);
+    const nodes = [];
+    const edges = [];
+
+    const family = id => {
+        const node = { id, type: "family", generated: true, label: "", x: 0, y: 0, width: FAMILY_SIZE, height: FAMILY_SIZE };
+        nodes.push(node);
+        return node;
+    };
+    const slot = (role, forId, familyNode, edgeType, slotNo) => {
+        const node = {
+            id: `ph:${forId}:${role}`, type: "placeholder", generated: true, role, forId,
+            label: PLACEHOLDER_TEXT[role], x: 0, y: 0, ...o.rect(0, 0, o.depth, o.extent)
+        };
+        nodes.push(node);
+        edges.push(link(node, familyNode, edgeType, slotNo));
+        return node;
+    };
+    const link = (card, familyNode, type, slotNo) => ({
+        id: `ph:e:${card.id}:${familyNode.id}`, type, generated: true, ...(slotNo ? { slot: slotNo } : {}),
+        sourceNodeId: card.id, targetNodeId: familyNode.id, sourceHandle: "right", targetHandle: "left"
+    });
+
+    // The focus: a partner slot when it has no family yet, a child slot when the shown family has no children.
+    let shown = data.shownFamily(focus);
+    if (!shown) {
+        shown = family(`ph:f:${focus.id}:partner`);
+        const own = focus.gender === "female" ? 2 : 1;
+        edges.push(link(focus, shown, "partner", own));
+        slot("partner", focus.id, shown, "partner", own === 1 ? 2 : 1);
+    }
+    if (!data.childrenOf(shown).length) slot("child", focus.id, shown, "child");
+
+    // Ancestors of the focus and its shown partner, as far as the range goes.
+    const seen = new Set();
+    const walk = (person, gen) => {
+        if (!person || seen.has(person.id) || gen >= options.ancestorGenerations) return;
+        seen.add(person.id);
+
+        const parents = data.parentFamily(person);
+        if (!parents) {
+            if (person.hasMoreAncestors) return;   // the host has them: a chevron, not an empty slot (step 4)
+            const fam = family(`ph:f:${person.id}:parents`);
+            edges.push(link(person, fam, "child"));
+            slot("father", person.id, fam, "partner", 1);
+            slot("mother", person.id, fam, "partner", 2);
+            return;
+        }
+
+        const [p1, p2] = data.slotsOf(parents);
+        if (!p1 && p2) slot("father", person.id, parents, "partner", 1);
+        if (p1 && !p2) slot("mother", person.id, parents, "partner", 2);
+        walk(p1, gen + 1);
+        walk(p2, gen + 1);
+    };
+    walk(focus, 0);
+    walk(data.otherPartner(data.shownFamily(focus) || shown, focus), 0);
+
+    // Families first (their frames lie under the cards).
+    engine.model.nodes = [...nodes.filter(isFamily), ...engine.model.nodes, ...nodes.filter(n => !isFamily(n))];
+    engine.model.edges.push(...edges);
 }
 
 // ── Layout ──────────────────────────────────────────────────
@@ -190,12 +329,15 @@ function layoutPedigree(engine, options, out) {
     out.bands.clear();
     out.frames.clear();
     out.variants.clear();
+    out.switchable.clear();
+    out.relations.clear();
 
+    addPlaceholders(engine, options);
     const data  = readPedigree(engine);
     const focus = data.focus;
     if (!focus) return;
 
-    const o       = HORIZONTAL;
+    const o       = orientationOf(options.orientation);
     const step    = o.depth + o.genGap;
     const base    = gen => gen * step;
     const claimed = new Set();
@@ -216,33 +358,28 @@ function layoutPedigree(engine, options, out) {
         return measureUnit(unit, o);
     };
 
-    // A person with its partners. One family: partner1 first, as in a couple. Several: the first partner
-    // before the person, the others after it (a third partner's band follows the second partner).
+    // A person with the partner of its shown family (one partner at a time, partner1 first as in a couple).
+    // The person's other relationships — partners and their children — stay hidden; a badge on the card
+    // says there are more (getNodeButtons) and its menu switches.
     const personUnit = person => {
         claim(person);
-        const families = data.familiesOf(person).filter(free).map(claim);
-        const partners = families.map(f => {
-            const partner = data.otherPartner(f, person);
-            return free(partner) ? claim(partner) : null;
-        });
+        out.switchable.add(person.id);
+        const family  = data.shownFamily(person);
+        const unit    = { cards: [person], self: 0, bandAfter: new Set(), families: [] };
+        if (!free(family)) return measureUnit(unit, o);
 
-        const before = !!partners[0] && (families.length > 1 || data.partnersOf(families[0])[0] === partners[0]);
-        const cards  = before
-            ? [partners[0], person, ...partners.slice(1).filter(Boolean)]
-            : [person, ...partners.filter(Boolean)];
-        const self   = cards.indexOf(person);
-        const unit   = { cards, self, bandAfter: new Set(), families: [] };
+        claim(family);
+        const partner = data.otherPartner(family, person);
+        if (!free(partner)) {
+            unit.families.push({ family, members: [0] });   // single parent: the junction is on the card
+            return measureUnit(unit, o);
+        }
 
-        families.forEach((family, i) => {
-            if (!partners[i]) {
-                unit.families.push({ family, members: [self] });   // single parent: the junction is on the card
-                return;
-            }
-            const at      = cards.indexOf(partners[i]);
-            const members = Math.abs(at - self) === 1 ? [Math.min(at, self), Math.max(at, self)] : [at - 1, at];
-            unit.bandAfter.add(members[0]);
-            unit.families.push({ family, members });
-        });
+        claim(partner);
+        unit.cards = data.slotsOf(family)[0] === partner ? [partner, person] : [person, partner];
+        unit.self  = unit.cards.indexOf(person);
+        unit.bandAfter.add(0);
+        unit.families.push({ family, members: [0, 1] });
         return measureUnit(unit, o);
     };
 
@@ -261,7 +398,7 @@ function layoutPedigree(engine, options, out) {
         // One frame around all partners of the unit (drawn by its first family with two partners), so a
         // couple reads as a pair and not as two siblings.
         const owner = unit.families.find(f => f.members.length === 2);
-        if (owner) {
+        if (owner && unit.cards.some(isPerson)) {
             out.frames.set(owner.family.id, o.rect(base(gen) - FRAME_PAD, s0 - FRAME_PAD,
                                                    o.depth + 2 * FRAME_PAD, unit.extent + 2 * FRAME_PAD));
         }
@@ -413,14 +550,20 @@ function layoutPedigree(engine, options, out) {
 
     const point = (a, sp) => o.point(a, sp);
     const all   = new Map(engine.model.nodes.map(n => [n.id, n]));
-    const before = { x: focus.x, y: focus.y };
-    const fresh  = !focus.x && !focus.y;
+    // The focus card's centre stays put (also when the orientation changes its size).
+    const centreOf = node => ({ x: node.x + node.width / 2, y: node.y + node.height / 2 });
+    const before   = centreOf(focus);
+    const fresh    = out.normalize || (!focus.x && !focus.y);
+    out.normalize  = false;
 
     for (const [id, at] of cards) {
         const node = all.get(id);
         Object.assign(node, o.rect(base(at.gen), at.s0, o.depth, o.extent));
         out.visible.add(id);
-        out.variants.set(id, node.gender === "male" || node.gender === "female" ? node.gender : "unknown");
+        if (isPerson(node)) {
+            out.variants.set(id, node.gender === "male" || node.gender === "female" ? node.gender : "unknown");
+            out.relations.set(id, data.familiesOf(node).filter(f => !f.generated).length);
+        }
     }
 
     // A family with one partner shown and none of its children (a single parent at the edge of the range)
@@ -459,15 +602,24 @@ function layoutPedigree(engine, options, out) {
         }
     }
 
-    // Keep the focus card where it was; a fresh model (everything at 0, 0) starts at the top-left.
-    let dx = before.x - focus.x;
-    let dy = before.y - focus.y;
+    // Keep the focus card where it was; a fresh model (everything at 0, 0) or a new orientation (normalize)
+    // starts at the top-left.
+    const after = centreOf(focus);
+    let dx = before.x - after.x;
+    let dy = before.y - after.y;
     if (fresh) {
         const shown = [...out.visible].map(id => all.get(id));
-        dx = 40 - Math.min(...shown.map(n => n.x));
-        dy = 40 - Math.min(...shown.map(n => n.y));
+        dx = MARGIN - Math.min(...shown.map(n => n.x));
+        dy = MARGIN - Math.min(...shown.map(n => n.y));
     }
     shift(engine, out, dx, dy);
+
+    // The canvas starts at 0, 0: a chart that would stick out at the top or left (vertical ancestors grow
+    // upwards) moves back in, even if the focus card then moves.
+    const boxes = [...[...out.visible].map(id => all.get(id)), ...out.frames.values()];
+    const minX  = Math.min(...boxes.map(b => b.x));
+    const minY  = Math.min(...boxes.map(b => b.y));
+    shift(engine, out, minX < MARGIN / 2 ? MARGIN - minX : 0, minY < MARGIN / 2 ? MARGIN - minY : 0);
 
     // Hidden nodes sit on the focus card (never drawn, but kept near the chart).
     for (const node of engine.model.nodes) {
@@ -528,7 +680,7 @@ function shift(engine, out, dx, dy) {
 
 // ── Shapes ──────────────────────────────────────────────────
 
-function createShapes(out, uid) {
+function createShapes(out, settings, uid) {
     const person = (node, engine) => {
         const { x, y, width: w, height: h } = node;
         const style = engine.getNodeStyle(node);
@@ -557,27 +709,39 @@ function createShapes(out, uid) {
             }));
         }
 
-        // Gender bar on the left, rounded with the card.
+        // Gender bar, rounded with the card: on the left (horizontal) or along the top (vertical).
+        const vertical = settings.orientation === "vertical";
         group.appendChild(svgEl("path", {
-            d: `M ${x + BAR} ${y} A ${RADIUS} ${RADIUS} 0 0 0 ${x} ${y + RADIUS} V ${y + h - RADIUS} ` +
-               `A ${RADIUS} ${RADIUS} 0 0 0 ${x + BAR} ${y + h} Z`,
+            d: vertical
+                ? `M ${x} ${y + BAR} V ${y + RADIUS} A ${RADIUS} ${RADIUS} 0 0 1 ${x + RADIUS} ${y} ` +
+                  `H ${x + w - RADIUS} A ${RADIUS} ${RADIUS} 0 0 1 ${x + w} ${y + RADIUS} V ${y + BAR} Z`
+                : `M ${x + BAR} ${y} A ${RADIUS} ${RADIUS} 0 0 0 ${x} ${y + RADIUS} V ${y + h - RADIUS} ` +
+                  `A ${RADIUS} ${RADIUS} 0 0 0 ${x + BAR} ${y + h} Z`,
             fill: style.stroke, "pointer-events": "none", class: "weavle-pedigree-bar"
         }));
 
-        group.appendChild(avatar(node, x + AVATAR_X, y + h / 2, AVATAR_R, `weavle-pedigree-${uid}-${node.id.replace(/[^\w-]/g, "_")}`));
+        const clipId = `weavle-pedigree-${uid}-${node.id.replace(/[^\w-]/g, "_")}`;
+        group.appendChild(vertical
+            ? avatar(node, x + w / 2, y + V_AVATAR_Y, V_AVATAR_R, clipId)
+            : avatar(node, x + AVATAR_X, y + h / 2, AVATAR_R, clipId));
 
-        const dates = [lifespan(node), node.refId].filter(Boolean).join(" • ");
-        if (dates) {
-            const width = w - TEXT_LEFT - TEXT_RIGHT;
-            const line  = engine.wrapLabel(dates, width, 1, DATES_SIZE, { fontWeight: "normal" }).lines[0] || "";
-            const text  = svgEl("text", {
-                x: x + TEXT_LEFT, y: y + h / 2 + 14, "font-size": DATES_SIZE,
+        // Years and reference id below the name, cut off with "…": one line next to each other (horizontal) or
+        // each on its own line (vertical, the card is narrow).
+        const lines = vertical
+            ? [lifespan(node), node.refId].filter(Boolean)
+            : [[lifespan(node), node.refId].filter(Boolean).join(" • ")].filter(Boolean);
+        const width = vertical ? w - 2 * V_PAD : w - TEXT_LEFT - TEXT_RIGHT;
+        lines.forEach((value, i) => {
+            const text = svgEl("text", {
+                x: vertical ? x + w / 2 : x + TEXT_LEFT,
+                y: vertical ? y + V_DATES_Y + i * (DATES_SIZE + 3) : y + h / 2 + 14,
+                "text-anchor": vertical ? "middle" : "start", "font-size": DATES_SIZE,
                 fill: style.textColor || "#1F2933", "fill-opacity": "0.65", "pointer-events": "none",
                 class: "weavle-pedigree-dates"
             });
-            text.textContent = line;
+            text.textContent = engine.wrapLabel(value, width, 1, DATES_SIZE, { fontWeight: "normal" }).lines[0] || "";
             group.appendChild(text);
-        }
+        });
         return group;
     };
 
@@ -597,6 +761,21 @@ function createShapes(out, uid) {
         const text = marriageText(node);
         if (!band || !text) return group;
 
+        // Vertical: no room for text between partners side by side — a ring icon, the details as its tooltip.
+        if (settings.orientation === "vertical") {
+            const cx   = band.x + band.width / 2;
+            const cy   = band.y + band.height / 2;
+            const ring = svgEl("g", { class: "weavle-pedigree-ring" });
+            const tip  = svgEl("title", {});
+            tip.textContent = text;
+            ring.appendChild(tip);
+            ring.appendChild(svgEl("circle", { cx, cy, r: 8, fill: "transparent" }));   // hover area
+            ring.appendChild(svgEl("circle", { cx: cx - 2.6, cy, r: 4.2, fill: "none", stroke: "#8A94A3", "stroke-width": 1.3 }));
+            ring.appendChild(svgEl("circle", { cx: cx + 2.6, cy, r: 4.2, fill: "none", stroke: "#8A94A3", "stroke-width": 1.3 }));
+            group.appendChild(ring);
+            return group;
+        }
+
         const label = svgEl("text", {
             x: band.x + TEXT_LEFT,
             y: band.y + band.height / 2 + MARRIAGE_SIZE * 0.35,
@@ -607,7 +786,29 @@ function createShapes(out, uid) {
         return group;
     };
 
-    return { person, family };
+    // An empty slot: a dashed card with a "+" where the avatar would be; the text is the engine label.
+    const placeholder = (node, engine) => {
+        const { x, y, width: w, height: h } = node;
+        const style    = engine.getNodeStyle(node);
+        const vertical = settings.orientation === "vertical";
+        const group    = svgEl("g", {});
+
+        const rect = svgEl("rect", { x, y, width: w, height: h, rx: RADIUS, class: "weavle-pedigree-placeholder" });
+        engine.applyNodeStyle(rect, node);
+        group.appendChild(rect);
+
+        const cx = vertical ? x + w / 2 : x + AVATAR_X;
+        const cy = vertical ? y + V_AVATAR_Y : y + h / 2;
+        const r  = vertical ? V_AVATAR_R * 0.7 : AVATAR_R * 0.8;
+        group.appendChild(svgEl("circle", { cx, cy, r, fill: "#E8ECF0", "pointer-events": "none" }));
+        group.appendChild(svgEl("path", {
+            d: `M ${cx - r * 0.45} ${cy} H ${cx + r * 0.45} M ${cx} ${cy - r * 0.45} V ${cy + r * 0.45}`,
+            stroke: style.textColor || "#5B6573", "stroke-width": 2, "stroke-linecap": "round", "pointer-events": "none"
+        }));
+        return group;
+    };
+
+    return { person, family, placeholder };
 }
 
 /** A round photo, or a grey silhouette when there is none. */
@@ -639,7 +840,8 @@ function avatar(node, cx, cy, r, clipId) {
 const PEDIGREE_THEME = {
     nodeTypes: {
         person: { fill: "#FFFFFF", stroke: "#8A94A3", textColor: "#1F2933", fontWeight: "600" },
-        family: { fill: "none", stroke: "none" }
+        family: { fill: "none", stroke: "none" },
+        placeholder: { fill: "#FAFBFC", stroke: "#A7B0BB", textColor: "#5B6573", fontWeight: "normal", dash: "5,4" }
     },
     nodeVariants: {
         male:    { stroke: "#3B82C4" },
@@ -673,8 +875,9 @@ function gender(value) {
 /**
  * Builds a pedigree model from the host's data:
  *   { focusId, persons: [{ id, name, gender, birthYear, deathYear, living, refId, photoUrl, parentFamilyId,
- *     hasMoreAncestors, hasMoreDescendants }], families: [{ id, partner1Id, partner2Id, marriageDate,
- *     marriagePlace }] }
+ *     preferredFamilyId, hasMoreAncestors, hasMoreDescendants }], families: [{ id, partner1Id, partner2Id,
+ *     marriageDate, marriagePlace }] }
+ * preferredFamilyId: the relationship shown with a person that has several (default the last).
  * Unknown references are left out. Without focusId the first person is the focus. Positions don't
  * matter — the layout runs on load.
  */
@@ -706,6 +909,9 @@ export function pedigreeFromList(data) {
         if (item.photoUrl) node.photoUrl = str(item.photoUrl);
         if (item.hasMoreAncestors === true) node.hasMoreAncestors = true;
         if (item.hasMoreDescendants === true) node.hasMoreDescendants = true;
+        if (item.preferredFamilyId && familyIds.has(str(item.preferredFamilyId))) {
+            node.preferredFamilyId = familyNodeId(str(item.preferredFamilyId));
+        }
         if (id === focusId) node.focus = true;
         nodes.push(node);
 
@@ -747,12 +953,12 @@ export function pedigreeFromList(data) {
  * years are 0, empty ids ""). View state (focus aside) is not part of it.
  */
 export function pedigreeToList(model) {
-    const nodes     = model?.nodes || [];
+    const nodes     = (model?.nodes || []).filter(n => !n.generated);   // empty slots are not data
     const byId      = new Map(nodes.map(n => [n.id, n]));
     const parentOf  = new Map();
     const partners  = new Map();
 
-    for (const edge of model?.edges || []) {
+    for (const edge of (model?.edges || []).filter(e => !e.generated)) {
         const person = byId.get(edge.sourceNodeId);
         const family = byId.get(edge.targetNodeId);
         if (!person || !family) continue;
@@ -778,6 +984,7 @@ export function pedigreeToList(model) {
             refId:              n.refId || "",
             photoUrl:           n.photoUrl || "",
             parentFamilyId:     parentOf.get(n.id) || "",
+            preferredFamilyId:  byId.get(n.preferredFamilyId)?.hostId || "",
             hasMoreAncestors:   !!n.hasMoreAncestors,
             hasMoreDescendants: !!n.hasMoreDescendants
         })),
@@ -794,6 +1001,78 @@ export function pedigreeToList(model) {
     };
 }
 
+// ── Actions and requests ────────────────────────────────────
+
+const hostIdOf     = node => (node && !node.generated && node.hostId) || null;
+const realFamilies = (person, data) => data.familiesOf(person).filter(f => !f.generated);
+
+/** "met Peter Jansen (1982)", "zonder partner". */
+function relationLabel(family, person, data) {
+    const partner = data.otherPartner(family, person);
+    const when    = family.marriageDate ? ` (${family.marriageDate})` : "";
+    return isPerson(partner || {}) ? `met ${partner.label}${when}` : `zonder partner${when}`;
+}
+
+/** The add menu of a person (submenu rows): parents that are missing, a partner, a child, a brother or sister. */
+function addActions(person, data) {
+    const ask     = (request, label, detail, icon = "plus") => ({ type: "pdRequest", request, label, icon, detail });
+    const parents = data.parentFamily(person);
+    const [p1, p2] = parents ? data.slotsOf(parents) : [null, null];
+    const parentId = hostIdOf(parents);
+    const actions  = [];
+
+    if (!isPerson(p1 || {})) actions.push(ask("addparent", "Vader toevoegen", { role: "father", familyId: parentId }));
+    if (!isPerson(p2 || {})) actions.push(ask("addparent", "Moeder toevoegen", { role: "mother", familyId: parentId }));
+
+    // A partner goes into a family of this person with an empty slot, else a new family.
+    const families = realFamilies(person, data);
+    const open     = families.find(f => !isPerson(data.otherPartner(f, person) || {}));
+    actions.push(ask("addpartner", "Partner toevoegen", { familyId: hostIdOf(open) }));
+    actions.push(ask("addsibling", "Broer of zus toevoegen", { familyId: parentId }));
+
+    // A child: within the person's relationship, or (with several) chosen under a heading — last, so the
+    // heading's rows end the menu.
+    if (families.length > 1) {
+        actions.push(
+            { type: "heading", label: "Kind toevoegen" },
+            ...families.map(f => ask("addchild", relationLabel(f, person, data), { familyId: hostIdOf(f) })),
+            ask("addchild", "zonder (nieuwe) partner", { familyId: null })
+        );
+    } else {
+        actions.push(ask("addchild", "Kind toevoegen", { familyId: hostIdOf(families[0]) }));
+    }
+    return actions;
+}
+
+/** One entry per relationship of a person; the one shown is marked. */
+function relationActions(person, data) {
+    const shown = data.shownFamily(person);
+    return realFamilies(person, data).map(f => ({
+        type: "pdShowFamily", familyId: f.id, label: relationLabel(f, person, data), active: f === shown
+    }));
+}
+
+/** The request behind an empty slot: { name, payload } for the event. */
+function placeholderRequest(node, engine) {
+    const person = engine.getNode(node.forId);
+    const edge   = engine.model.edges.find(e => e.sourceNodeId === node.id || e.targetNodeId === node.id);
+    const family = edge && engine.getNode(edge.targetNodeId);
+    if (!person) return null;
+
+    switch (node.role) {
+        case "father":
+        case "mother":
+            // The empty parent's family is the person's parent family (generated when both are unknown).
+            return { name: "addparent", payload: { personId: person.hostId, role: node.role, familyId: hostIdOf(family) } };
+        case "partner":
+            return { name: "addpartner", payload: { personId: person.hostId, familyId: null } };
+        case "child":
+            return { name: "addchild", payload: { personId: person.hostId, familyId: hostIdOf(family) } };
+        default:
+            return null;
+    }
+}
+
 // ── Definition ──────────────────────────────────────────────
 
 /**
@@ -801,22 +1080,34 @@ export function pedigreeToList(model) {
  *   ancestorGenerations    generations of ancestors shown (default 3)
  *   descendantGenerations  generations of descendants shown (default 2)
  *   showSiblings           the focus's siblings beside it (default true)
+ *   orientation            "horizontal" (default, ancestors to the right) | "vertical" (ancestors at the top)
  */
 export function createPedigreeDefinition(options = {}) {
     const settings = { ...DEFAULT_OPTIONS, ...options };
+    if (!ORIENTATIONS[settings.orientation]) settings.orientation = "horizontal";
 
-    // From the last layout: routes per edge id, visible node ids, marriage bands per family id and the
-    // gender variant per person.
-    const out = { routes: new Map(), visible: new Set(), bands: new Map(), frames: new Map(), variants: new Map() };
+    // From the last layout: routes per edge id, visible node ids, marriage bands and couple frames per
+    // family id, the gender variant and number of relationships per person, and the persons whose shown
+    // relationship can be switched (focus and descendants).
+    const out = { routes: new Map(), visible: new Set(), bands: new Map(), frames: new Map(), variants: new Map(),
+                  relations: new Map(), switchable: new Set(), normalize: false };
+
+    // Every request gets an id the host passes back (applyChanges, step 4).
+    let requestCount = 0;
+    const request = (engine, name, payload) => {
+        engine.clearNodeToolSurface?.();
+        engine.emitDiagramEvent(name, { requestId: `r${++requestCount}`, ...payload });
+    };
 
     return {
         id: "pedigree",
-        shapes: createShapes(out, ++instanceCount),
+        shapes: createShapes(out, settings, ++instanceCount),
         defaultTheme: PEDIGREE_THEME,
 
         nodeTypes: {
-            person: { defaultLabel: "Naam", title: "Persoon", shape: "person" },
-            family: { defaultLabel: "",     title: "Gezin",   shape: "family" }
+            person:      { defaultLabel: "Naam", title: "Persoon",   shape: "person" },
+            family:      { defaultLabel: "",     title: "Gezin",     shape: "family" },
+            placeholder: { defaultLabel: "",     title: "Lege plek", shape: "placeholder" }
         },
 
         // The host builds the tree; nothing to place freely.
@@ -873,27 +1164,140 @@ export function createPedigreeDefinition(options = {}) {
             return [];
         },
 
-        getContextActions() {
-            return [];
+        // Node tools of a person: everything (a click on the card), or the "+" button's add menu, or the
+        // relationship badge's menu. Empty slots have none (a click on them is the request itself).
+        getContextActions(node, engine, { menu } = {}) {
+            if (!isPerson(node)) return [];
+            const data      = readPedigree(engine);
+            const add       = { type: "group", label: "Toevoegen", icon: "plus", children: addActions(node, data) };
+            const relations = { type: "group", label: "Relatie tonen", icon: "branch", children: relationActions(node, data) };
+            if (menu === "add") return [add];
+            if (menu === "partners") return [relations];
+
+            const actions = [add];
+            if (relations.children.length > 1 && out.switchable.has(node.id)) actions.push(relations);
+            actions.push(
+                { type: "pdRequest", request: "editperson", label: "Bewerken", icon: "edit" },
+                { type: "pdRequest", request: "removeperson", label: "Verwijderen", icon: "delete", danger: true }
+            );
+            return actions;
+        },
+
+        // A click on an empty slot asks the host to fill it.
+        getNodeClickAction(node) {
+            return isPlaceholder(node) ? { type: "pdPlaceholder" } : null;
+        },
+
+        // On a person: "+" (top right, while hovered or selected) opens the add menu; with several
+        // relationships a badge on the top edge shows how many (also read-only and in the export) and opens
+        // the menu to pick the one shown.
+        getNodeButtons(node) {
+            if (!isPerson(node) || !out.visible.has(node.id)) return [];
+            const buttons = [{
+                action: { type: "openNodeTools", menu: "add" }, icon: "plus", title: "Toevoegen", show: "hover",
+                x: node.x + node.width - 13, y: node.y + 14
+            }];
+
+            const count = out.relations.get(node.id) || 0;
+            if (count > 1) {
+                const switchable = out.switchable.has(node.id);
+                buttons.push({
+                    action: switchable ? { type: "openNodeTools", menu: "partners" } : null,
+                    x: node.x + node.width - 44, y: node.y, text: String(count), path: RINGS_PATH,
+                    title: `${count} relaties` + (switchable ? " — klik om een andere te tonen" : ""),
+                    fill: "#5B6573", readOnly: true, keepInExport: true
+                });
+            }
+            return buttons;
+        },
+
+        // Requests go to the host as diagram events; the chart itself changes nothing (ARCHITECTURE.md 6,
+        // "Events"). Showing another relationship is view state: a new layout without an undo step.
+        handleAction(action, node, engine) {
+            switch (action.type) {
+                case "pdRequest":
+                    request(engine, action.request, { personId: node.hostId, ...(action.detail || {}) });
+                    return false;
+
+                case "pdPlaceholder": {
+                    const detail = placeholderRequest(node, engine);
+                    if (detail) request(engine, detail.name, detail.payload);
+                    return false;
+                }
+
+                case "pdShowFamily": {
+                    const family = engine.getNode(action.familyId);
+                    if (!family || node.shownFamilyId === family.id) return false;
+                    node.shownFamilyId = family.id;
+                    engine.applyDiagramLayout();
+                    engine.render();
+                    engine.refreshNodeToolSurface();
+                    engine.emitDiagramEvent("preferredpartnerchanged", { personId: node.hostId, familyId: family.hostId || null });
+                    return false;
+                }
+
+                default:
+                    return false;
+            }
         },
 
         getDefaultSize(type) {
+            const o = orientationOf(settings.orientation);
             return type === "family"
                 ? { width: FAMILY_SIZE, height: FAMILY_SIZE }
-                : { width: HORIZONTAL.depth, height: HORIZONTAL.extent };
+                : o.rect(0, 0, o.depth, o.extent);
+        },
+
+        /** "horizontal" (ancestors to the right) or "vertical" (ancestors at the top). */
+        getOrientation() {
+            return settings.orientation;
+        },
+
+        /**
+         * Switches between "horizontal" and "vertical": a new layout without an undo step. The chart starts
+         * again at the canvas's top-left and the view pans so the focus card stays where it was on screen.
+         */
+        setOrientation(orientation, engine) {
+            if (!ORIENTATIONS[orientation] || orientation === settings.orientation) return false;
+            const focus  = engine.model.nodes.find(n => isPerson(n) && n.focus);
+            const centre = () => ({ x: focus.x + focus.width / 2, y: focus.y + focus.height / 2 });
+            const before = focus && centre();
+
+            settings.orientation = orientation;
+            out.normalize = true;
+            engine.applyDiagramLayout();
+
+            if (focus) {
+                const after = centre();
+                engine.state.panX += (before.x - after.x) * engine.state.zoom;
+                engine.state.panY += (before.y - after.y) * engine.state.zoom;
+            }
+            engine.clearNodeToolSurface?.();
+            engine.render();
+            engine.emitDiagramEvent("orientationchanged", { orientation });
+            return true;
         },
 
         getNodeInteractionMode() {
             return "action-surface";
         },
 
-        // The name on the first line, right of the avatar; the dates line is drawn by the shape.
+        // Horizontal: the name on the first line, right of the avatar. Vertical: up to two centred lines
+        // below the avatar. The dates line is drawn by the shape.
+        // An empty slot's text sits where a name would, centred on the card's height (horizontal).
         getLabelLayout(node) {
             if (isFamily(node)) return { placement: "inside", fontSize: 1, maxLines: 1 };
+            const empty = isPlaceholder(node);
+            if (settings.orientation === "vertical") {
+                return {
+                    placement: "inside", fontSize: NAME_SIZE, maxLines: 2, paddingX: V_PAD, paddingY: 0,
+                    offsetY: V_NAME_Y - VERTICAL.depth / 2
+                };
+            }
             return {
                 placement: "inside", align: "start", fontSize: NAME_SIZE, maxLines: 1,
                 paddingX: (TEXT_LEFT + TEXT_RIGHT) / 2, paddingY: 0,
-                offsetX: (TEXT_LEFT - TEXT_RIGHT) / 2, offsetY: -9
+                offsetX: (TEXT_LEFT - TEXT_RIGHT) / 2, offsetY: empty ? 0 : -9
             };
         },
 

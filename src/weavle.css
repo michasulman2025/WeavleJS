@@ -67,6 +67,15 @@
     cursor: pointer;
 }
 
+/* A node whose click runs an action (diagram.getNodeClickAction), e.g. an empty "add father" slot. */
+.weavle-node.is-clickable {
+    cursor: pointer;
+}
+
+.weavle-node.is-clickable:hover > * {
+    filter: brightness(0.97);
+}
+
 .weavle-node-button:hover .weavle-node-button-bg {
     filter: brightness(1.25);
 }

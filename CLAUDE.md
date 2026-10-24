@@ -157,18 +157,30 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
   `ocMove`, `ocRemoveOnly`, `changeType`; events `managerchanged`, `dottedlineadded`, `dottedlineremoved` (queued after
   the action's `modelchanged`). Definition `modelFromList` / `modelToList` drive the adapter's `setModelFromList` /
   `getList` / `onListChanged`.
-- Pedigree (`weavle-pedigree.js`, step 1 of the design in ARCHITECTURE.md section 6: view only, horizontal): `person`
+- Pedigree (`weavle-pedigree.js`, steps 1–3 of the design in ARCHITECTURE.md section 6; horizontal and
+  vertical — option `orientation`, `setOrientation(o, engine)` relayouts without undo, puts the chart back at the
+  top-left (`out.normalize`) and pans so the focus card keeps its screen position; event `orientationchanged`;
+  playground select "Weergave"): `person`
   nodes (`p:<id>`, fields gender / birthYear / deathYear / living / refId / photoUrl, `node.hostId`, `node.focus`) and
   `family` nodes (`f:<id>`, a 2 × 2 junction with marriageDate / marriagePlace); edges `partner` (person → family,
   `edge.slot` 1 | 2) and `child` (child → parent family). `layoutPedigree` works in abstract axes (generation, spread;
-  `HORIZONTAL` maps them to x / y): units (couple, person with partners, single sibling) stacked per generation, ancestor
+  `HORIZONTAL` / `VERTICAL` map them to x / y; the shapes and `getLabelLayout` switch card layout on `settings.orientation`;
+  vertical marriages are a ring icon with the details as tooltip): units (couple, person with partners, single sibling) stacked per generation, ancestor
   and descendant blocks as tidy trees (`measure` / `placeAncestors` / `placeDescendants` / `placeRow`); every person and
   family is claimed once; nodes outside the range are hidden; a single-parent family without shown children is left
-  out. The focus card keeps its position (a fresh model starts at 40, 40). The family shape draws a frame around all
+  out. The focus card keeps its centre (a fresh model starts at 40, 40; a chart sticking out at the top or left
+  moves back in). The family shape draws a frame around all
   partners of a unit (`out.frames`; families come first in the model so it lies under the cards) and the marriage
   text in the band between them (`out.bands`); units are further apart than partners. Child lines of different families
   in one generation gap get their own vertical lane where they overlap (`childLanes`). The focus card has a halo and a
-  tint of its gender colour. Dragging, connecting, editing and deleting are off.
+  tint of its gender colour. Dragging, connecting, editing and deleting are off. One partner at a time: `personUnit`
+  shows `readPedigree().shownFamily(person)` (`node.shownFamilyId` view state → host `preferredFamilyId` → last family);
+  a relationship badge (`getNodeButtons`, rings glyph + count, `out.relations`) opens menu "partners" on switchable persons
+  (`out.switchable`: focus and descendants) → `pdShowFamily` (relayout, no undo, event `preferredpartnerchanged`).
+  Empty slots: `addPlaceholders` regenerates `placeholder` nodes (+ generated families / edges, `generated: true`) before
+  every layout; a click on one (`getNodeClickAction`) sends the request. "+" button → menu "add" (`addActions`). Requests
+  (`pdRequest`, `placeholderRequest`) are diagram events with a `requestId` (`addparent`, `addpartner`, `addchild`,
+  `addsibling`, `editperson`, `removeperson`); the chart changes no data.
 - Style variants: `diagram.getNodeVariant(node, engine)` → a key into `nodeVariants` (definition `defaultTheme`, then
   `theme.nodeVariants` / `theme.diagrams[id].nodeVariants`, after the per-type layers, before presets); class
   `weavle-node--variant-{name}`. Org chart: `top` / `manager` for persons, computed in the layout (`variants`).
@@ -176,7 +188,11 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
   show: "always"|"hover", readOnly, keepInExport, fill, color }]`; drawn by `createNodeButtons` in the node group
   (`.weavle-node-button`, `--hover` shows on hover / selection), a mousedown on one runs `handleContextAction(action,
   node)` via `handleNodeButtonClick` (no select / drag; `readOnly: true` also in read-only mode); `exportSvg` drops
-  them unless `keepInExport`. Org chart: "−" (hover) collapses, "+n" expands.
+  them unless `keepInExport`. Org chart: "−" (hover) collapses, "+n" expands. A button may carry an own glyph (`path`,
+  left of its text) and the action `{ type: "openNodeTools", menu }`: selects the node and opens its tools from
+  `getContextActions(node, engine, { menu })` (no "Stijl"; a menu of one group opens its submenu at once;
+  `state.nodeToolMenu` keeps it across refreshes). `diagram.getNodeClickAction(node, engine)` → an action that a plain
+  click runs instead of selecting (class `is-clickable`).
 - Engine hooks for definitions (generic): `isNodeHidden(node, engine)` (not drawn, hit, marquee-selected or routed
   around; nor its edges), `getDropTarget(node, engine, { pos, draggedIds })` (highlighted while dragging; default the
   container) + `onNodeDrop(node, target, engine, { altKey, shiftKey })` on release, `edgeTypes[type].fixed` (kept by
