@@ -13,6 +13,8 @@ import { createFtaDefinition } from "./weavle-fta.js";
 import { createDatacenterOutageSample } from "./samples/fta-datacenter-outage.js";
 import { createOrgChartDefinition } from "./weavle-orgchart.js";
 import { createAcmeOrgChartSample } from "./samples/orgchart-acme.js";
+import { createPedigreeDefinition } from "./weavle-pedigree.js";
+import { createDeVriesPedigreeSample } from "./samples/pedigree-de-vries.js";
 import { createNodeEditorDefinition } from "./weavle-nodeeditor.js";
 import { createPageLogicSample } from "./samples/nodeeditor-page-logic.js";
 import { houseStyleTheme } from "./samples/theme-house-style.js";
@@ -86,6 +88,8 @@ function getDiagramDefinition(key) {
       return createFtaDefinition();
     case "orgchart":
       return createOrgChartDefinition();
+    case "pedigree":
+      return createPedigreeDefinition();
     case "nodeeditor":
       return createNodeEditorDefinition();
     case "flowchart":
@@ -105,6 +109,10 @@ function getSampleForDiagram(key) {
 
   if (key === "orgchart") {
     return createAcmeOrgChartSample();
+  }
+
+  if (key === "pedigree") {
+    return createDeVriesPedigreeSample();
   }
 
   if (key === "nodeeditor") {

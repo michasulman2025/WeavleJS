@@ -1,4 +1,4 @@
-/*! WeavleJS v0.9.0 | built 2026-10-23 16:21 UTC | (c) 2026 Micha Sulman | MIT License */
+/*! WeavleJS v0.9.0 | built 2026-10-24 08:10 UTC | (c) 2026 Micha Sulman | MIT License */
 //#region src/weavle-flowchart.js
 var e = "http://www.w3.org/2000/svg";
 function t(t, n, r) {
@@ -2309,7 +2309,7 @@ function C(e, t = {}) {
 		...t
 	}, r = n.direction !== "TB", i = (e) => r ? e.width : e.height, a = (e) => r ? e.height : e.width, o = (e) => r ? e.y : e.x, s = /* @__PURE__ */ new Map(), c = 0;
 	for (let t of T(e)) {
-		let e = ee(t, n, i, a, o), l = Infinity, u = -Infinity;
+		let e = E(t, n, i, a, o), l = Infinity, u = -Infinity;
 		for (let [n, r] of e.positions) {
 			let e = a(t.nodeById.get(n)) / 2;
 			l = Math.min(l, r.across - e), u = Math.max(u, r.across + e);
@@ -2340,13 +2340,13 @@ function w(e, t = {}) {
 		layerGap: 80,
 		nodeGap: 50,
 		...t
-	}, r = n.direction !== "TB", i = (e) => r ? e.width : e.height, a = (e) => r ? e.height : e.width, o = (e) => r ? e.y : e.x, s = e.nodes, c = new Map(s.map((e) => [e.id, e])), l = te(s, e.edges.filter((e) => c.has(e.source) && c.has(e.target) && e.source !== e.target), o), u = ne(s, l), d = re(s, l, u, n.groupOf), f = ie(d, u, c, o, (e) => d.sortGroup(e)), p = f.map((e) => Math.max(0, ...e.map((e) => d.isDummy(e) ? 0 : i(c.get(e))))), m = [], h = 0;
+	}, r = n.direction !== "TB", i = (e) => r ? e.width : e.height, a = (e) => r ? e.height : e.width, o = (e) => r ? e.y : e.x, s = e.nodes, c = new Map(s.map((e) => [e.id, e])), l = ee(s, e.edges.filter((e) => c.has(e.source) && c.has(e.target) && e.source !== e.target), o), u = te(s, l), d = ne(s, l, u, n.groupOf), f = re(d, u, c, o, (e) => d.sortGroup(e)), p = f.map((e) => Math.max(0, ...e.map((e) => d.isDummy(e) ? 0 : i(c.get(e))))), m = [], h = 0;
 	p.forEach((e, t) => {
 		m[t] = h + e / 2, h += e + n.layerGap;
 	});
 	let g = /* @__PURE__ */ new Map(), _ = [];
 	for (let e = 0; e < n.groupCount; e++) {
-		let t = (t) => d.group(t) === e, r = f.map((e) => e.filter(t)), i = oe(r, {
+		let t = (t) => d.group(t) === e, r = f.map((e) => e.filter(t)), i = O(r, {
 			...d,
 			up: new Map([...d.up].map(([e, n]) => [e, n.filter(t)])),
 			down: new Map([...d.down].map(([e, n]) => [e, n.filter(t)]))
@@ -2390,12 +2390,12 @@ function T(e) {
 	}
 	return a;
 }
-function ee(e, t, n, r, i) {
-	let { nodes: a, edges: o, nodeById: s } = e, c = te(a, o, i), l = ne(a, c), u = re(a, c, l), d = ie(u, l, s, i), f = d.map((e) => Math.max(0, ...e.map((e) => u.isDummy(e) ? 0 : n(s.get(e))))), p = [], m = 0;
+function E(e, t, n, r, i) {
+	let { nodes: a, edges: o, nodeById: s } = e, c = ee(a, o, i), l = te(a, c), u = ne(a, c, l), d = re(u, l, s, i), f = d.map((e) => Math.max(0, ...e.map((e) => u.isDummy(e) ? 0 : n(s.get(e))))), p = [], m = 0;
 	f.forEach((e, n) => {
 		p[n] = m + e / 2, m += e + t.layerGap;
 	});
-	let h = oe(d, u, s, r, t.nodeGap), g = /* @__PURE__ */ new Map();
+	let h = O(d, u, s, r, t.nodeGap), g = /* @__PURE__ */ new Map();
 	return d.forEach((e, t) => e.forEach((e) => {
 		u.isDummy(e) || g.set(e, {
 			along: p[t],
@@ -2403,7 +2403,7 @@ function ee(e, t, n, r, i) {
 		});
 	})), { positions: g };
 }
-function te(e, t, n) {
+function ee(e, t, n) {
 	let r = new Map(e.map((e) => [e.id, []])), i = new Map(e.map((e) => [e.id, 0]));
 	t.forEach((e) => {
 		r.get(e.source).push(e), i.set(e.target, i.get(e.target) + 1);
@@ -2424,7 +2424,7 @@ function te(e, t, n) {
 		secondary: !!e.secondary
 	}));
 }
-function ne(e, t) {
+function te(e, t) {
 	let n = new Map(e.map((e) => [e.id, []])), r = new Map(e.map((e) => [e.id, []]));
 	t.forEach((e) => {
 		n.get(e.target).push(e.source), r.get(e.source).push(e.target);
@@ -2439,7 +2439,7 @@ function ne(e, t) {
 		!n.get(e.id).length && r.get(e.id).length && i.set(e.id, Math.max(0, Math.min(...r.get(e.id).map((e) => i.get(e))) - 1));
 	}), i;
 }
-function re(e, t, n, r = null) {
+function ne(e, t, n, r = null) {
 	let i = /* @__PURE__ */ new Set(), a = /* @__PURE__ */ new Set(), o = new Map(r ? e.map((e) => [e.id, r(e.id)]) : []), s = new Map(o), c = new Map(e.map((e) => [e.id, []])), l = new Map(e.map((e) => [e.id, []])), u = 0, d = (e, t) => {
 		l.get(e).push(t), c.get(t).push(e);
 	};
@@ -2467,7 +2467,7 @@ function re(e, t, n, r = null) {
 		sortGroup: (e) => s.get(e) ?? 0
 	};
 }
-function ie(e, t, n, r, i = () => 0) {
+function re(e, t, n, r, i = () => 0) {
 	let a = Math.max(...t.values()) + 1, o = Array.from({ length: a }, () => []);
 	for (let [e, n] of t) o[n].push(e);
 	let s = /* @__PURE__ */ new Map(), c = (t) => {
@@ -2478,7 +2478,7 @@ function ie(e, t, n, r, i = () => 0) {
 	o.forEach((e) => e.sort((e, t) => i(e) - i(t) || (c(e) === c(t) ? 0 : c(e) - c(t))));
 	let l = /* @__PURE__ */ new Map(), u = () => o.forEach((e) => e.forEach((e, t) => l.set(e, t)));
 	u();
-	let d = o.map((e) => [...e]), f = ae(o, e, l);
+	let d = o.map((e) => [...e]), f = D(o, e, l);
 	for (let t = 0; t < 12 && f > 0; t++) {
 		let n = t % 2 == 0, r = n ? [...Array(a).keys()].slice(1) : [...Array(a).keys()].reverse().slice(1);
 		for (let t of r) {
@@ -2488,14 +2488,14 @@ function ie(e, t, n, r, i = () => 0) {
 				a.set(e, t.length ? t.reduce((e, t) => e + l.get(t), 0) / t.length : l.get(e));
 			}), o[t].sort((e, t) => i(e) - i(t) || a.get(e) - a.get(t) || l.get(e) - l.get(t)), o[t].forEach((e, t) => l.set(e, t));
 		}
-		let s = ae(o, e, l);
+		let s = D(o, e, l);
 		s < f && (f = s, d = o.map((e) => [...e]));
 	}
 	return d.forEach((e, t) => {
 		o[t] = e;
 	}), u(), o;
 }
-function ae(e, t, n) {
+function D(e, t, n) {
 	let r = 0;
 	for (let i = 0; i < e.length - 1; i++) {
 		let a = [];
@@ -2507,7 +2507,7 @@ function ae(e, t, n) {
 	}
 	return r;
 }
-function oe(e, t, n, r, i) {
+function O(e, t, n, r, i) {
 	let a = (e) => t.isDummy(e) ? 0 : r(n.get(e)), o = /* @__PURE__ */ new Map();
 	e.forEach((e) => {
 		let t = 0;
@@ -2520,7 +2520,7 @@ function oe(e, t, n, r, i) {
 		e.forEach((t, n) => {
 			n > 0 && (s += (a(e[n - 1]) + a(t)) / 2 + i), r.push(s);
 		});
-		let c = se(e.map((e, n) => t.get(e) - r[n]), e.map(n));
+		let c = ie(e.map((e, n) => t.get(e) - r[n]), e.map(n));
 		e.forEach((e, t) => o.set(e, c[t] + r[t]));
 	}, c = (e) => t.isSecondary(e) ? .05 : t.isDummy(e) ? 4 : 1, l = (e) => {
 		let t = e.map((e) => o.get(e)).sort((e, t) => e - t), n = Math.floor(t.length / 2);
@@ -2538,7 +2538,7 @@ function oe(e, t, n, r, i) {
 	}
 	return o;
 }
-function se(e, t) {
+function ie(e, t) {
 	let n = [];
 	e.forEach((e, r) => {
 		for (n.push({
@@ -2561,7 +2561,7 @@ function se(e, t) {
 }
 //#endregion
 //#region src/weavle.js
-var ce = [
+var k = [
 	"fill",
 	"stroke",
 	"strokeWidth",
@@ -2569,7 +2569,7 @@ var ce = [
 	"textColor",
 	"fontWeight",
 	"fontStyle"
-], le = {
+], ae = {
 	fill: "#eeeeee",
 	stroke: "#999999",
 	strokeWidth: 1.5,
@@ -2577,7 +2577,7 @@ var ce = [
 	textColor: null,
 	fontWeight: null,
 	fontStyle: null
-}, ue = {
+}, A = {
 	fill: "none",
 	stroke: "#666",
 	strokeWidth: 1.5,
@@ -2586,20 +2586,20 @@ var ce = [
 	fontWeight: null,
 	fontStyle: null
 };
-function de(e, t) {
+function oe(e, t) {
 	return String(t).split(".").reduce((e, t) => e?.[t], e);
 }
-function fe(e, t, n) {
+function se(e, t, n) {
 	let r = String(t).split("."), i = r.pop(), a = e;
 	for (let e of r) (!a[e] || typeof a[e] != "object") && (a[e] = {}), a = a[e];
 	a[i] = n;
 }
-var pe = {
+var ce = {
 	top: "bottom",
 	right: "left",
 	bottom: "top",
 	left: "right"
-}, me = {
+}, le = {
 	selection: ["--weavle-selection-color"],
 	accent: [
 		"--weavle-handle-fill",
@@ -2615,20 +2615,20 @@ var pe = {
 	uiText: ["--weavle-ui-text"],
 	uiBorder: ["--weavle-ui-border"]
 };
-function he(e) {
+function ue(e) {
 	let t = {};
 	if (!e) return t;
-	for (let n of ce) e[n] !== void 0 && e[n] !== null && (t[n] = e[n]);
+	for (let n of k) e[n] !== void 0 && e[n] !== null && (t[n] = e[n]);
 	return t;
 }
-function ge(e) {
+function de(e) {
 	let t = String(e || "").trim();
 	return /^#[0-9a-f]{6}$/i.test(t) ? t.toLowerCase() : /^#[0-9a-f]{3}$/i.test(t) ? "#" + [...t.slice(1)].map((e) => e + e).join("").toLowerCase() : "#000000";
 }
-function _e(e, ...t) {
-	return Object.assign({}, e, ...t.map(he));
+function fe(e, ...t) {
+	return Object.assign({}, e, ...t.map(ue));
 }
-var ve = class {
+var pe = class {
 	constructor(e, t = {}, n = null) {
 		this.container = typeof e == "string" ? document.querySelector(e) : e, this.options = Object.assign({
 			width: 1200,
@@ -3127,12 +3127,12 @@ var ve = class {
 		return n.setAttribute("opacity", "0.6"), n.setAttribute("stroke-dasharray", "4,4"), r.setAttribute("opacity", "0.7"), t.appendChild(n), t.appendChild(r), t;
 	}
 	createNodeText(e) {
-		let t = "http://www.w3.org/2000/svg", n = document.createElementNS(t, "text"), r = this.getNodeLabelBox(e);
-		n.setAttribute("text-anchor", "middle"), n.setAttribute("class", "weavle-node-label"), n.setAttribute("font-size", r.fontSize), n.setAttribute("pointer-events", "none"), this.applyTextStyle(n, this.getNodeStyle(e)), r.rotate && n.setAttribute("transform", `rotate(${r.rotate} ${r.centerX} ${r.centerY})`);
-		let i = r.lines.length * r.lineHeight, a = r.centerY - i / 2 + r.lineHeight / 2 + r.fontSize * .35;
-		return r.lines.forEach((e, i) => {
-			let o = document.createElementNS(t, "tspan");
-			o.setAttribute("x", r.centerX), o.setAttribute("y", a + i * r.lineHeight), o.textContent = e, n.appendChild(o);
+		let t = "http://www.w3.org/2000/svg", n = document.createElementNS(t, "text"), r = this.getNodeLabelBox(e), i = r.align === "start" ? r.centerX - r.width / 2 : r.centerX;
+		n.setAttribute("text-anchor", r.align === "start" ? "start" : "middle"), n.setAttribute("class", "weavle-node-label"), n.setAttribute("font-size", r.fontSize), n.setAttribute("pointer-events", "none"), this.applyTextStyle(n, this.getNodeStyle(e)), r.rotate && n.setAttribute("transform", `rotate(${r.rotate} ${r.centerX} ${r.centerY})`);
+		let a = r.lines.length * r.lineHeight, o = r.centerY - a / 2 + r.lineHeight / 2 + r.fontSize * .35;
+		return r.lines.forEach((e, a) => {
+			let s = document.createElementNS(t, "tspan");
+			s.setAttribute("x", i), s.setAttribute("y", o + a * r.lineHeight), s.textContent = e, n.appendChild(s);
 		}), r.truncated && (n.setAttribute("data-truncated", "true"), n.setAttribute("data-full-label", e.label || "")), n;
 	}
 	getLabelLayout(e) {
@@ -3150,7 +3150,8 @@ var ve = class {
 			lineHeight: 1.25,
 			maxLines: null,
 			offsetX: 0,
-			offsetY: 0
+			offsetY: 0,
+			align: "middle"
 		}, n = typeof this.diagram.getLabelLayout == "function" ? this.diagram.getLabelLayout(e, this) : this.diagram.nodeTypes?.[e.type]?.label;
 		return {
 			...t,
@@ -3215,7 +3216,8 @@ var ve = class {
 			width: s,
 			height: c,
 			fontSize: i,
-			lineHeight: a
+			lineHeight: a,
+			align: n.align
 		};
 	}
 	wrapLabel(e, t, n, r, i = null) {
@@ -3977,7 +3979,7 @@ var ve = class {
 		}, i = this.resolveEdgeType(e, null, this.state.connectingHandle, null);
 		if (this.state.connectionPreviewEdge = { type: i }, this.getEdgeTypeDefinition(this.state.connectionPreviewEdge).router === "bezier") {
 			let t = this.getPortSide(e, this.state.connectingHandle);
-			return this.buildBezierRoute(n, r, t, pe[t]);
+			return this.buildBezierRoute(n, r, t, ce[t]);
 		}
 		let a = this.getHandleExitPoint(n, this.state.connectingHandle, 16), o = [n, ...this.buildOrthogonalPoints(a, r, this.state.connectingHandle, null)];
 		return this.compactPoints(o);
@@ -4009,7 +4011,7 @@ var ve = class {
 		}, c = null), s && c) return this.getEdgeRoute(a, o, s, c, e);
 		if (this.getEdgeTypeDefinition(e).router === "bezier") {
 			let e = s ? this.getPortSide(t, s) : this.getPortSide(n, c);
-			return s ? this.buildBezierRoute(a, o, e, pe[e]) : this.buildBezierRoute(a, o, pe[e], e);
+			return s ? this.buildBezierRoute(a, o, e, ce[e]) : this.buildBezierRoute(a, o, ce[e], e);
 		}
 		return this.buildOrthogonalPoints(a, o, s, c);
 	}
@@ -5327,7 +5329,7 @@ var ve = class {
 		if (typeof this.diagram.canStyleNode == "function" && this.diagram.canStyleNode(e, this) === !1) return null;
 		let t = Object.entries(this.getPresets()), n = !!this.options.allowCustomStyles;
 		if (!t.length && !n) return null;
-		let r = e.style || {}, i = Object.keys(he(r)).length > 0, a = [{
+		let r = e.style || {}, i = Object.keys(ue(r)).length > 0, a = [{
 			type: "setStyle",
 			style: null,
 			label: "Standaard",
@@ -5357,7 +5359,7 @@ var ve = class {
 				input: "color",
 				property: e,
 				label: n,
-				value: ge(t[e])
+				value: de(t[e])
 			})));
 		}
 		return {
@@ -5410,7 +5412,7 @@ var ve = class {
 			let e = this.model.nodes.find((e) => e.id === t);
 			if (!e) return;
 			let l = r || this.getNodeLabelBox(e);
-			i = String(de(e, n) ?? ""), a = {
+			i = String(oe(e, n) ?? ""), a = {
 				x: l.centerX,
 				y: l.centerY
 			}, c = l.fontSize, o = Math.max(l.width + 12, 80), s = Math.max(l.height, l.lineHeight * 2) + 8;
@@ -5444,11 +5446,11 @@ var ve = class {
 		let t = e.element.value.trim(), n = e.type === "node" ? this.model.nodes.find((t) => t.id === e.id) : this.model.edges.find((t) => t.id === e.id);
 		this.state.editingLabel = null, e.element.remove();
 		let r = e.field || "label";
-		if (!n || String(de(n, r) ?? "") === t) {
+		if (!n || String(oe(n, r) ?? "") === t) {
 			this.render();
 			return;
 		}
-		fe(n, r, t), this.pushHistory(), this.emit("weavle:modelchanged", { model: this.getData() }), this.render();
+		se(n, r, t), this.pushHistory(), this.emit("weavle:modelchanged", { model: this.getData() }), this.render();
 	}
 	cancelInlineLabelEdit() {
 		let e = this.state.editingLabel;
@@ -5863,13 +5865,13 @@ var ve = class {
 			nodeGap: t.nodeGap,
 			groupOf: (e) => _(this.getNode(e)),
 			groupCount: l.length
-		}), x = l.map(s), S = (e) => this.getResizeRules(e)?.[n ? "minHeight" : "minWidth"] || 60, C = l.map((e, t) => i(Math.max(S(e), b[t] + x[t].acrossStart + x[t].acrossEnd))), T = [], ee = e[o.pos];
+		}), x = l.map(s), S = (e) => this.getResizeRules(e)?.[n ? "minHeight" : "minWidth"] || 60, C = l.map((e, t) => i(Math.max(S(e), b[t] + x[t].acrossStart + x[t].acrossEnd))), T = [], E = e[o.pos];
 		l.forEach((e, t) => {
-			T[t] = ee, ee += C[t];
+			T[t] = E, E += C[t];
 		});
-		let te = Math.max(...l.map((e, t) => e[a.pos] + x[t].alongStart));
+		let ee = Math.max(...l.map((e, t) => e[a.pos] + x[t].alongStart));
 		v.forEach((e) => {
-			let t = y.get(e.id), r = _(e), i = C[r] - x[r].acrossStart - x[r].acrossEnd - b[r], s = te + t.along - e[a.size] / 2, c = T[r] + x[r].acrossStart + i / 2 + t.across - e[o.size] / 2;
+			let t = y.get(e.id), r = _(e), i = C[r] - x[r].acrossStart - x[r].acrossEnd - b[r], s = ee + t.along - e[a.size] / 2, c = T[r] + x[r].acrossStart + i / 2 + t.across - e[o.size] / 2;
 			this.moveLayoutNode(e, n ? s : c, n ? c : s);
 		}), this.placeSatellites(m, p, t, (e, t, n) => this.moveLayoutNode(e, t, n)), c.length && m.forEach((e) => {
 			e.node.parentId = l[_(e.node)].id;
@@ -5891,8 +5893,8 @@ var ve = class {
 				}
 			}
 		});
-		let ne = i(Math.max(...u.flatMap((e) => [e, ...this.getAttachedNodes(e)]).map((e) => e[a.pos] + e[a.size])) + Math.max(...x.map((e) => e.alongEnd)));
-		return e[a.size] = Math.max(this.getResizeRules(e)?.[n ? "minWidth" : "minHeight"] || 0, ne - e[a.pos]), l.forEach((t, n) => {
+		let te = i(Math.max(...u.flatMap((e) => [e, ...this.getAttachedNodes(e)]).map((e) => e[a.pos] + e[a.size])) + Math.max(...x.map((e) => e.alongEnd)));
+		return e[a.size] = Math.max(this.getResizeRules(e)?.[n ? "minWidth" : "minHeight"] || 0, te - e[a.pos]), l.forEach((t, n) => {
 			t !== e && (t[o.pos] = T[n], t[o.size] = C[n], t[a.size] = e[a.pos] + e[a.size] - t[a.pos]);
 		}), e[o.size] = T[l.length - 1] + C[l.length - 1] - e[o.pos], !0;
 	}
@@ -6367,7 +6369,7 @@ var ve = class {
 	}
 	getNodeStyle(e) {
 		let t = e?.type, n = this.diagram.nodeTypes?.[t], r = this.getTheme(), i = r.diagrams?.[this.diagram.id] || {}, a = this.getDefaultTheme(), o = this.getNodeVariant(e);
-		return _e(le, ...n ? [
+		return fe(ae, ...n ? [
 			a.node,
 			n.colors,
 			n.style,
@@ -6381,7 +6383,7 @@ var ve = class {
 	}
 	getEdgeStyle(e) {
 		let t = this.getEdgeTypeDefinition(e), n = this.getDefaultTheme(), r = this.getTheme(), i = r.diagrams?.[this.diagram.id] || {};
-		return _e(ue, n.edge, t, t.style, n.edgeTypes?.[t.type], r.edge, i.edge, t.fixedStyle, r.edgeTypes?.[t.type], i.edgeTypes?.[t.type], ...this.getItemStyleLayers(e));
+		return fe(A, n.edge, t, t.style, n.edgeTypes?.[t.type], r.edge, i.edge, t.fixedStyle, r.edgeTypes?.[t.type], i.edgeTypes?.[t.type], ...this.getItemStyleLayers(e));
 	}
 	getItemStyleLayers(e) {
 		let t = e?.style;
@@ -6398,7 +6400,7 @@ var ve = class {
 	applyItemStyle(e, t) {
 		let n = {
 			...typeof t?.preset == "string" && t.preset ? { preset: t.preset } : {},
-			...he(t)
+			...ue(t)
 		}, r = Object.keys(n).length ? n : null, i = JSON.stringify(r), a = !1;
 		for (let t of e) JSON.stringify(t.style ?? null) !== i && (r ? t.style = { ...r } : delete t.style, a = !0);
 		return a ? (this.pushHistory(), this.emit("weavle:modelchanged", { model: this.getData() }), this.render(), !0) : !1;
@@ -6435,7 +6437,7 @@ var ve = class {
 	applyThemeUi() {
 		let e = this.getTheme(), t = e.ui || {}, n = this.container.style;
 		this.themeCssVars = this.themeCssVars || /* @__PURE__ */ new Set();
-		for (let [e, r] of Object.entries(me)) for (let i of r) t[e] ? (n.setProperty(i, t[e]), this.themeCssVars.add(i)) : this.themeCssVars.has(i) && (n.removeProperty(i), this.themeCssVars.delete(i));
+		for (let [e, r] of Object.entries(le)) for (let i of r) t[e] ? (n.setProperty(i, t[e]), this.themeCssVars.add(i)) : this.themeCssVars.has(i) && (n.removeProperty(i), this.themeCssVars.delete(i));
 		e.font?.family ? this.svg.setAttribute("font-family", e.font.family) : this.svg.removeAttribute("font-family");
 	}
 	clearThemeUi() {
@@ -6882,15 +6884,15 @@ var ve = class {
 			e.label = t, this.selectSingleNode(e.id), this.state.selectedEdgeId = null, this.emit("weavle:modelchanged", { model: this.getData() }), this.render();
 		}
 	}
-}, E = "http://www.w3.org/2000/svg", ye = .5, be = 26, xe = 4, Se = 10, Ce = 90, we = 8, Te = 22, Ee = 12, De = 50, Oe = 36, ke = 40, Ae = {
+}, me = "http://www.w3.org/2000/svg", he = .5, ge = 26, _e = 4, ve = 10, ye = 90, be = 8, xe = 22, Se = 12, Ce = 50, we = 36, Te = 40, Ee = {
 	category: 150,
 	cause: 160,
 	subCause: 130
-}, je = {
+}, De = {
 	category: 100,
 	cause: 28,
 	subCause: 24
-}, Me = {
+}, Oe = {
 	effect: {
 		placement: "inside",
 		fontSize: 15,
@@ -6919,44 +6921,44 @@ var ve = class {
 		paddingY: 1,
 		maxLines: 3
 	}
-}, Ne = 1.25, Pe = {
+}, ke = 1.25, Ae = {
 	fill: "transparent",
 	stroke: "none"
-}, D = {
+}, je = {
 	effect: "category",
 	category: "cause",
 	cause: "subCause"
-}, Fe = {
+}, Me = {
 	category: "bone",
 	cause: "causeLine",
 	subCause: "subCauseLine"
-}, Ie = [
+}, Ne = [
 	"Mens",
 	"Machine",
 	"Methode",
 	"Materiaal",
 	"Meting",
 	"Milieu"
-], Le = {
+], Pe = {
 	effect(e, t) {
-		let { x: n, y: r, width: i, height: a } = e, o = Math.min(a / 2, i / 3), s = document.createElementNS(E, "g"), c = t.diagram.getSpineStart?.(e, t);
+		let { x: n, y: r, width: i, height: a } = e, o = Math.min(a / 2, i / 3), s = document.createElementNS(me, "g"), c = t.diagram.getSpineStart?.(e, t);
 		if (c != null) {
-			let e = t.getEdgeStyle({ type: "bone" }), i = document.createElementNS(E, "line");
+			let e = t.getEdgeStyle({ type: "bone" }), i = document.createElementNS(me, "line");
 			i.setAttribute("x1", c), i.setAttribute("y1", r + a / 2), i.setAttribute("x2", n), i.setAttribute("y2", r + a / 2), i.setAttribute("stroke", e.stroke), i.setAttribute("stroke-width", String(e.strokeWidth)), e.dash && i.setAttribute("stroke-dasharray", e.dash), i.setAttribute("class", "weavle-ishikawa-spine"), i.setAttribute("pointer-events", "none"), s.appendChild(i);
 		}
-		let l = document.createElementNS(E, "path");
+		let l = document.createElementNS(me, "path");
 		return l.setAttribute("d", `M ${n} ${r} L ${n + i - o} ${r} A ${o} ${a / 2} 0 0 1 ${n + i - o} ${r + a} L ${n} ${r + a} Z`), t.applyNodeStyle(l, e), s.appendChild(l), s;
 	},
 	category(e, t) {
-		let n = document.createElementNS(E, "rect");
+		let n = document.createElementNS(me, "rect");
 		return n.setAttribute("x", e.x), n.setAttribute("y", e.y), n.setAttribute("width", e.width), n.setAttribute("height", e.height), n.setAttribute("rx", 4), t.applyNodeStyle(n, e), n;
 	},
 	text(e, t) {
-		let n = document.createElementNS(E, "rect");
+		let n = document.createElementNS(me, "rect");
 		return n.setAttribute("x", e.x - 2), n.setAttribute("y", e.y - 1), n.setAttribute("width", e.width + 4), n.setAttribute("height", e.height + 2), n.setAttribute("rx", 3), t.applyNodeStyle(n, e), n;
 	}
 };
-function O(e) {
+function j(e) {
 	let t = e.model.nodes, n = new Map(t.map((e) => [e.id, e])), r = /* @__PURE__ */ new Map();
 	for (let t of e.model.edges) {
 		let e = n.get(t.sourceNodeId), i = n.get(t.targetNodeId);
@@ -6968,42 +6970,42 @@ function O(e) {
 		children: (e) => t.filter((t) => r.get(t.id) === e)
 	};
 }
-function Re(e, t, n) {
+function Fe(e, t, n) {
 	return {
 		id: e.generateId(),
 		sourceNodeId: t.id,
 		targetNodeId: n.id,
 		sourceHandle: "right",
 		targetHandle: "left",
-		type: Fe[t.type] || "bone"
+		type: Me[t.type] || "bone"
 	};
 }
-function ze(e, t) {
-	let n = Me[t.type], r = e.getNodeStyle(t), { lines: i } = e.wrapLabel(t.label || "", Ae[t.type], n.maxLines, n.fontSize, r), a = Math.max(0, ...i.map((t) => e.measureLabelText(t, n.fontSize, r)));
-	t.width = Math.max(je[t.type], Math.ceil(a + 2 * n.paddingX + 2)), t.height = Math.ceil(Math.max(1, i.length) * n.fontSize * Ne + 2 * n.paddingY);
+function Ie(e, t) {
+	let n = Oe[t.type], r = e.getNodeStyle(t), { lines: i } = e.wrapLabel(t.label || "", Ee[t.type], n.maxLines, n.fontSize, r), a = Math.max(0, ...i.map((t) => e.measureLabelText(t, n.fontSize, r)));
+	t.width = Math.max(De[t.type], Math.ceil(a + 2 * n.paddingX + 2)), t.height = Math.ceil(Math.max(1, i.length) * n.fontSize * ke + 2 * n.paddingY);
 }
-function Be(e, t, n, r, i) {
-	let a = (e) => i + r * e, o = (e) => -e * ye, s = [n], c = /* @__PURE__ */ new Map(), l = 0, u = be;
+function Le(e, t, n, r, i) {
+	let a = (e) => i + r * e, o = (e) => -e * he, s = [n], c = /* @__PURE__ */ new Map(), l = 0, u = ge;
 	for (let i of [...t.children(n)].reverse()) {
-		ze(e, i);
+		Ie(e, i);
 		let n = t.children(i);
-		n.forEach((t) => ze(e, t));
-		let d = r < 0 ? Math.max(Te, i.height + 6) : Te, f = n.length ? d + Math.max(...n.map((e) => e.height)) + 2 : 0, p = r < 0 ? 0 : i.height + 2, m = r < 0 ? Math.max(i.height + 2, f) : f;
-		u += p + xe;
+		n.forEach((t) => Ie(e, t));
+		let d = r < 0 ? Math.max(xe, i.height + 6) : xe, f = n.length ? d + Math.max(...n.map((e) => e.height)) + 2 : 0, p = r < 0 ? 0 : i.height + 2, m = r < 0 ? Math.max(i.height + 2, f) : f;
+		u += p + _e;
 		let h = u;
-		u += m + Se;
+		u += m + ve;
 		let g = a(h), _ = o(h);
-		i.x = _ - we - (r < 0 ? i.height * ye : 0) - i.width, i.y = g - i.height - 1, s.push(i);
-		let v = i.x - 4, y = i.x - we, b = Infinity;
+		i.x = _ - be - (r < 0 ? i.height * he : 0) - i.width, i.y = g - i.height - 1, s.push(i);
+		let v = i.x - 4, y = i.x - be, b = Infinity;
 		for (let e of n) {
-			let t = Math.min(y - d * ye, b - Ee - e.width / 2, o(h + d + e.height) - we - e.width / 2), n = g + r * d, i = t + d * ye;
+			let t = Math.min(y - d * he, b - Se - e.width / 2, o(h + d + e.height) - be - e.width / 2), n = g + r * d, i = t + d * he;
 			e.x = t - e.width / 2, e.y = r < 0 ? n - e.height - 1 : n + 1, s.push(e), c.set(e.id, [{
 				x: t,
 				y: n
 			}, {
 				x: i,
 				y: g
-			}]), b = e.x, y = i - Ee, v = Math.min(v, i - 10), l = Math.min(l, e.x);
+			}]), b = e.x, y = i - Se, v = Math.min(v, i - 10), l = Math.min(l, e.x);
 		}
 		c.set(i.id, [{
 			x: v,
@@ -7013,8 +7015,8 @@ function Be(e, t, n, r, i) {
 			y: g
 		}]), l = Math.min(l, v, i.x);
 	}
-	ze(e, n);
-	let d = Math.max(u + 4, Ce), f = {
+	Ie(e, n);
+	let d = Math.max(u + 4, ye), f = {
 		x: o(d),
 		y: a(d)
 	};
@@ -7028,16 +7030,16 @@ function Be(e, t, n, r, i) {
 		anchor: f
 	};
 }
-function Ve(e, t) {
+function Re(e, t) {
 	t.clear();
-	let n = O(e), r = n.effect;
+	let n = j(e), r = n.effect;
 	if (!r) return;
-	for (let t of e.model.nodes) t.type === "category" && !n.parentOf(t) && e.model.edges.push(Re(e, t, r));
-	let i = O(e), a = i.children(r).filter((e) => e.type === "category"), o = r.y + r.height / 2, s = a.map((t, n) => ({
+	for (let t of e.model.nodes) t.type === "category" && !n.parentOf(t) && e.model.edges.push(Fe(e, t, r));
+	let i = j(e), a = i.children(r).filter((e) => e.type === "category"), o = r.y + r.height / 2, s = a.map((t, n) => ({
 		category: t,
 		column: Math.floor(n / 2),
-		...Be(e, i, t, n % 2 == 0 ? -1 : 1, o)
-	})), c = Math.ceil(s.length / 2), l = r.x - De;
+		...Le(e, i, t, n % 2 == 0 ? -1 : 1, o)
+	})), c = Math.ceil(s.length / 2), l = r.x - Ce;
 	for (let e = c - 1; e >= 0; e--) {
 		let n = s.filter((t) => t.column === e), i = Math.min(...n.map((e) => e.minX)), a = Math.max(...n.map((e) => e.maxX)), c = l - a;
 		for (let e of n) {
@@ -7063,7 +7065,7 @@ function Ve(e, t) {
 				}
 			]);
 		}
-		l = c + i - Oe;
+		l = c + i - we;
 	}
 	let u = new Map(t);
 	t.clear();
@@ -7078,7 +7080,7 @@ function Ve(e, t) {
 		});
 	}
 }
-var He = { nodeTypes: {
+var ze = { nodeTypes: {
 	effect: {
 		fill: "#FDE8E7",
 		stroke: "#B42318"
@@ -7087,15 +7089,15 @@ var He = { nodeTypes: {
 		fill: "#EAF4FB",
 		stroke: "#1B5278"
 	},
-	cause: Pe,
-	subCause: Pe
+	cause: Ae,
+	subCause: Ae
 } };
-function Ue() {
+function Be() {
 	let e = /* @__PURE__ */ new Map();
 	return {
 		id: "ishikawa",
-		shapes: Le,
-		defaultTheme: He,
+		shapes: Pe,
+		defaultTheme: ze,
 		nodeTypes: {
 			effect: {
 				defaultLabel: "Probleem",
@@ -7108,12 +7110,12 @@ function Ue() {
 			},
 			cause: {
 				defaultLabel: "Oorzaak",
-				fixedStyle: Pe,
+				fixedStyle: Ae,
 				shape: "text"
 			},
 			subCause: {
 				defaultLabel: "Suboorzaak",
-				fixedStyle: Pe,
+				fixedStyle: Ae,
 				shape: "text"
 			}
 		},
@@ -7141,7 +7143,7 @@ function Ue() {
 			}
 		},
 		getEdgeTypeForConnection({ source: e }) {
-			return Fe[e?.type] || "bone";
+			return Me[e?.type] || "bone";
 		},
 		createInitialModel() {
 			let e = {
@@ -7153,7 +7155,7 @@ function Ue() {
 				width: 180,
 				height: 90
 			}, t = [e], n = [];
-			return Ie.forEach((r, i) => {
+			return Ne.forEach((r, i) => {
 				let a = `category-${i + 1}`;
 				t.push({
 					id: a,
@@ -7177,7 +7179,7 @@ function Ue() {
 			};
 		},
 		layoutDiagram(t) {
-			Ve(t, e);
+			Re(t, e);
 		},
 		routeEdge({ sourcePoint: t, targetPoint: n, edge: r, engine: i }) {
 			let a = e.get(r?.id), o = a && i.getNode(r.sourceNodeId);
@@ -7189,15 +7191,15 @@ function Ue() {
 			}));
 		},
 		getDragTarget(e, t) {
-			return O(t).effect || null;
+			return j(t).effect || null;
 		},
 		getSpineStart(e, t) {
 			if (!t?.getNode(e.id)) return null;
 			let n = t.model.edges.filter((t) => t.targetNodeId === e.id && t.routePoints?.length >= 3).map((e) => e.routePoints[1].x);
-			return Math.min(e.x - De, ...n) - ke;
+			return Math.min(e.x - Ce, ...n) - Te;
 		},
 		getDependentNodes(e, t) {
-			return D[e.type] ? O(t).children(e) : [];
+			return je[e.type] ? j(t).children(e) : [];
 		},
 		canDeleteNode(e) {
 			return e.type !== "effect";
@@ -7211,18 +7213,18 @@ function Ue() {
 		},
 		handleCanvasAction(e, t) {
 			if (e.type !== "fishboneAddCategory") return !1;
-			let n = O(t).effect;
-			return n ? (We(t, n, null), !0) : !1;
+			let n = j(t).effect;
+			return n ? (Ve(t, n, null), !0) : !1;
 		},
 		getContextActions(e, t) {
-			let n = O(t), r = n.parentOf(e), i = r ? n.children(r) : [], a = i.indexOf(e), o = (e) => this.nodeTypes[e].defaultLabel.toLowerCase(), s = [];
+			let n = j(t), r = n.parentOf(e), i = r ? n.children(r) : [], a = i.indexOf(e), o = (e) => this.nodeTypes[e].defaultLabel.toLowerCase(), s = [];
 			return e.type === "effect" ? (s.push({
 				type: "fishboneAddChild",
 				label: "Categorie toevoegen",
 				nodeType: "category"
-			}), s) : (D[e.type] && s.push({
+			}), s) : (je[e.type] && s.push({
 				type: "fishboneAddChild",
-				label: `${Ge(o(D[e.type]))} toevoegen`,
+				label: `${He(o(je[e.type]))} toevoegen`,
 				icon: "branch"
 			}), s.push(e.type === "category" ? {
 				type: "fishboneAddSibling",
@@ -7230,7 +7232,7 @@ function Ue() {
 				nodeType: "category"
 			} : {
 				type: "fishboneAddSibling",
-				label: `${Ge(o(e.type))} toevoegen`,
+				label: `${He(o(e.type))} toevoegen`,
 				icon: "plus"
 			}), a > 0 && s.push({
 				type: "fishboneMove",
@@ -7248,12 +7250,12 @@ function Ue() {
 			}), s);
 		},
 		handleAction(e, t, n) {
-			let r = O(n);
+			let r = j(n);
 			switch (e.type) {
-				case "fishboneAddChild": return D[t.type] ? (We(n, t, null), !0) : !1;
+				case "fishboneAddChild": return je[t.type] ? (Ve(n, t, null), !0) : !1;
 				case "fishboneAddSibling": {
 					let e = r.parentOf(t);
-					return e ? (We(n, e, t), !0) : !1;
+					return e ? (Ve(n, e, t), !0) : !1;
 				}
 				case "fishboneMove": {
 					let i = r.parentOf(t), a = i ? r.children(i) : [], o = a[a.indexOf(t) + e.direction];
@@ -7291,7 +7293,7 @@ function Ue() {
 			return "action-surface";
 		},
 		getLabelLayout(e) {
-			return Me[e.type] || {};
+			return Oe[e.type] || {};
 		},
 		getResizeRules(e) {
 			return e.type === "effect" && {
@@ -7303,8 +7305,8 @@ function Ue() {
 		}
 	};
 }
-function We(e, t, n) {
-	let r = D[t.type], i = {
+function Ve(e, t, n) {
+	let r = je[t.type], i = {
 		id: e.generateId(),
 		type: r,
 		label: e.getDefaultLabelForType(r),
@@ -7313,86 +7315,86 @@ function We(e, t, n) {
 		width: 0,
 		height: 0
 	}, a = e.model.nodes, o = n ? a.indexOf(n) : -1;
-	o >= 0 ? a.splice(o + 1, 0, i) : a.push(i), e.model.edges.push(Re(e, i, t)), e.selectSingleNode(i.id), e.emitSelectionChanged(), setTimeout(() => {
+	o >= 0 ? a.splice(o + 1, 0, i) : a.push(i), e.model.edges.push(Fe(e, i, t)), e.selectSingleNode(i.id), e.emitSelectionChanged(), setTimeout(() => {
 		e.getNode(i.id) && !e.state.editingLabel && e.startInlineLabelEdit("node", i.id);
 	}, 0);
 }
-function Ge(e) {
+function He(e) {
 	return e.charAt(0).toUpperCase() + e.slice(1);
 }
 //#endregion
 //#region src/weavle-fta.js
-var Ke = "http://www.w3.org/2000/svg", qe = 24, Je = 16, Ye = 44, Xe = 28, Ze = 150, Qe = 46, $e = 120, et = 40, tt = {
+var Ue = "http://www.w3.org/2000/svg", We = 24, Ge = 16, Ke = 44, qe = 28, Je = 150, Ye = 46, Xe = 120, Ze = 40, Qe = {
 	placement: "inside",
 	fontSize: 13,
 	paddingX: 8,
 	paddingY: 7,
 	maxLines: 5
-}, nt = {
+}, $e = {
 	placement: "below",
 	fontSize: 12,
 	belowWidth: 120,
 	belowGap: 5,
 	maxLines: 4
-}, rt = {
+}, et = {
 	placement: "inside",
 	fontSize: 12,
 	paddingX: 6,
 	paddingY: 6,
 	widthFactor: .78,
 	maxLines: 3
-}, it = {
+}, tt = {
 	placement: "inside",
 	fontSize: 10,
 	paddingX: 2,
 	paddingY: 2,
 	maxLines: 1
-}, at = 1.25, ot = .18, k = [
+}, nt = 1.25, rt = .18, it = [
 	"orGate",
 	"andGate",
 	"xorGate",
 	"priorityAndGate",
 	"votingGate",
 	"inhibitGate"
-], st = ["topEvent", "event"], ct = [
+], at = ["topEvent", "event"], ot = [
 	"basicEvent",
 	"undevelopedEvent",
 	"houseEvent",
 	"transfer"
-], A = ["event", ...ct], j = (e) => k.includes(e?.type), M = (e) => st.includes(e?.type);
-function N(e, t) {
-	let n = document.createElementNS(Ke, e);
+], M = ["event", ...ot], N = (e) => it.includes(e?.type), st = (e) => at.includes(e?.type);
+function P(e, t) {
+	let n = document.createElementNS(Ue, e);
 	for (let [e, r] of Object.entries(t)) n.setAttribute(e, r);
 	return n;
 }
-function lt(e, t, n) {
-	let r = N("polygon", { points: e.map((e) => `${e[0]},${e[1]}`).join(" ") });
+function ct(e, t, n) {
+	let r = P("polygon", { points: e.map((e) => `${e[0]},${e[1]}`).join(" ") });
 	return n.applyNodeStyle(r, t), r;
 }
-function ut(e, t, n, r, i) {
+function lt(e, t, n, r, i) {
 	let a = e + n / 2;
-	return `M ${e} ${i} Q ${a} ${i - r * ot * 2} ${e + n} ${i} Q ${e + n} ${t + r * .35} ${a} ${t} Q ${e} ${t + r * .35} ${e} ${i} Z`;
+	return `M ${e} ${i} Q ${a} ${i - r * rt * 2} ${e + n} ${i} Q ${e + n} ${t + r * .35} ${a} ${t} Q ${e} ${t + r * .35} ${e} ${i} Z`;
 }
-function dt(e, t, n, r) {
+function ut(e, t, n, r) {
 	let i = r * .5;
 	return `M ${e} ${t + r} L ${e} ${t + i} A ${n / 2} ${i} 0 0 1 ${e + n} ${t + i} L ${e + n} ${t + r} Z`;
 }
-function P(e, t, n) {
-	let r = N("path", { d: e });
+function F(e, t, n) {
+	let r = P("path", { d: e });
 	return n.applyNodeStyle(r, t), r;
 }
-function ft(e, t, n) {
+function dt(e, t, n) {
 	let r = n.getNodeStyle(t);
-	return N("path", {
+	return P("path", {
 		d: e,
 		fill: "none",
 		stroke: r.stroke,
 		"stroke-width": String(r.strokeWidth ?? 1.5)
 	});
 }
-var pt = {
+var ft = {
 	eventBox(e, t) {
-		let n = N("rect", {
+		let n = P("rect", {
 			x: e.x,
 			y: e.y,
 			width: e.width,
@@ -7402,7 +7404,7 @@ var pt = {
 		return t.applyNodeStyle(n, e), n;
 	},
 	basicEvent(e, t) {
-		let n = Math.min(e.width, e.height) / 2, r = N("circle", {
+		let n = Math.min(e.width, e.height) / 2, r = P("circle", {
 			cx: e.x + e.width / 2,
 			cy: e.y + e.height / 2,
 			r: n
@@ -7411,7 +7413,7 @@ var pt = {
 	},
 	undevelopedEvent(e, t) {
 		let { x: n, y: r, width: i, height: a } = e;
-		return lt([
+		return ct([
 			[n + i / 2, r],
 			[n + i, r + a / 2],
 			[n + i / 2, r + a],
@@ -7420,7 +7422,7 @@ var pt = {
 	},
 	houseEvent(e, t) {
 		let { x: n, y: r, width: i, height: a } = e;
-		return lt([
+		return ct([
 			[n + i / 2, r],
 			[n + i, r + a * .38],
 			[n + i, r + a],
@@ -7430,14 +7432,14 @@ var pt = {
 	},
 	transfer(e, t) {
 		let { x: n, y: r, width: i, height: a } = e;
-		return lt([
+		return ct([
 			[n + i / 2, r],
 			[n + i, r + a],
 			[n, r + a]
 		], e, t);
 	},
 	conditionEvent(e, t) {
-		let n = N("ellipse", {
+		let n = P("ellipse", {
 			cx: e.x + e.width / 2,
 			cy: e.y + e.height / 2,
 			rx: e.width / 2,
@@ -7447,19 +7449,19 @@ var pt = {
 	},
 	orGate(e, t) {
 		let { x: n, y: r, width: i, height: a } = e;
-		return P(ut(n, r, i, a, r + a), e, t);
+		return F(lt(n, r, i, a, r + a), e, t);
 	},
 	xorGate(e, t) {
-		let { x: n, y: r, width: i, height: a } = e, o = N("g", {});
-		return o.appendChild(P(ut(n, r, i, a - 6, r + a - 6), e, t)), o.appendChild(ft(`M ${n} ${r + a} Q ${n + i / 2} ${r + a - 2 * a * ot} ${n + i} ${r + a}`, e, t)), o;
+		let { x: n, y: r, width: i, height: a } = e, o = P("g", {});
+		return o.appendChild(F(lt(n, r, i, a - 6, r + a - 6), e, t)), o.appendChild(dt(`M ${n} ${r + a} Q ${n + i / 2} ${r + a - 2 * a * rt} ${n + i} ${r + a}`, e, t)), o;
 	},
 	votingGate(e, t) {
-		let { x: n, y: r, width: i, height: a } = e, o = N("g", {});
-		o.appendChild(P(ut(n, r, i, a, r + a), e, t));
-		let { k: s, n: c } = t.getNode(e.id) ? mt(t, e) : {
+		let { x: n, y: r, width: i, height: a } = e, o = P("g", {});
+		o.appendChild(F(lt(n, r, i, a, r + a), e, t));
+		let { k: s, n: c } = t.getNode(e.id) ? pt(t, e) : {
 			k: "k",
 			n: "n"
-		}, l = t.getNodeStyle(e), u = N("text", {
+		}, l = t.getNodeStyle(e), u = P("text", {
 			x: n + i / 2,
 			y: r + a * .6,
 			"text-anchor": "middle",
@@ -7473,15 +7475,15 @@ var pt = {
 	},
 	andGate(e, t) {
 		let { x: n, y: r, width: i, height: a } = e;
-		return P(dt(n, r, i, a), e, t);
+		return F(ut(n, r, i, a), e, t);
 	},
 	priorityAndGate(e, t) {
-		let { x: n, y: r, width: i, height: a } = e, o = N("g", {});
-		return o.appendChild(P(dt(n, r, i, a), e, t)), o.appendChild(ft(`M ${n} ${r + a * .8} L ${n + i} ${r + a * .8}`, e, t)), o;
+		let { x: n, y: r, width: i, height: a } = e, o = P("g", {});
+		return o.appendChild(F(ut(n, r, i, a), e, t)), o.appendChild(dt(`M ${n} ${r + a * .8} L ${n + i} ${r + a * .8}`, e, t)), o;
 	},
 	inhibitGate(e, t) {
 		let { x: n, y: r, width: i, height: a } = e;
-		return lt([
+		return ct([
 			[n + i / 2, r],
 			[n + i, r + a / 4],
 			[n + i, r + a * 3 / 4],
@@ -7491,7 +7493,7 @@ var pt = {
 		], e, t);
 	}
 };
-function F(e) {
+function I(e) {
 	let t = e.model.nodes, n = new Map(t.map((e) => [e.id, e])), r = /* @__PURE__ */ new Map();
 	for (let t of e.model.edges) {
 		let e = n.get(t.sourceNodeId), i = n.get(t.targetNodeId);
@@ -7504,17 +7506,17 @@ function F(e) {
 		children: i,
 		inputs: (e) => i(e).filter((e) => e.type !== "conditionEvent"),
 		condition: (e) => i(e).find((e) => e.type === "conditionEvent") || null,
-		gateOf: (e) => i(e).find(j) || null
+		gateOf: (e) => i(e).find(N) || null
 	};
 }
-function mt(e, t) {
-	let n = F(e).inputs(t).length;
+function pt(e, t) {
+	let n = I(e).inputs(t).length;
 	return {
 		k: Math.max(1, Math.min(n || 1, Number(t.k) || 2)),
 		n
 	};
 }
-function ht(e, t, n) {
+function mt(e, t, n) {
 	return {
 		id: e.generateId(),
 		sourceNodeId: t.id,
@@ -7524,50 +7526,50 @@ function ht(e, t, n) {
 		type: "link"
 	};
 }
-function gt(e, t) {
-	let n = t.type === "conditionEvent", r = n ? rt : tt, i = n ? $e : Ze, a = e.getNodeStyle(t), o = i * (r.widthFactor ?? 1) - 2 * r.paddingX, { lines: s } = e.wrapLabel(t.label || "", o, r.maxLines, r.fontSize, a), c = Math.max(1, s.length) * r.fontSize * at;
-	t.width = i, t.height = Math.max(n ? et : Qe, Math.ceil((c + 2 * r.paddingY) / (n ? .8 : 1)));
+function ht(e, t) {
+	let n = t.type === "conditionEvent", r = n ? et : Qe, i = n ? Xe : Je, a = e.getNodeStyle(t), o = i * (r.widthFactor ?? 1) - 2 * r.paddingX, { lines: s } = e.wrapLabel(t.label || "", o, r.maxLines, r.fontSize, a), c = Math.max(1, s.length) * r.fontSize * nt;
+	t.width = i, t.height = Math.max(n ? Ze : Ye, Math.ceil((c + 2 * r.paddingY) / (n ? .8 : 1)));
 }
-function _t(e) {
+function gt(e) {
 	return {
 		x: e.x + e.width / 2,
 		y: e.y
 	};
 }
-function vt(e) {
+function _t(e) {
 	let t = e.y + e.height, n = [
 		"orGate",
 		"xorGate",
 		"votingGate"
-	].includes(e.type) ? e.height * ot : 0;
+	].includes(e.type) ? e.height * rt : 0;
 	return {
 		x: e.x + e.width / 2,
 		y: t - n
 	};
 }
-function yt(e, t, n) {
-	if (ct.includes(n.type)) return Math.max(n.width, nt.belowWidth);
+function vt(e, t, n) {
+	if (ot.includes(n.type)) return Math.max(n.width, $e.belowWidth);
 	let r = n.type === "inhibitGate" && t.condition(n);
-	return r ? n.width + 2 * (Xe + r.width) : n.width;
+	return r ? n.width + 2 * (qe + r.width) : n.width;
 }
-function bt(e, t) {
+function yt(e, t) {
 	t.clear();
-	let n = F(e), r = n.top;
+	let n = I(e), r = n.top;
 	if (!r) return;
 	let i = e.diagram.getDefaultSize;
-	for (let t of e.model.nodes) M(t) || t.type === "conditionEvent" ? gt(e, t) : (!t.width || !t.height) && Object.assign(t, i(t.type));
+	for (let t of e.model.nodes) st(t) || t.type === "conditionEvent" ? ht(e, t) : (!t.width || !t.height) && Object.assign(t, i(t.type));
 	let a = /* @__PURE__ */ new Map(), o = (t) => {
-		let r = n.inputs(t), i = r.reduce((e, t) => e + o(t), 0) + qe * Math.max(0, r.length - 1), s = Math.max(yt(e, n, t), i);
+		let r = n.inputs(t), i = r.reduce((e, t) => e + o(t), 0) + We * Math.max(0, r.length - 1), s = Math.max(vt(e, n, t), i);
 		return a.set(t, s), s;
 	}, s = /* @__PURE__ */ new Map(), c = (e, t, r) => {
 		let i = a.get(e);
 		e.x = t + i / 2 - e.width / 2, e.y = r;
 		let o = n.inputs(e);
 		if (o.length) {
-			let n = vt(e), r = n.y + (j(e) ? Ye : Je), l = (n.y + r) / 2, u = t + (i - (o.reduce((e, t) => e + a.get(t), 0) + qe * (o.length - 1))) / 2;
+			let n = _t(e), r = n.y + (N(e) ? Ke : Ge), l = (n.y + r) / 2, u = t + (i - (o.reduce((e, t) => e + a.get(t), 0) + We * (o.length - 1))) / 2;
 			for (let e of o) {
-				c(e, u, r), u += a.get(e) + qe;
-				let t = _t(e);
+				c(e, u, r), u += a.get(e) + We;
+				let t = gt(e);
 				s.set(e.id, t.x === n.x ? [t, n] : [
 					t,
 					{
@@ -7585,7 +7587,7 @@ function bt(e, t) {
 		let l = e.type === "inhibitGate" && n.condition(e);
 		if (l) {
 			let t = e.y + e.height / 2;
-			l.x = e.x + e.width + Xe, l.y = t - l.height / 2, s.set(l.id, [{
+			l.x = e.x + e.width + qe, l.y = t - l.height / 2, s.set(l.id, [{
 				x: l.x,
 				y: t
 			}, {
@@ -7606,10 +7608,10 @@ function bt(e, t) {
 		});
 	}
 }
-var I = {
+var L = {
 	fill: "#EEF0F3",
 	stroke: "#3A4451"
-}, xt = { nodeTypes: {
+}, bt = { nodeTypes: {
 	topEvent: {
 		fill: "#FDE8E7",
 		stroke: "#B42318",
@@ -7640,19 +7642,19 @@ var I = {
 		stroke: "#3A4451",
 		dash: "4,3"
 	},
-	orGate: I,
-	andGate: I,
-	xorGate: I,
-	priorityAndGate: I,
-	votingGate: I,
-	inhibitGate: I
+	orGate: L,
+	andGate: L,
+	xorGate: L,
+	priorityAndGate: L,
+	votingGate: L,
+	inhibitGate: L
 } };
-function St() {
+function xt() {
 	let e = /* @__PURE__ */ new Map();
 	return {
 		id: "fta",
-		shapes: pt,
-		defaultTheme: xt,
+		shapes: ft,
+		defaultTheme: bt,
 		nodeTypes: {
 			topEvent: {
 				defaultLabel: "Topgebeurtenis",
@@ -7737,8 +7739,8 @@ function St() {
 					label: "Topgebeurtenis",
 					x: 400,
 					y: 80,
-					width: Ze,
-					height: Qe
+					width: Je,
+					height: Ye
 				},
 				{
 					id: "gate-1",
@@ -7785,7 +7787,7 @@ function St() {
 			};
 		},
 		layoutDiagram(t) {
-			bt(t, e);
+			yt(t, e);
 		},
 		routeEdge({ sourcePoint: t, targetPoint: n, edge: r, engine: i }) {
 			let a = e.get(r?.id), o = a && i.getNode(r.sourceNodeId);
@@ -7797,10 +7799,10 @@ function St() {
 			}));
 		},
 		getDragTarget(e, t) {
-			return F(t).top || null;
+			return I(t).top || null;
 		},
 		getDependentNodes(e, t) {
-			return F(t).children(e);
+			return I(t).children(e);
 		},
 		canDeleteNode(e) {
 			return e.type !== "topEvent";
@@ -7809,7 +7811,7 @@ function St() {
 			return [];
 		},
 		getContextActions(e, t) {
-			let n = F(t), r = n.parentOf(e), i = (e) => t.getTypeTitle(e), a = (e, t, n, r = {}) => ({
+			let n = I(t), r = n.parentOf(e), i = (e) => t.getTypeTitle(e), a = (e, t, n, r = {}) => ({
 				type: "group",
 				label: e,
 				...r,
@@ -7820,19 +7822,19 @@ function St() {
 					active: r.current === e
 				}))
 			}), o = [];
-			if (M(e)) {
+			if (st(e)) {
 				let t = n.gateOf(e);
-				t ? (o.push(a("Oorzaak toevoegen", "ftaAddInput", A, { icon: "branch" })), o.push(a("Poort wijzigen", "ftaChangeGate", k, {
+				t ? (o.push(a("Oorzaak toevoegen", "ftaAddInput", M, { icon: "branch" })), o.push(a("Poort wijzigen", "ftaChangeGate", it, {
 					nodeType: t.type,
 					current: t.type
-				}))) : o.push(a("Poort toevoegen", "ftaAddGate", k, { icon: "branch" }));
+				}))) : o.push(a("Poort toevoegen", "ftaAddGate", it, { icon: "branch" }));
 			}
-			if (j(e)) {
-				if (o.push(a("Invoer toevoegen", "ftaAddInput", A, { icon: "branch" })), o.push(a("Type wijzigen", "ftaChangeGate", k, {
+			if (N(e)) {
+				if (o.push(a("Invoer toevoegen", "ftaAddInput", M, { icon: "branch" })), o.push(a("Type wijzigen", "ftaChangeGate", it, {
 					icon: "wrench",
 					current: e.type
 				})), e.type === "votingGate") {
-					let { k: n, n: r } = mt(t, e);
+					let { k: n, n: r } = pt(t, e);
 					o.push({
 						type: "group",
 						label: "Drempel (k uit n)",
@@ -7851,12 +7853,12 @@ function St() {
 					nodeType: "conditionEvent"
 				});
 			}
-			if (A.includes(e.type) && j(r)) {
-				let t = n.children(e).length ? ["event"] : A;
+			if (M.includes(e.type) && N(r)) {
+				let t = n.children(e).length ? ["event"] : M;
 				t.length > 1 && o.push(a("Type wijzigen", "changeType", t, {
 					icon: "wrench",
 					current: e.type
-				})), o.push(a("Ernaast toevoegen", "ftaAddSibling", A, { icon: "plus" }));
+				})), o.push(a("Ernaast toevoegen", "ftaAddSibling", M, { icon: "plus" }));
 				let i = n.inputs(r), s = i.indexOf(e);
 				s > 0 && o.push({
 					type: "ftaMove",
@@ -7876,25 +7878,25 @@ function St() {
 			}), o;
 		},
 		handleAction(e, t, n) {
-			let r = F(n);
+			let r = I(n);
 			switch (e.type) {
 				case "ftaAddGate": {
-					if (!M(t) || r.gateOf(t)) return !1;
-					let i = L(n, t, e.nodeType, null), a = L(n, i, "basicEvent", null);
-					return i.type === "inhibitGate" ? L(n, i, "conditionEvent", null) : L(n, i, "basicEvent", null), wt(n, a), !0;
+					if (!st(t) || r.gateOf(t)) return !1;
+					let i = R(n, t, e.nodeType, null), a = R(n, i, "basicEvent", null);
+					return i.type === "inhibitGate" ? R(n, i, "conditionEvent", null) : R(n, i, "basicEvent", null), Ct(n, a), !0;
 				}
 				case "ftaAddInput": {
-					let i = j(t) ? t : r.gateOf(t);
-					return !i && M(t) && (i = L(n, t, "orGate", null)), i ? (wt(n, L(n, i, e.nodeType, Ct(n, i))), !0) : !1;
+					let i = N(t) ? t : r.gateOf(t);
+					return !i && st(t) && (i = R(n, t, "orGate", null)), i ? (Ct(n, R(n, i, e.nodeType, St(n, i))), !0) : !1;
 				}
 				case "ftaAddSibling": {
 					let i = r.parentOf(t);
-					return j(i) ? (wt(n, L(n, i, e.nodeType, t)), !0) : !1;
+					return N(i) ? (Ct(n, R(n, i, e.nodeType, t)), !0) : !1;
 				}
-				case "ftaAddCondition": return t.type !== "inhibitGate" || r.condition(t) ? !1 : (wt(n, L(n, t, "conditionEvent", null)), !0);
+				case "ftaAddCondition": return t.type !== "inhibitGate" || r.condition(t) ? !1 : (Ct(n, R(n, t, "conditionEvent", null)), !0);
 				case "ftaChangeGate": {
-					let n = j(t) ? t : r.gateOf(t);
-					if (!n || !k.includes(e.nodeType) || n.type === e.nodeType) return !1;
+					let n = N(t) ? t : r.gateOf(t);
+					if (!n || !it.includes(e.nodeType) || n.type === e.nodeType) return !1;
 					let i = r.condition(n);
 					return i && e.nodeType !== "inhibitGate" && (i.type = "basicEvent", i.width = i.height = 0), n.type = e.nodeType, n.type !== "votingGate" && delete n.k, !0;
 				}
@@ -7906,7 +7908,7 @@ function St() {
 					return [s[c], s[l]] = [s[l], s[c]], !0;
 				}
 				case "changeType": {
-					if (!A.includes(e.nodeType) || e.nodeType === t.type || r.children(t).length && e.nodeType !== "event") return !1;
+					if (!M.includes(e.nodeType) || e.nodeType === t.type || r.children(t).length && e.nodeType !== "event") return !1;
 					let n = this.nodeTypes[t.type]?.defaultLabel;
 					return t.type = e.nodeType, (!t.label || t.label === n) && (t.label = this.nodeTypes[t.type].defaultLabel), t.width = t.height = 0, !0;
 				}
@@ -7916,12 +7918,12 @@ function St() {
 		getDefaultSize(e) {
 			return {
 				topEvent: {
-					width: Ze,
-					height: Qe
+					width: Je,
+					height: Ye
 				},
 				event: {
-					width: Ze,
-					height: Qe
+					width: Je,
+					height: Ye
 				},
 				basicEvent: {
 					width: 44,
@@ -7940,8 +7942,8 @@ function St() {
 					height: 40
 				},
 				conditionEvent: {
-					width: $e,
-					height: et
+					width: Xe,
+					height: Ze
 				}
 			}[e] || {
 				width: 44,
@@ -7952,18 +7954,18 @@ function St() {
 			return "action-surface";
 		},
 		getLabelLayout(e) {
-			return M(e) ? tt : e.type === "conditionEvent" ? rt : j(e) ? it : nt;
+			return st(e) ? Qe : e.type === "conditionEvent" ? et : N(e) ? tt : $e;
 		},
 		getResizeRules() {
 			return !1;
 		}
 	};
 }
-function Ct(e, t) {
-	let n = F(e).inputs(t);
+function St(e, t) {
+	let n = I(e).inputs(t);
 	return n[n.length - 1] || null;
 }
-function L(e, t, n, r) {
+function R(e, t, n, r) {
 	let i = {
 		id: e.generateId(),
 		type: n,
@@ -7973,62 +7975,62 @@ function L(e, t, n, r) {
 		width: 0,
 		height: 0
 	}, a = e.model.nodes, o = r ? a.indexOf(r) : -1;
-	return o >= 0 ? a.splice(o + 1, 0, i) : a.push(i), e.model.edges.push(ht(e, i, t)), i;
+	return o >= 0 ? a.splice(o + 1, 0, i) : a.push(i), e.model.edges.push(mt(e, i, t)), i;
 }
-function wt(e, t) {
+function Ct(e, t) {
 	e.selectSingleNode(t.id), e.emitSelectionChanged(), setTimeout(() => {
 		e.getNode(t.id) && !e.state.editingLabel && e.startInlineLabelEdit("node", t.id);
 	}, 0);
 }
 //#endregion
 //#region src/weavle-orgchart.js
-var Tt = "http://www.w3.org/2000/svg", R = 180, z = 52, Et = 4, Dt = 10, Ot = 8, kt = 2, At = 20, jt = 40, Mt = 60, Nt = 3, Pt = 24, Ft = 10, It = 16, Lt = 20, Rt = 14, B = {
+var wt = "http://www.w3.org/2000/svg", z = 180, B = 52, Tt = 4, Et = 10, Dt = 8, Ot = 2, kt = 20, At = 40, jt = 60, Mt = 3, Nt = 24, Pt = 10, Ft = 16, It = 20, Lt = 14, V = {
 	fontSize: 13,
 	maxLines: 2
-}, V = {
+}, H = {
 	fontSize: 11,
 	maxLines: 2
-}, H = 1.25, zt = ["person", "vacancy"], Bt = (e) => !e.type || e.type === "reportsTo", U = (e) => e.type === "dottedLine";
-function W(e, t) {
-	let n = document.createElementNS(Tt, e);
+}, Rt = 1.25, zt = ["person", "vacancy"], Bt = (e) => !e.type || e.type === "reportsTo", U = (e) => e.type === "dottedLine";
+function Vt(e, t) {
+	let n = document.createElementNS(wt, e);
 	for (let [e, r] of Object.entries(t)) n.setAttribute(e, r);
 	return n;
 }
-function Vt(e, t, n) {
-	let r = n.get(t.id), i = r ? r.nameH : B.fontSize * H, a = V.fontSize * H, o = t.width - 20, s = e.getNodeStyle(t), { lines: c } = e.wrapLabel(t.role || "", o, V.maxLines, V.fontSize, {
+function Ht(e, t, n) {
+	let r = n.get(t.id), i = r ? r.nameH : V.fontSize * Rt, a = H.fontSize * Rt, o = t.width - 20, s = e.getNodeStyle(t), { lines: c } = e.wrapLabel(t.role || "", o, H.maxLines, H.fontSize, {
 		...s,
 		fontWeight: "normal"
-	}), l = t.y + Et + Ot + i + kt, u = Math.max(1, c.length) * a;
+	}), l = t.y + Tt + Dt + i + Ot, u = Math.max(1, c.length) * a;
 	return {
 		lines: c,
 		lineHeight: a,
 		width: o,
 		height: u,
-		fontSize: V.fontSize,
+		fontSize: H.fontSize,
 		centerX: t.x + t.width / 2,
 		centerY: l + u / 2
 	};
 }
-function Ht(e) {
+function Ut(e) {
 	let t = (t, n) => {
-		let { x: r, y: i, width: a, height: o } = t, s = n.getNodeStyle(t), c = W("g", {}), l = W("rect", {
+		let { x: r, y: i, width: a, height: o } = t, s = n.getNodeStyle(t), c = Vt("g", {}), l = Vt("rect", {
 			x: r,
 			y: i,
 			width: a,
 			height: o,
 			rx: 6
 		});
-		if (n.applyNodeStyle(l, t), c.appendChild(l), c.appendChild(W("rect", {
+		if (n.applyNodeStyle(l, t), c.appendChild(l), c.appendChild(Vt("rect", {
 			x: r + 1,
 			y: i + 1,
 			width: Math.max(0, a - 2),
-			height: Et,
+			height: Tt,
 			rx: 3,
 			fill: s.stroke,
 			"pointer-events": "none",
 			class: "weavle-orgchart-accent"
 		})), t.role && n.getNode(t.id)) {
-			let r = Vt(n, t, e), i = W("text", {
+			let r = Ht(n, t, e), i = Vt("text", {
 				"text-anchor": "middle",
 				"font-size": r.fontSize,
 				fill: s.textColor || s.stroke,
@@ -8037,7 +8039,7 @@ function Ht(e) {
 				class: "weavle-orgchart-role"
 			}), a = r.centerY - r.height / 2 + r.lineHeight / 2 + r.fontSize * .35;
 			r.lines.forEach((e, t) => {
-				let n = W("tspan", {
+				let n = Vt("tspan", {
 					x: r.centerX,
 					y: a + t * r.lineHeight
 				});
@@ -8051,7 +8053,7 @@ function Ht(e) {
 		vacancy: t
 	};
 }
-function G(e) {
+function W(e) {
 	let t = e.model.nodes, n = new Map(t.map((e) => [e.id, e])), r = /* @__PURE__ */ new Map();
 	for (let t of e.model.edges) {
 		if (!Bt(t)) continue;
@@ -8085,7 +8087,7 @@ function G(e) {
 		dottedOf: (t) => e.model.edges.filter((e) => U(e) && e.sourceNodeId === t.id).map((e) => n.get(e.targetNodeId)).filter(Boolean)
 	};
 }
-function Ut(e, t, n, r = "reportsTo") {
+function Wt(e, t, n, r = "reportsTo") {
 	return {
 		id: e.generateId(),
 		sourceNodeId: t.id,
@@ -8095,39 +8097,39 @@ function Ut(e, t, n, r = "reportsTo") {
 		type: r
 	};
 }
-function Wt(e, t, n) {
-	e.model.edges = e.model.edges.filter((e) => e.sourceNodeId !== t.id || !Bt(e) && !(n && U(e) && e.targetNodeId === n.id)), n && e.model.edges.push(Ut(e, t, n));
-}
-function Gt(e, t) {
-	if (t.collapsed) return !1;
-	let n = e.team(t);
-	return e.assistants(t).length === 0 && n.length >= Nt && n.every((t) => e.reports(t).length === 0);
+function Gt(e, t, n) {
+	e.model.edges = e.model.edges.filter((e) => e.sourceNodeId !== t.id || !Bt(e) && !(n && U(e) && e.targetNodeId === n.id)), n && e.model.edges.push(Wt(e, t, n));
 }
 function Kt(e, t) {
-	let n = e.getNodeStyle(t), r = e.wrapLabel(t.label || "", 160, B.maxLines, B.fontSize, n), i = t.role ? e.wrapLabel(t.role, 160, V.maxLines, V.fontSize, {
+	if (t.collapsed) return !1;
+	let n = e.team(t);
+	return e.assistants(t).length === 0 && n.length >= Mt && n.every((t) => e.reports(t).length === 0);
+}
+function qt(e, t) {
+	let n = e.getNodeStyle(t), r = e.wrapLabel(t.label || "", 160, V.maxLines, V.fontSize, n), i = t.role ? e.wrapLabel(t.role, 160, H.maxLines, H.fontSize, {
 		...n,
 		fontWeight: "normal"
-	}) : { lines: [] }, a = Math.max(1, r.lines.length) * B.fontSize * H, o = i.lines.length * V.fontSize * H;
-	return t.width = R, t.height = Math.max(z, Math.ceil(20 + a + (o ? kt + o : 0))), {
+	}) : { lines: [] }, a = Math.max(1, r.lines.length) * V.fontSize * Rt, o = i.lines.length * H.fontSize * Rt;
+	return t.width = z, t.height = Math.max(B, Math.ceil(20 + a + (o ? Ot + o : 0))), {
 		nameH: a,
 		hiddenCount: 0
 	};
 }
-function qt(e, t, n, r, i) {
+function Jt(e, t, n, r, i) {
 	t.clear(), n.clear(), r.clear(), i.clear();
-	let a = G(e);
+	let a = W(e);
 	if (!a.roots.length) return;
 	for (let t of e.model.nodes) t.type === "person" && (a.managerOf(t) ? a.reports(t).length && i.set(t.id, "manager") : i.set(t.id, "top"));
 	for (let t of e.model.nodes) n.set(t.id, {
-		...Kt(e, t),
+		...qt(e, t),
 		hasReports: a.reports(t).length > 0
 	});
 	let o = (e) => a.assistants(e).length ? 400 : 0, s = /* @__PURE__ */ new Map(), c = (e) => {
 		let t = a.team(e), n = e.width;
 		if (!e.collapsed) {
-			if (Gt(a, e)) t.forEach(c), n = Math.max(e.width, 204);
+			if (Kt(a, e)) t.forEach(c), n = Math.max(e.width, 204);
 			else {
-				let r = t.reduce((e, t) => e + c(t), 0) + At * Math.max(0, t.length - 1);
+				let r = t.reduce((e, t) => e + c(t), 0) + kt * Math.max(0, t.length - 1);
 				n = Math.max(e.width, r, o(e));
 			}
 		}
@@ -8145,11 +8147,11 @@ function qt(e, t, n, r, i) {
 			e.x = t + r / 2 - e.width / 2, e.y = n, u(e);
 			return;
 		}
-		if (Gt(a, e)) {
+		if (Kt(a, e)) {
 			e.x = t, e.y = n;
-			let r = t + Pt / 2, a = n + e.height + It;
+			let r = t + Nt / 2, a = n + e.height + Ft;
 			for (let n of i) {
-				d(n, t + Pt, a);
+				d(n, t + Nt, a);
 				let i = n.y + n.height / 2;
 				l.set(n.id, [
 					{
@@ -8164,17 +8166,17 @@ function qt(e, t, n, r, i) {
 						x: r,
 						y: e.y + e.height
 					}
-				]), a += n.height + Ft;
+				]), a += n.height + Pt;
 			}
 			return;
 		}
 		e.x = t + r / 2 - e.width / 2, e.y = n, o.x = e.x + e.width / 2;
 		let c = o.y, f = a.assistants(e);
 		for (let e = 0; e < f.length; e += 2) {
-			let t = f.slice(e, e + 2), n = c + Rt;
+			let t = f.slice(e, e + 2), n = c + Lt;
 			t.forEach((e, t) => {
 				let r = t === 0;
-				e.x = r ? o.x + Lt : o.x - Lt - e.width, e.y = n;
+				e.x = r ? o.x + It : o.x - It - e.width, e.y = n;
 				let i = n + e.height / 2, a = r ? e.x : e.x + e.width;
 				l.set(e.id, [
 					{
@@ -8190,9 +8192,9 @@ function qt(e, t, n, r, i) {
 			}), c = n + Math.max(...t.map((e) => e.height));
 		}
 		if (!i.length) return;
-		let p = c + jt, m = c + jt / 2, h = t + (r - (i.reduce((e, t) => e + s.get(t), 0) + At * (i.length - 1))) / 2;
+		let p = c + At, m = c + At / 2, h = t + (r - (i.reduce((e, t) => e + s.get(t), 0) + kt * (i.length - 1))) / 2;
 		for (let e of i) {
-			d(e, h, p), h += s.get(e) + At;
+			d(e, h, p), h += s.get(e) + kt;
 			let t = {
 				x: e.x + e.width / 2,
 				y: e.y
@@ -8212,13 +8214,13 @@ function qt(e, t, n, r, i) {
 		}
 	}, f = a.roots[0];
 	c(f);
-	let p = Gt(a, f) ? f.x : f.x + f.width / 2 - s.get(f) / 2, m = f.y;
-	for (let e of a.roots) e !== f && c(e), d(e, p, m), p += s.get(e) + Mt;
+	let p = Kt(a, f) ? f.x : f.x + f.width / 2 - s.get(f) / 2, m = f.y;
+	for (let e of a.roots) e !== f && c(e), d(e, p, m), p += s.get(e) + jt;
 	for (let n of e.model.edges) {
 		let r = e.getNode(n.sourceNodeId);
 		if (!r) continue;
 		if (U(n)) {
-			Jt(n, r, e.getNode(n.targetNodeId));
+			Yt(n, r, e.getNode(n.targetNodeId));
 			continue;
 		}
 		let i = l.get(n.sourceNodeId);
@@ -8231,12 +8233,12 @@ function qt(e, t, n, r, i) {
 		});
 	}
 }
-function Jt(e, t, n) {
+function Yt(e, t, n) {
 	if (!n) return;
 	let r = n.x + n.width / 2 - (t.x + t.width / 2);
-	Math.abs(r) < R ? (e.sourceHandle = "right", e.targetHandle = "right") : (e.sourceHandle = r > 0 ? "right" : "left", e.targetHandle = r > 0 ? "left" : "right");
+	Math.abs(r) < z ? (e.sourceHandle = "right", e.targetHandle = "right") : (e.sourceHandle = r > 0 ? "right" : "left", e.targetHandle = r > 0 ? "left" : "right");
 }
-var Yt = {
+var Xt = {
 	nodeTypes: {
 		person: {
 			fill: "#FFFFFF",
@@ -8268,10 +8270,10 @@ var Yt = {
 		dottedLine: { stroke: "#7A5AB8" }
 	}
 };
-function Xt(e) {
+function Zt(e) {
 	return Array.isArray(e) ? e.map(String) : e == null || e === "" ? [] : String(e).split(",").map((e) => e.trim()).filter(Boolean);
 }
-function Zt(e) {
+function Qt(e) {
 	let t = Array.isArray(e) ? e : [], n = new Set(t.map((e) => String(e.id))), r = t.map((e) => {
 		let t = e.vacancy === !0 || e.type === "vacancy", n = {
 			id: String(e.id),
@@ -8279,8 +8281,8 @@ function Zt(e) {
 			label: e.name ?? e.label ?? (t ? "Vacature" : ""),
 			x: 0,
 			y: 0,
-			width: R,
-			height: z
+			width: z,
+			height: B
 		}, r = e.role ?? e.title;
 		return r && (n.role = String(r)), e.assistant === !0 && (n.assistant = !0), e.style && (n.style = e.style), n;
 	}), i = (e, t, n, r) => ({
@@ -8294,14 +8296,14 @@ function Zt(e) {
 	for (let e of t) {
 		let t = String(e.id), r = e.managerId != null && e.managerId !== "" ? String(e.managerId) : null;
 		r && n.has(r) && a.push(i(`reportsTo-${t}`, t, r, "reportsTo"));
-		for (let o of Xt(e.dottedManagerIds)) o !== t && o !== r && n.has(o) && a.push(i(`dottedLine-${t}-${o}`, t, o, "dottedLine"));
+		for (let o of Zt(e.dottedManagerIds)) o !== t && o !== r && n.has(o) && a.push(i(`dottedLine-${t}-${o}`, t, o, "dottedLine"));
 	}
 	return {
 		nodes: r,
 		edges: a
 	};
 }
-function Qt(e) {
+function $t(e) {
 	let t = e?.nodes || [], n = /* @__PURE__ */ new Map(), r = new Map(t.map((e) => [e.id, []]));
 	for (let t of e?.edges || []) U(t) ? r.get(t.sourceNodeId)?.push(t.targetNodeId) : Bt(t) && !n.has(t.sourceNodeId) && n.set(t.sourceNodeId, t.targetNodeId);
 	return t.map((e) => ({
@@ -8314,18 +8316,18 @@ function Qt(e) {
 		dottedManagerIds: r.get(e.id) || []
 	}));
 }
-function $t() {
+function en() {
 	let e = /* @__PURE__ */ new Map(), t = /* @__PURE__ */ new Map(), n = /* @__PURE__ */ new Set(), r = /* @__PURE__ */ new Map(), i = (e, t) => {
 		t.length && queueMicrotask(() => t.forEach(([t, n]) => e.emitDiagramEvent(t, n)));
 	}, a = (e, t, n, r, i) => {
 		let a = t.managerOf(n);
-		Wt(e, n, r), i.push(["managerchanged", {
+		Gt(e, n, r), i.push(["managerchanged", {
 			nodeId: n.id,
 			oldManagerId: a?.id || "",
 			newManagerId: r?.id || ""
 		}]);
 	}, o = (e, t, n) => n !== t && n !== e.managerOf(t) && !e.dottedOf(t).includes(n), s = (e, t, n, r) => {
-		e.model.edges.push(Ut(e, t, n, "dottedLine")), r.push(["dottedlineadded", {
+		e.model.edges.push(Wt(e, t, n, "dottedLine")), r.push(["dottedlineadded", {
 			nodeId: t.id,
 			managerId: n.id
 		}]);
@@ -8335,8 +8337,8 @@ function $t() {
 	};
 	return {
 		id: "orgchart",
-		shapes: Ht(t),
-		defaultTheme: Yt,
+		shapes: Ut(t),
+		defaultTheme: Xt,
 		nodeTypes: {
 			person: {
 				defaultLabel: "Naam",
@@ -8372,10 +8374,10 @@ function $t() {
 		getEdgeTypeForConnection() {
 			return "reportsTo";
 		},
-		modelFromList: Zt,
-		modelToList: Qt,
+		modelFromList: Qt,
+		modelToList: $t,
 		createInitialModel() {
-			return Zt([
+			return Qt([
 				{
 					id: "manager",
 					name: "Naam",
@@ -8396,7 +8398,7 @@ function $t() {
 			]);
 		},
 		layoutDiagram(i) {
-			qt(i, e, t, n, r);
+			Jt(i, e, t, n, r);
 		},
 		isNodeHidden(e) {
 			return n.has(e.id);
@@ -8428,7 +8430,7 @@ function $t() {
 		routeEdge({ sourcePoint: t, targetPoint: n, sourceHandle: r, targetHandle: i, edge: a, engine: o }) {
 			if (a && U(a)) return o.buildRoutedEdgePoints(t, n, r, i, a);
 			let s = a && o.getNode(a.sourceNodeId);
-			if (s && en(o, a)) return tn(o, s);
+			if (s && tn(o, a)) return nn(o, s);
 			let c = e.get(a?.id);
 			if (!c || !s) return [t, n];
 			let l = s.x - c.at.x, u = s.y - c.at.y;
@@ -8438,7 +8440,7 @@ function $t() {
 			}));
 		},
 		getDependentNodes(e, t) {
-			return G(t).reports(e);
+			return W(t).reports(e);
 		},
 		getDropTarget(e, t, { pos: n, draggedIds: r }) {
 			let i = new Set(r);
@@ -8446,18 +8448,18 @@ function $t() {
 		},
 		onNodeDrop(e, t, n, { altKey: r }) {
 			if (!t) return;
-			let l = G(n), u = [];
+			let l = W(n), u = [];
 			r ? o(l, e, t) && s(n, e, t, u) : t !== l.managerOf(e) && (delete e.assistant, delete t.collapsed, c(n, l, e, t), a(n, l, e, t, u)), i(n, u);
 		},
 		canDeleteNode(e, t) {
-			let n = G(t);
+			let n = W(t);
 			return n.roots.length !== 1 || n.roots[0] !== e;
 		},
 		getCanvasActions() {
 			return [];
 		},
 		getContextActions(e, t) {
-			let n = G(t), r = n.managerOf(e), i = n.reports(e), a = (e) => t.getTypeTitle(e), o = (e) => zt.map((t) => ({
+			let n = W(t), r = n.managerOf(e), i = n.reports(e), a = (e) => t.getTypeTitle(e), o = (e) => zt.map((t) => ({
 				type: e,
 				nodeType: t,
 				label: a(t)
@@ -8529,7 +8531,7 @@ function $t() {
 					nodeType: e.type
 				}))
 			});
-			let l = r ? n.isAssistant(e) ? n.assistants(r) : n.team(r) : n.roots, u = l.indexOf(e), d = r && !n.isAssistant(e) && Gt(n, r);
+			let l = r ? n.isAssistant(e) ? n.assistants(r) : n.team(r) : n.roots, u = l.indexOf(e), d = r && !n.isAssistant(e) && Kt(n, r);
 			return u > 0 && s.push({
 				type: "ocMove",
 				direction: -1,
@@ -8550,26 +8552,26 @@ function $t() {
 			}), s;
 		},
 		handleAction(e, n, r) {
-			let c = G(r), l = [];
+			let c = W(r), l = [];
 			switch (e.type) {
 				case "ocAddReport":
 				case "ocAddAssistant": {
 					delete n.collapsed;
-					let t = nn(r, n, e.nodeType, c.reports(n).at(-1) || null);
-					return e.type === "ocAddAssistant" && (t.assistant = !0), rn(r, t), !0;
+					let t = rn(r, n, e.nodeType, c.reports(n).at(-1) || null);
+					return e.type === "ocAddAssistant" && (t.assistant = !0), an(r, t), !0;
 				}
 				case "ocAddColleague": {
 					let t = c.managerOf(n);
-					return t ? (rn(r, nn(r, t, e.nodeType, n)), !0) : !1;
+					return t ? (an(r, rn(r, t, e.nodeType, n)), !0) : !1;
 				}
 				case "ocToggleCollapse": return c.reports(n).length ? (n.collapsed ? delete n.collapsed : n.collapsed = !0, !0) : !1;
 				case "ocToggleAssistant": return !c.managerOf(n) || c.reports(n).length ? !1 : (n.assistant ? delete n.assistant : n.assistant = !0, !0);
 				case "ocEditRole": return r.startInlineLabelEdit("node", n.id, {
 					field: "role",
-					box: Vt(r, n, t)
+					box: Ht(r, n, t)
 				}), !1;
 				case "ocAddDotted": return r.startNodePick({
-					filter: (e) => o(G(r), n, e),
+					filter: (e) => o(W(r), n, e),
 					onPick: (e) => {
 						let t = [];
 						s(r, n, e, t), r.pushHistory(), r.emitModelChanged(), r.render(), i(r, t);
@@ -8583,11 +8585,11 @@ function $t() {
 					}]), i(r, l), !0) : !1;
 				}
 				case "ocAddManager": {
-					let e = c.managerOf(n), t = nn(r, e, "person", null), o = r.model.nodes;
+					let e = c.managerOf(n), t = rn(r, e, "person", null), o = r.model.nodes;
 					return o.splice(o.indexOf(t), 1), o.splice(o.indexOf(n), 0, t), e || Object.assign(t, {
 						x: n.x,
 						y: n.y
-					}), n.assistant && (t.assistant = !0, delete n.assistant), a(r, c, n, t, l), i(r, l), rn(r, t), !0;
+					}), n.assistant && (t.assistant = !0, delete n.assistant), a(r, c, n, t, l), i(r, l), an(r, t), !0;
 				}
 				case "ocPromote": {
 					let e = c.managerOf(n), t = e && c.managerOf(e);
@@ -8623,22 +8625,22 @@ function $t() {
 		},
 		getDefaultSize() {
 			return {
-				width: R,
-				height: z
+				width: z,
+				height: B
 			};
 		},
 		getNodeInteractionMode() {
 			return "action-surface";
 		},
 		getLabelLayout(e) {
-			let n = 12 + (t.get(e.id)?.nameH ?? B.fontSize * H) / 2;
+			let n = 12 + (t.get(e.id)?.nameH ?? V.fontSize * Rt) / 2;
 			return {
 				placement: "inside",
-				fontSize: B.fontSize,
-				maxLines: B.maxLines,
-				paddingX: Dt,
+				fontSize: V.fontSize,
+				maxLines: V.maxLines,
+				paddingX: Et,
 				paddingY: 0,
-				offsetY: n - (e.height || z) / 2
+				offsetY: n - (e.height || B) / 2
 			};
 		},
 		getResizeRules() {
@@ -8646,11 +8648,11 @@ function $t() {
 		}
 	};
 }
-function en(e, t) {
+function tn(e, t) {
 	let n = e.state.draggingNodeIds || (e.state.draggingNodeId ? [e.state.draggingNodeId] : null);
 	return !!n && n.includes(t.sourceNodeId) && !n.includes(t.targetNodeId);
 }
-function tn(e, t) {
+function nn(e, t) {
 	let n = {
 		x: t.x + t.width / 2,
 		y: t.y
@@ -8673,26 +8675,695 @@ function tn(e, t) {
 		i
 	];
 }
-function nn(e, t, n, r) {
+function rn(e, t, n, r) {
 	let i = {
 		id: e.generateId(),
 		type: n,
 		label: e.getDefaultLabelForType(n),
 		x: t?.x ?? 0,
 		y: t?.y ?? 0,
-		width: R,
-		height: z
+		width: z,
+		height: B
 	}, a = e.model.nodes, o = r ? a.indexOf(r) : -1;
-	return o >= 0 ? a.splice(o + 1, 0, i) : a.push(i), t && e.model.edges.push(Ut(e, i, t)), i;
+	return o >= 0 ? a.splice(o + 1, 0, i) : a.push(i), t && e.model.edges.push(Wt(e, i, t)), i;
 }
-function rn(e, t) {
+function an(e, t) {
 	e.selectSingleNode(t.id), e.emitSelectionChanged(), setTimeout(() => {
 		e.getNode(t.id) && !e.state.editingLabel && e.startInlineLabelEdit("node", t.id);
 	}, 0);
 }
 //#endregion
+//#region src/weavle-pedigree.js
+var on = "http://www.w3.org/2000/svg", sn = {
+	depth: 240,
+	extent: 56,
+	band: 22,
+	genGap: 64,
+	gap: 26,
+	point: (e, t) => ({
+		x: e,
+		y: t
+	}),
+	rect: (e, t, n, r) => ({
+		x: e,
+		y: t,
+		width: n,
+		height: r
+	})
+}, cn = 14, ln = 8, G = 2, un = 5, dn = 16, fn = 32, pn = 5, K = 5, mn = 18, hn = 33, gn = 60, _n = 10, vn = 13, yn = 11, bn = 10.5, xn = {
+	ancestorGenerations: 3,
+	descendantGenerations: 2,
+	showSiblings: !0
+}, Sn = 0;
+function q(e, t) {
+	let n = document.createElementNS(on, e);
+	for (let [e, r] of Object.entries(t)) n.setAttribute(e, r);
+	return n;
+}
+var Cn = (e) => `p:${e}`, wn = (e) => `f:${e}`, Tn = (e) => e.type === "person", En = (e) => e.type === "family";
+function Dn(e) {
+	return e.living ? e.birthYear ? `${e.birthYear} – Levend` : "Levend" : !e.birthYear && !e.deathYear ? "" : `${e.birthYear || "?"}–${e.deathYear || "?"}`;
+}
+function On(e) {
+	let t = [e.marriageDate, e.marriagePlace].filter(Boolean);
+	return t.length ? `Huwelijk: ${t.join(" • ")}` : "";
+}
+function kn(e) {
+	let t = e.model.nodes, n = new Map(t.map((e) => [e.id, e])), r = new Map(t.map((e, t) => [e.id, t])), i = /* @__PURE__ */ new Map(), a = /* @__PURE__ */ new Map(), o = /* @__PURE__ */ new Map(), s = /* @__PURE__ */ new Map();
+	for (let t of e.model.edges) {
+		let e = n.get(t.sourceNodeId), r = n.get(t.targetNodeId);
+		if (e && r && Tn(e) && En(r)) {
+			if (t.type === "partner") {
+				let n = i.get(r.id) || [null, null];
+				n[+(t.slot === 2)] = e, i.set(r.id, n), a.has(e.id) || a.set(e.id, []), a.get(e.id).push(r);
+			} else t.type === "child" && !o.has(e.id) && (o.set(e.id, r), s.has(r.id) || s.set(r.id, []), s.get(r.id).push(e));
+		}
+	}
+	let c = (e, t) => r.get(e.id) - r.get(t.id), l = (e, t) => (Number(e.birthYear) || Infinity) - (Number(t.birthYear) || Infinity) || c(e, t);
+	for (let e of a.values()) e.sort(c);
+	for (let e of s.values()) e.sort(l);
+	let u = t.filter(Tn);
+	return {
+		focus: u.find((e) => e.focus) || u[0] || null,
+		partnersOf: (e) => (i.get(e.id) || [null, null]).filter(Boolean),
+		familiesOf: (e) => a.get(e.id) || [],
+		parentFamily: (e) => o.get(e.id) || null,
+		childrenOf: (e) => s.get(e.id) || [],
+		otherPartner: (e, t) => (i.get(e.id) || []).find((e) => e && e !== t) || null
+	};
+}
+function An(e, t) {
+	let n = 0;
+	e.offsets = e.cards.map((r, i) => {
+		i > 0 && (n += e.bandAfter.has(i - 1) ? t.band : 0);
+		let a = n;
+		return n += t.extent, a;
+	}), e.extent = n;
+	for (let n of e.families) {
+		let [r, i] = n.members;
+		n.offset = i == null ? e.offsets[r] + t.extent / 2 : (e.offsets[r] + t.extent + e.offsets[i]) / 2;
+	}
+	return e;
+}
+function jn(e, t, n) {
+	n.routes.clear(), n.visible.clear(), n.bands.clear(), n.frames.clear(), n.variants.clear();
+	let r = kn(e), i = r.focus;
+	if (!i) return;
+	let a = sn, o = a.depth + a.genGap, s = (e) => e * o, c = /* @__PURE__ */ new Set(), l = /* @__PURE__ */ new Map(), u = /* @__PURE__ */ new Map(), d = (e) => e && !c.has(e.id), f = (e) => (c.add(e.id), e), p = (e) => {
+		f(e);
+		let t = r.partnersOf(e).filter(d).map(f), n = {
+			cards: t,
+			bandAfter: /* @__PURE__ */ new Set(),
+			families: []
+		};
+		return t.length === 2 && n.bandAfter.add(0), n.families.push({
+			family: e,
+			members: t.length === 2 ? [0, 1] : [0]
+		}), An(n, a);
+	}, m = (e) => {
+		f(e);
+		let t = r.familiesOf(e).filter(d).map(f), n = t.map((t) => {
+			let n = r.otherPartner(t, e);
+			return d(n) ? f(n) : null;
+		}), i = n[0] && (t.length > 1 || r.partnersOf(t[0])[0] === n[0]) ? [
+			n[0],
+			e,
+			...n.slice(1).filter(Boolean)
+		] : [e, ...n.filter(Boolean)], o = i.indexOf(e), s = {
+			cards: i,
+			self: o,
+			bandAfter: /* @__PURE__ */ new Set(),
+			families: []
+		};
+		return t.forEach((e, t) => {
+			if (!n[t]) {
+				s.families.push({
+					family: e,
+					members: [o]
+				});
+				return;
+			}
+			let r = i.indexOf(n[t]), a = Math.abs(r - o) === 1 ? [Math.min(r, o), Math.max(r, o)] : [r - 1, r];
+			s.bandAfter.add(a[0]), s.families.push({
+				family: e,
+				members: a
+			});
+		}), An(s, a);
+	}, h = (e) => An({
+		cards: [f(e)],
+		self: 0,
+		bandAfter: /* @__PURE__ */ new Set(),
+		families: []
+	}, a), g = (e, t, r) => {
+		e.cards.forEach((n, i) => l.set(n.id, {
+			gen: t,
+			s0: r + e.offsets[i]
+		})), e.families.forEach((i, o) => {
+			u.set(i.family.id, {
+				gen: t,
+				a: s(t) - cn - ln * o,
+				s: r + i.offset
+			}), i.members.length === 2 && n.bands.set(i.family.id, a.rect(s(t), r + e.offsets[i.members[0]] + a.extent, a.depth, a.band));
+		});
+		let i = e.families.find((e) => e.members.length === 2);
+		i && n.frames.set(i.family.id, a.rect(s(t) - un, r - un, a.depth + 10, e.extent + 10));
+	}, _ = (e, n) => {
+		if (n > t.ancestorGenerations) return null;
+		let i = r.parentFamily(e);
+		if (!d(i)) return null;
+		let a = p(i);
+		if (!a.cards.length) return null;
+		let o = {
+			unit: a,
+			gen: n,
+			parents: []
+		};
+		return a.cards.forEach((e, t) => {
+			let r = _(e, n + 1);
+			r && o.parents.push({
+				block: r,
+				card: t
+			});
+		}), o;
+	}, v = (e, n) => {
+		let i = m(e), a = {
+			unit: i,
+			gen: n,
+			kids: []
+		};
+		return n - 1 >= -t.descendantGenerations && i.families.forEach((e, t) => {
+			for (let i of r.childrenOf(e.family)) d(i) && a.kids.push({
+				block: v(i, n - 1),
+				family: t
+			});
+		}), a;
+	}, y = (e) => {
+		let t = (e.parents || e.kids).map((e) => y(e.block)), n = t.reduce((e, t) => e + t, 0) + a.gap * Math.max(0, t.length - 1);
+		return e.span = Math.max(e.unit.extent, n), e.span;
+	}, b = (e, t, n) => Math.min(Math.max(n, t), t + e.span - e.unit.extent), x = (e, t) => {
+		let n = e.parents.reduce((e, t) => e + t.block.span, 0) + a.gap * Math.max(0, e.parents.length - 1), r = t + (e.span - n) / 2, i = [];
+		for (let t of e.parents) {
+			let n = x(t.block, r);
+			i.push(n - (e.unit.offsets[t.card] + a.extent / 2)), r += t.block.span + a.gap;
+		}
+		let o = i.length ? i.reduce((e, t) => e + t, 0) / i.length : t + (e.span - e.unit.extent) / 2, s = b(e, t, o);
+		return g(e.unit, e.gen, s), s + (e.unit.families[0]?.offset ?? e.unit.extent / 2);
+	}, S = (e, t) => {
+		let n = e.kids.reduce((e, t) => e + t.block.span, 0) + a.gap * Math.max(0, e.kids.length - 1), r = t + (e.span - n) / 2, i = e.unit.families.map(() => []);
+		for (let t of e.kids) i[t.family].push(S(t.block, r)), r += t.block.span + a.gap;
+		let o = e.unit.families.map((e, t) => i[t].length ? (i[t][0] + i[t].at(-1)) / 2 - e.offset : null).filter((e) => e != null), s = o.length ? o.reduce((e, t) => e + t, 0) / o.length : t + (e.span - e.unit.extent) / 2, c = b(e, t, s);
+		return g(e.unit, e.gen, c), c + e.unit.offsets[e.unit.self] + a.extent / 2;
+	}, C = (e, t, n) => {
+		if (!e.length) return;
+		let r = (n) => {
+			let r = n;
+			return e.map((e) => {
+				let n = t(e, r);
+				return r += e.span + a.gap, n;
+			});
+		}, i = r(0);
+		r(n - i.reduce((e, t) => e + t, 0) / i.length);
+	}, w = m(i), T = r.parentFamily(i), E = t.showSiblings && T ? r.childrenOf(T) : [i], ee = E.includes(i) ? E : [i], te = ee.map((e) => e === i ? w : d(e) ? h(e) : null).filter(Boolean), ne = 0;
+	for (let e of te) g(e, 0, ne), ne += e.extent + a.gap;
+	let re = (e) => l.get(e.id).s0 + a.extent / 2, D = w.cards.map((e) => ({
+		card: e,
+		block: _(e, 1)
+	})).filter((e) => e.block);
+	D.forEach((e) => y(e.block));
+	let O = te.flatMap((e) => e.cards).filter((e) => ee.includes(e)), ie = (e) => e === i && O.length ? (re(O[0]) + re(O.at(-1))) / 2 : re(e);
+	if (D.length) {
+		let e = D.reduce((e, t) => e + ie(t.card), 0) / D.length;
+		C(D.map((e) => e.block), x, e);
+	}
+	let k = [], ae = /* @__PURE__ */ new Set();
+	if (t.descendantGenerations >= 1) for (let e of w.families) for (let t of r.childrenOf(e.family)) d(t) && (k.push(v(t, -1)), ae.add(e.family.id));
+	k.forEach(y), k.length && C(k, S, [...ae].reduce((e, t) => e + u.get(t).s, 0) / ae.size);
+	let A = (e, t) => a.point(e, t), oe = new Map(e.model.nodes.map((e) => [e.id, e])), se = {
+		x: i.x,
+		y: i.y
+	}, ce = !i.x && !i.y;
+	for (let [e, t] of l) {
+		let r = oe.get(e);
+		Object.assign(r, a.rect(s(t.gen), t.s0, a.depth, a.extent)), n.visible.add(e), n.variants.set(e, r.gender === "male" || r.gender === "female" ? r.gender : "unknown");
+	}
+	for (let t of u.keys()) e.model.edges.filter((e) => e.targetNodeId === t && l.has(e.sourceNodeId)).length < 2 && u.delete(t);
+	for (let [e, t] of u) {
+		let r = oe.get(e), i = A(t.a, t.s);
+		Object.assign(r, {
+			x: i.x - G / 2,
+			y: i.y - G / 2,
+			width: G,
+			height: G
+		}), n.visible.add(e);
+	}
+	let le = Mn(e, l, u, a);
+	for (let t of e.model.edges) {
+		let e = l.get(t.sourceNodeId), r = u.get(t.targetNodeId);
+		if (!e || !r) continue;
+		let i = e.s0 + a.extent / 2;
+		if (t.type === "partner") n.routes.set(t.id, [
+			A(s(e.gen), i),
+			A(r.a, i),
+			A(r.a, r.s)
+		]);
+		else if (t.type === "child") {
+			let o = s(e.gen) + a.depth, c = (o + r.a) / 2 + (le.get(t.targetNodeId) || 0);
+			n.routes.set(t.id, i === r.s ? [A(o, i), A(r.a, r.s)] : [
+				A(o, i),
+				A(c, i),
+				A(c, r.s),
+				A(r.a, r.s)
+			]);
+		}
+	}
+	let ue = se.x - i.x, de = se.y - i.y;
+	if (ce) {
+		let e = [...n.visible].map((e) => oe.get(e));
+		ue = 40 - Math.min(...e.map((e) => e.x)), de = 40 - Math.min(...e.map((e) => e.y));
+	}
+	Nn(e, n, ue, de);
+	for (let t of e.model.nodes) n.visible.has(t.id) || Object.assign(t, {
+		x: i.x,
+		y: i.y
+	});
+}
+function Mn(e, t, n, r) {
+	let i = /* @__PURE__ */ new Map();
+	for (let a of e.model.edges) {
+		let e = t.get(a.sourceNodeId), o = n.get(a.targetNodeId);
+		if (a.type !== "child" || !e || !o) continue;
+		let s = e.s0 + r.extent / 2, c = i.get(a.targetNodeId) || {
+			gen: e.gen,
+			lo: o.s,
+			hi: o.s
+		};
+		i.set(a.targetNodeId, {
+			gen: c.gen,
+			lo: Math.min(c.lo, s),
+			hi: Math.max(c.hi, s)
+		});
+	}
+	let a = /* @__PURE__ */ new Map(), o = /* @__PURE__ */ new Map();
+	for (let [e, t] of i) t.hi - t.lo < 1 || (o.has(t.gen) || o.set(t.gen, []), o.get(t.gen).push({
+		id: e,
+		...t
+	}));
+	for (let e of o.values()) {
+		e.sort((e, t) => e.lo - t.lo);
+		let t = [], n = e.map((e) => {
+			let n = t.findIndex((t) => t < e.lo - 1);
+			return n < 0 && (n = t.length), t[n] = e.hi, n;
+		}), r = Math.min(dn, fn / Math.max(1, t.length - 1));
+		e.forEach((e, i) => a.set(e.id, (n[i] - (t.length - 1) / 2) * r));
+	}
+	return a;
+}
+function Nn(e, t, n, r) {
+	if (!n && !r) return;
+	let i = (e) => ({
+		...e,
+		x: e.x + n,
+		y: e.y + r
+	});
+	for (let n of e.model.nodes) t.visible.has(n.id) && Object.assign(n, i(n));
+	for (let [e, n] of t.routes) t.routes.set(e, n.map(i));
+	for (let [e, n] of t.bands) t.bands.set(e, i(n));
+	for (let [e, n] of t.frames) t.frames.set(e, i(n));
+}
+function Pn(e, t) {
+	return {
+		person: (e, n) => {
+			let { x: r, y: i, width: a, height: o } = e, s = n.getNodeStyle(e), c = q("g", {});
+			e.focus && c.appendChild(q("rect", {
+				x: r - 4,
+				y: i - 4,
+				width: a + 8,
+				height: o + 8,
+				rx: 9,
+				fill: "none",
+				stroke: s.stroke,
+				"stroke-width": "3",
+				"stroke-opacity": "0.3",
+				"pointer-events": "none",
+				class: "weavle-pedigree-halo"
+			}));
+			let l = q("rect", {
+				x: r,
+				y: i,
+				width: a,
+				height: o,
+				rx: K,
+				class: "weavle-pedigree-card"
+			});
+			n.applyNodeStyle(l, e), l.setAttribute("stroke-opacity", e.focus ? "1" : "0.35"), e.focus && l.setAttribute("stroke-width", "2"), c.appendChild(l), e.focus && c.appendChild(q("rect", {
+				x: r,
+				y: i,
+				width: a,
+				height: o,
+				rx: K,
+				fill: s.stroke,
+				"fill-opacity": "0.14",
+				"pointer-events": "none",
+				class: "weavle-pedigree-focus-tint"
+			})), c.appendChild(q("path", {
+				d: `M ${r + pn} ${i} A ${K} ${K} 0 0 0 ${r} ${i + K} V ${i + o - K} A ${K} ${K} 0 0 0 ${r + pn} ${i + o} Z`,
+				fill: s.stroke,
+				"pointer-events": "none",
+				class: "weavle-pedigree-bar"
+			})), c.appendChild(Fn(e, r + hn, i + o / 2, mn, `weavle-pedigree-${t}-${e.id.replace(/[^\w-]/g, "_")}`));
+			let u = [Dn(e), e.refId].filter(Boolean).join(" • ");
+			if (u) {
+				let e = a - gn - _n, t = n.wrapLabel(u, e, 1, yn, { fontWeight: "normal" }).lines[0] || "", l = q("text", {
+					x: r + gn,
+					y: i + o / 2 + 14,
+					"font-size": yn,
+					fill: s.textColor || "#1F2933",
+					"fill-opacity": "0.65",
+					"pointer-events": "none",
+					class: "weavle-pedigree-dates"
+				});
+				l.textContent = t, c.appendChild(l);
+			}
+			return c;
+		},
+		family: (t) => {
+			let n = q("g", {}), r = e.frames.get(t.id);
+			r && n.appendChild(q("rect", {
+				...r,
+				rx: 10,
+				fill: "#F2F4F7",
+				stroke: "#D5DBE2",
+				"pointer-events": "none",
+				class: "weavle-pedigree-couple"
+			}));
+			let i = e.bands.get(t.id), a = On(t);
+			if (!i || !a) return n;
+			let o = q("text", {
+				x: i.x + gn,
+				y: i.y + i.height / 2 + bn * .35,
+				"font-size": bn,
+				fill: "#5B6573",
+				"pointer-events": "none",
+				class: "weavle-pedigree-marriage"
+			});
+			return o.textContent = a, n.appendChild(o), n;
+		}
+	};
+}
+function Fn(e, t, n, r, i) {
+	let a = q("g", {
+		"pointer-events": "none",
+		class: "weavle-pedigree-avatar"
+	});
+	if (a.appendChild(q("circle", {
+		cx: t,
+		cy: n,
+		r,
+		fill: "#EEF1F4",
+		stroke: "#D5DAE0"
+	})), e.photoUrl) {
+		let o = q("clipPath", { id: i });
+		o.appendChild(q("circle", {
+			cx: t,
+			cy: n,
+			r: r - .5
+		})), a.appendChild(o);
+		let s = q("image", {
+			href: e.photoUrl,
+			x: t - r,
+			y: n - r,
+			width: 2 * r,
+			height: 2 * r,
+			preserveAspectRatio: "xMidYMid slice",
+			"clip-path": `url(#${i})`
+		});
+		return a.appendChild(s), a;
+	}
+	return a.appendChild(q("circle", {
+		cx: t,
+		cy: n - r * .22,
+		r: r * .34,
+		fill: "#B8C0CA"
+	})), a.appendChild(q("path", {
+		d: `M ${t - r * .62} ${n + r * .72} A ${r * .62} ${r * .5} 0 0 1 ${t + r * .62} ${n + r * .72} Z`,
+		fill: "#B8C0CA"
+	})), a;
+}
+var In = {
+	nodeTypes: {
+		person: {
+			fill: "#FFFFFF",
+			stroke: "#8A94A3",
+			textColor: "#1F2933",
+			fontWeight: "600"
+		},
+		family: {
+			fill: "none",
+			stroke: "none"
+		}
+	},
+	nodeVariants: {
+		male: { stroke: "#3B82C4" },
+		female: { stroke: "#D9487A" },
+		unknown: { stroke: "#8A94A3" }
+	},
+	edgeTypes: {
+		partner: { stroke: "#9AA3AE" },
+		child: { stroke: "#9AA3AE" }
+	}
+}, J = (e) => e == null ? "" : String(e);
+function Ln(e) {
+	if (e == null || e === "" || e === 0 || e === "0") return;
+	let t = Number(e);
+	return Number.isFinite(t) ? t : String(e);
+}
+function Rn(e) {
+	let t = J(e).trim().toLowerCase();
+	return [
+		"male",
+		"m",
+		"man"
+	].includes(t) ? "male" : [
+		"female",
+		"f",
+		"v",
+		"vrouw",
+		"woman"
+	].includes(t) ? "female" : "unknown";
+}
+function zn(e) {
+	let t = e && typeof e == "object" && !Array.isArray(e) ? e : {}, n = Array.isArray(t.persons) ? t.persons : [], r = Array.isArray(t.families) ? t.families : [], i = new Set(n.map((e) => J(e.id))), a = new Set(r.map((e) => J(e.id))), o = i.has(J(t.focusId)) ? J(t.focusId) : J(n[0]?.id), s = [], c = [];
+	for (let e of n) {
+		let t = J(e.id), n = {
+			id: Cn(t),
+			type: "person",
+			hostId: t,
+			label: J(e.name ?? e.label),
+			gender: Rn(e.gender),
+			x: 0,
+			y: 0,
+			width: sn.depth,
+			height: sn.extent
+		}, r = Ln(e.birthYear), i = Ln(e.deathYear);
+		r !== void 0 && (n.birthYear = r), i !== void 0 && (n.deathYear = i), e.living === !0 && (n.living = !0), e.refId && (n.refId = J(e.refId)), e.photoUrl && (n.photoUrl = J(e.photoUrl)), e.hasMoreAncestors === !0 && (n.hasMoreAncestors = !0), e.hasMoreDescendants === !0 && (n.hasMoreDescendants = !0), t === o && (n.focus = !0), s.push(n);
+		let l = J(e.parentFamilyId);
+		l && a.has(l) && c.push({
+			id: `child:${t}`,
+			type: "child",
+			sourceNodeId: n.id,
+			targetNodeId: wn(l),
+			sourceHandle: "right",
+			targetHandle: "left"
+		});
+	}
+	for (let e of r) {
+		let t = J(e.id), n = {
+			id: wn(t),
+			type: "family",
+			hostId: t,
+			label: "",
+			x: 0,
+			y: 0,
+			width: G,
+			height: G
+		};
+		e.marriageDate && (n.marriageDate = J(e.marriageDate)), e.marriagePlace && (n.marriagePlace = J(e.marriagePlace)), s.push(n), [e.partner1Id, e.partner2Id].forEach((e, r) => {
+			let a = J(e);
+			a && i.has(a) && c.push({
+				id: `partner:${t}:${r + 1}`,
+				type: "partner",
+				slot: r + 1,
+				sourceNodeId: Cn(a),
+				targetNodeId: n.id,
+				sourceHandle: "left",
+				targetHandle: "right"
+			});
+		});
+	}
+	return {
+		nodes: [...s.filter(En), ...s.filter(Tn)],
+		edges: c
+	};
+}
+function Bn(e) {
+	let t = e?.nodes || [], n = new Map(t.map((e) => [e.id, e])), r = /* @__PURE__ */ new Map(), i = /* @__PURE__ */ new Map();
+	for (let t of e?.edges || []) {
+		let e = n.get(t.sourceNodeId), a = n.get(t.targetNodeId);
+		if (e && a && (t.type === "child" && !r.has(e.id) && r.set(e.id, a.hostId), t.type === "partner")) {
+			let n = i.get(a.id) || ["", ""];
+			n[+(t.slot === 2)] = e.hostId, i.set(a.id, n);
+		}
+	}
+	return {
+		focusId: t.find((e) => Tn(e) && e.focus)?.hostId || "",
+		persons: t.filter(Tn).map((e) => ({
+			id: e.hostId,
+			name: e.label || "",
+			gender: e.gender || "unknown",
+			birthYear: e.birthYear || 0,
+			deathYear: e.deathYear || 0,
+			living: !!e.living,
+			refId: e.refId || "",
+			photoUrl: e.photoUrl || "",
+			parentFamilyId: r.get(e.id) || "",
+			hasMoreAncestors: !!e.hasMoreAncestors,
+			hasMoreDescendants: !!e.hasMoreDescendants
+		})),
+		families: t.filter(En).map((e) => {
+			let [t, n] = i.get(e.id) || ["", ""];
+			return {
+				id: e.hostId,
+				partner1Id: t,
+				partner2Id: n,
+				marriageDate: e.marriageDate || "",
+				marriagePlace: e.marriagePlace || ""
+			};
+		})
+	};
+}
+function Vn(e = {}) {
+	let t = {
+		...xn,
+		...e
+	}, n = {
+		routes: /* @__PURE__ */ new Map(),
+		visible: /* @__PURE__ */ new Set(),
+		bands: /* @__PURE__ */ new Map(),
+		frames: /* @__PURE__ */ new Map(),
+		variants: /* @__PURE__ */ new Map()
+	};
+	return {
+		id: "pedigree",
+		shapes: Pn(n, ++Sn),
+		defaultTheme: In,
+		nodeTypes: {
+			person: {
+				defaultLabel: "Naam",
+				title: "Persoon",
+				shape: "person"
+			},
+			family: {
+				defaultLabel: "",
+				title: "Gezin",
+				shape: "family"
+			}
+		},
+		palette: [],
+		interaction: {
+			dragNodes: !1,
+			connect: !1,
+			selectEdges: !1
+		},
+		defaultEdgeType: "child",
+		edgeTypes: {
+			partner: {
+				router: "straight",
+				marker: "none",
+				strokeWidth: 1.5,
+				fixed: !0
+			},
+			child: {
+				router: "straight",
+				marker: "none",
+				strokeWidth: 1.5,
+				fixed: !0
+			}
+		},
+		getEdgeTypeForConnection() {
+			return "child";
+		},
+		modelFromList: zn,
+		modelToList: Bn,
+		createInitialModel() {
+			return zn({
+				focusId: "1",
+				persons: [{
+					id: "1",
+					name: "Naam",
+					gender: "unknown"
+				}]
+			});
+		},
+		layoutDiagram(e) {
+			jn(e, t, n);
+		},
+		isNodeHidden(e) {
+			return !n.visible.has(e.id);
+		},
+		getNodeVariant(e) {
+			return n.variants.get(e.id) || null;
+		},
+		routeEdge({ sourcePoint: e, edge: t }) {
+			return n.routes.get(t?.id) || [e, e];
+		},
+		canDeleteNode() {
+			return !1;
+		},
+		getEditTarget() {
+			return !1;
+		},
+		getCanvasActions() {
+			return [];
+		},
+		getContextActions() {
+			return [];
+		},
+		getDefaultSize(e) {
+			return e === "family" ? {
+				width: G,
+				height: G
+			} : {
+				width: sn.depth,
+				height: sn.extent
+			};
+		},
+		getNodeInteractionMode() {
+			return "action-surface";
+		},
+		getLabelLayout(e) {
+			return En(e) ? {
+				placement: "inside",
+				fontSize: 1,
+				maxLines: 1
+			} : {
+				placement: "inside",
+				align: "start",
+				fontSize: vn,
+				maxLines: 1,
+				paddingX: 35,
+				paddingY: 0,
+				offsetX: 25,
+				offsetY: -9
+			};
+		},
+		getResizeRules() {
+			return !1;
+		}
+	};
+}
+//#endregion
 //#region src/weavle-nodeeditor.js
-var an = "http://www.w3.org/2000/svg", on = 190, K = 28, sn = 26, cn = 6, ln = 12, un = 5.5, q = 12, dn = 19, J = {
+var Hn = "http://www.w3.org/2000/svg", Un = 190, Wn = 28, Gn = 26, Kn = 6, qn = 12, Jn = 5.5, Y = 12, Yn = 19, X = {
 	boolean: {
 		label: "Boolean",
 		color: "#4F7DF0"
@@ -8705,7 +9376,7 @@ var an = "http://www.w3.org/2000/svg", on = 190, K = 28, sn = 26, cn = 6, ln = 1
 		label: "Tekst",
 		color: "#22B07D"
 	}
-}, fn = {
+}, Xn = {
 	input: {
 		label: "Invoer",
 		color: "#2F6F8F"
@@ -8726,7 +9397,7 @@ var an = "http://www.w3.org/2000/svg", on = 190, K = 28, sn = 26, cn = 6, ln = 1
 		label: "Uitvoer",
 		color: "#8A6A1F"
 	}
-}, Y = {
+}, Z = {
 	currentUser: {
 		title: "Huidige gebruiker",
 		category: "input",
@@ -8993,8 +9664,8 @@ var an = "http://www.w3.org/2000/svg", on = 190, K = 28, sn = 26, cn = 6, ln = 1
 		]
 	}
 };
-function X(e) {
-	let t = Y[e] || {};
+function Zn(e) {
+	let t = Z[e] || {};
 	return [
 		...(t.outputs || []).map((e) => ({
 			kind: "out",
@@ -9012,57 +9683,57 @@ function X(e) {
 		}))
 	];
 }
-function pn(e) {
+function Qn(e) {
 	return {
-		width: on,
-		height: 40 + X(e).length * sn
+		width: Un,
+		height: 40 + Zn(e).length * Gn
 	};
 }
-function mn(e, t) {
-	return e.y + K + cn + t * sn + sn / 2;
+function $n(e, t) {
+	return e.y + Wn + Kn + t * Gn + Gn / 2;
 }
-function hn(e, t, n) {
+function er(e, t, n) {
 	return e.model.edges.some((e) => e.targetNodeId === t.id && e.targetHandle === n);
 }
-function gn(e, t, n, r) {
-	if (n.kind === "out" || n.kind === "in" && (n.value === void 0 || hn(e, t, n.handle))) return null;
-	let i = mn(t, r);
+function tr(e, t, n, r) {
+	if (n.kind === "out" || n.kind === "in" && (n.value === void 0 || er(e, t, n.handle))) return null;
+	let i = $n(t, r);
 	return {
-		x: t.x + ln,
-		y: i - dn / 2,
+		x: t.x + qn,
+		y: i - Yn / 2,
 		width: t.width - 24,
-		height: dn
+		height: Yn
 	};
 }
-function _n(e) {
+function nr(e) {
 	let t = {};
-	for (let n of X(e)) n.kind !== "out" && n.value !== void 0 && (t[n.id] = n.value);
+	for (let n of Zn(e)) n.kind !== "out" && n.value !== void 0 && (t[n.id] = n.value);
 	return t;
 }
-function vn(e, t) {
+function rr(e, t) {
 	return e.values?.[t.id] ?? t.value ?? "";
 }
-function Z(e, t) {
-	let n = document.createElementNS(an, e);
+function Q(e, t) {
+	let n = document.createElementNS(Hn, e);
 	for (let [e, r] of Object.entries(t)) n.setAttribute(e, r);
 	return n;
 }
-function yn(e, t) {
-	let n = Z("text", {
-		"font-size": q,
+function ir(e, t) {
+	let n = Q("text", {
+		"font-size": Y,
 		"pointer-events": "none",
 		...t
 	});
 	return n.textContent = e, n;
 }
-function bn(e, t, n) {
-	return e.wrapLabel(String(t), n, 1, q).lines[0] || "";
+function ar(e, t, n) {
+	return e.wrapLabel(String(t), n, 1, Y).lines[0] || "";
 }
-function xn(e, t, n = !1) {
-	let r = pn(e.type);
+function or(e, t, n = !1) {
+	let r = Qn(e.type);
 	if (!n && e.height < r.height - 1) {
-		let n = e.height / r.height, i = Z("g", { transform: `translate(${e.x} ${e.y}) scale(${n})` });
-		return i.appendChild(xn({
+		let n = e.height / r.height, i = Q("g", { transform: `translate(${e.x} ${e.y}) scale(${n})` });
+		return i.appendChild(or({
 			...e,
 			x: 0,
 			y: 0,
@@ -9070,14 +9741,14 @@ function xn(e, t, n = !1) {
 			height: r.height
 		}, t, !0)), i;
 	}
-	let { x: i, y: a, width: o, height: s } = e, c = Y[e.type] || {}, l = t.getNodeStyle(e), u = fn[c.category]?.color || l.stroke, d = Z("g", {}), f = Z("rect", {
+	let { x: i, y: a, width: o, height: s } = e, c = Z[e.type] || {}, l = t.getNodeStyle(e), u = Xn[c.category]?.color || l.stroke, d = Q("g", {}), f = Q("rect", {
 		x: i,
 		y: a,
 		width: o,
 		height: s,
 		rx: 6
 	});
-	return t.applyNodeStyle(f, e), d.appendChild(f), d.appendChild(Z("rect", {
+	return t.applyNodeStyle(f, e), d.appendChild(f), d.appendChild(Q("rect", {
 		x: i + 1,
 		y: a + 1,
 		width: Math.max(0, o - 2),
@@ -9086,16 +9757,16 @@ function xn(e, t, n = !1) {
 		fill: u,
 		"pointer-events": "none",
 		class: "weavle-nodeeditor-header"
-	})), d.appendChild(Z("rect", {
+	})), d.appendChild(Q("rect", {
 		x: i + 1,
-		y: a + K - 6,
+		y: a + Wn - 6,
 		width: Math.max(0, o - 2),
 		height: 6,
 		fill: u,
 		"pointer-events": "none"
-	})), X(e.type).forEach((r, a) => {
-		let s = mn(e, a), c = gn(t, e, r, a);
-		if (n) c && d.appendChild(Z("rect", {
+	})), Zn(e.type).forEach((r, a) => {
+		let s = $n(e, a), c = tr(t, e, r, a);
+		if (n) c && d.appendChild(Q("rect", {
 			x: c.x,
 			y: c.y,
 			width: c.width,
@@ -9104,7 +9775,7 @@ function xn(e, t, n = !1) {
 			fill: "#2A2E35"
 		}));
 		else if (c) {
-			d.appendChild(Z("rect", {
+			d.appendChild(Q("rect", {
 				x: c.x,
 				y: c.y,
 				width: c.width,
@@ -9115,14 +9786,14 @@ function xn(e, t, n = !1) {
 				"pointer-events": "none",
 				class: "weavle-nodeeditor-value"
 			}));
-			let n = yn(r.label, {
+			let n = ir(r.label, {
 				x: c.x + 6,
 				y: s + 4,
 				fill: "#C9CED6"
 			});
 			d.appendChild(n);
-			let i = c.width - 12 - t.measureLabelText(r.label, q) - 10;
-			d.appendChild(yn(bn(t, vn(e, r), Math.max(10, i)), {
+			let i = c.width - 12 - t.measureLabelText(r.label, Y) - 10;
+			d.appendChild(ir(ar(t, rr(e, r), Math.max(10, i)), {
 				x: c.x + c.width - 6,
 				y: s + 4,
 				"text-anchor": "end",
@@ -9130,18 +9801,18 @@ function xn(e, t, n = !1) {
 			}));
 		} else {
 			let e = r.kind === "out";
-			d.appendChild(yn(bn(t, r.label, o - 24), {
-				x: e ? i + o - ln : i + ln,
+			d.appendChild(ir(ar(t, r.label, o - 24), {
+				x: e ? i + o - qn : i + qn,
 				y: s + 4,
 				"text-anchor": e ? "end" : "start",
 				fill: l.textColor || "#FFFFFF"
 			}));
 		}
-		r.handle && d.appendChild(Z("circle", {
+		r.handle && d.appendChild(Q("circle", {
 			cx: r.kind === "out" ? i + o : i,
 			cy: s,
-			r: un,
-			fill: J[r.type]?.color || "#999999",
+			r: Jn,
+			fill: X[r.type]?.color || "#999999",
 			stroke: "#1E2228",
 			"stroke-width": 1.5,
 			"data-handle-position": r.handle,
@@ -9150,33 +9821,33 @@ function xn(e, t, n = !1) {
 		}));
 	}), d;
 }
-var Sn = {
-	nodeTypes: Object.fromEntries(Object.keys(Y).map((e) => [e, {
+var sr = {
+	nodeTypes: Object.fromEntries(Object.keys(Z).map((e) => [e, {
 		fill: "#3A3F47",
 		stroke: "#1E2228",
 		textColor: "#FFFFFF",
 		fontWeight: "600"
 	}])),
-	edgeTypes: Object.fromEntries(Object.entries(J).map(([e, t]) => [e, {
+	edgeTypes: Object.fromEntries(Object.entries(X).map(([e, t]) => [e, {
 		stroke: t.color,
 		strokeWidth: 2.5
 	}]))
 };
-function Cn(e, t, n, r, i = void 0) {
+function cr(e, t, n, r, i = void 0) {
 	return {
 		id: t,
 		type: e,
 		x: n,
 		y: r,
-		...pn(e),
-		label: Y[e]?.title || e,
+		...Qn(e),
+		label: Z[e]?.title || e,
 		values: {
-			..._n(e),
+			...nr(e),
 			...i || {}
 		}
 	};
 }
-function wn(e, t, n, r, i) {
+function lr(e, t, n, r, i) {
 	return {
 		id: e,
 		sourceNodeId: t,
@@ -9187,33 +9858,33 @@ function wn(e, t, n, r, i) {
 		isAutoRoute: !0
 	};
 }
-function Tn() {
+function ur() {
 	return {
 		id: "nodeeditor",
-		shapes: { node: xn },
-		defaultTheme: Sn,
-		dataTypes: J,
-		nodeTypes: Object.fromEntries(Object.entries(Y).map(([e, t]) => [e, {
+		shapes: { node: or },
+		defaultTheme: sr,
+		dataTypes: X,
+		nodeTypes: Object.fromEntries(Object.entries(Z).map(([e, t]) => [e, {
 			defaultLabel: t.title,
 			title: t.title,
 			shape: "node"
 		}])),
-		palette: Object.entries(fn).map(([e, t]) => ({
+		palette: Object.entries(Xn).map(([e, t]) => ({
 			group: t.label,
-			types: Object.keys(Y).filter((t) => Y[t].category === e)
+			types: Object.keys(Z).filter((t) => Z[t].category === e)
 		})),
 		showPortHandles: !1,
 		getDefaultSize(e) {
-			return pn(e);
+			return Qn(e);
 		},
 		onNodeCreated(e) {
 			e.values = {
-				..._n(e.type),
+				...nr(e.type),
 				...e.values || {}
 			};
 		},
 		getResizeRules(e) {
-			let { height: t } = pn(e.type);
+			let { height: t } = Qn(e.type);
 			return {
 				minWidth: 150,
 				maxWidth: 420,
@@ -9223,25 +9894,25 @@ function Tn() {
 			};
 		},
 		getLabelLayout(e) {
-			let t = Math.max(e.height, K);
+			let t = Math.max(e.height, Wn);
 			return {
 				placement: "inside",
 				fontSize: 13,
 				maxLines: 1,
 				paddingX: 10,
 				paddingY: 0,
-				heightFactor: K / t,
-				offsetY: -(t - K) / 2
+				heightFactor: Wn / t,
+				offsetY: -(t - Wn) / 2
 			};
 		},
 		getPorts(e) {
 			let t = {};
-			return X(e.type).forEach((n, r) => {
+			return Zn(e.type).forEach((n, r) => {
 				if (!n.handle) return;
 				let i = n.kind === "out";
 				t[n.handle] = {
 					x: i ? e.x + e.width : e.x,
-					y: mn(e, r),
+					y: $n(e, r),
 					side: i ? "right" : "left",
 					direction: i ? "out" : "in",
 					dataType: n.type,
@@ -9254,13 +9925,13 @@ function Tn() {
 			}), t;
 		},
 		defaultEdgeType: "string",
-		edgeTypes: Object.fromEntries(Object.keys(J).map((e) => [e, {
+		edgeTypes: Object.fromEntries(Object.keys(X).map((e) => [e, {
 			router: "bezier",
 			marker: "none"
 		}])),
 		getEdgeTypeForConnection({ source: e, sourceHandle: t }, n) {
 			let r = n.getPort(e, t)?.dataType;
-			return J[r] ? r : "string";
+			return X[r] ? r : "string";
 		},
 		canConnect({ source: e, target: t, edge: n }, r) {
 			let i = /* @__PURE__ */ new Map();
@@ -9278,9 +9949,9 @@ function Tn() {
 		},
 		getEditTarget(e, t, n) {
 			if (!n) return null;
-			let r = X(e.type);
+			let r = Zn(e.type);
 			for (let i = 0; i < r.length; i++) {
-				let a = gn(t, e, r[i], i);
+				let a = tr(t, e, r[i], i);
 				if (a && n.x >= a.x && n.x <= a.x + a.width && n.y >= a.y && n.y <= a.y + a.height) return {
 					field: `values.${r[i].id}`,
 					box: {
@@ -9288,8 +9959,8 @@ function Tn() {
 						centerY: a.y + a.height / 2,
 						width: a.width,
 						height: a.height,
-						fontSize: q,
-						lineHeight: q * 1.25
+						fontSize: Y,
+						lineHeight: Y * 1.25
 					}
 				};
 			}
@@ -9305,43 +9976,44 @@ function Tn() {
 }
 //#endregion
 //#region src/weavle-outsystems.js
-var En = {
+var dr = {
 	bpmn: S,
 	flowchart: c,
-	ishikawa: Ue,
-	fta: St,
-	orgchart: $t,
-	nodeeditor: Tn
-}, Dn = {
+	ishikawa: Be,
+	fta: xt,
+	orgchart: en,
+	nodeeditor: ur,
+	pedigree: Vn
+}, fr = {
 	nodes: [],
 	edges: []
 };
-function On(e, t) {
-	En[e] = t;
+function pr(e, t) {
+	dr[e] = t;
 }
-function kn() {
-	return Object.keys(En);
+function mr() {
+	return Object.keys(dr);
 }
-function An(e) {
-	return Nn(e)?._weavle || null;
+function hr(e) {
+	return vr(e)?._weavle || null;
 }
-function jn(e, t = {}) {
-	let n = Nn(e);
+function gr(e, t = {}) {
+	let n = vr(e);
 	if (!n) throw Error(`Weavle.mount: container "${e}" not found`);
 	n._weavle?.destroy();
 	let r = typeof t.diagramType == "function" ? "custom" : t.diagramType || "bpmn", i = (e) => {
-		let n = e === "custom" && typeof t.diagramType == "function" ? t.diagramType : En[e];
-		if (!n) throw Error(`Weavle: unknown diagram type "${e}" (known: ${kn().join(", ")})`);
+		let n = e === "custom" && typeof t.diagramType == "function" ? t.diagramType : dr[e];
+		if (!n) throw Error(`Weavle: unknown diagram type "${e}" (known: ${mr().join(", ")})`);
 		return n;
-	}, a = { ...Q(t.options) || {} }, o = r, s = new ve(n, { ...a }, i(o)()), c = null, l = (e) => ({
+	}, a = { ...$(t.options) || {} }, o = r, s = new pe(n, { ...a }, i(o)()), c = null, l = (e) => ({
 		diagramType: o,
 		...e
 	}), u = (e) => typeof s.diagram.modelToList == "function" ? s.diagram.modelToList(e) : null, d = null, f = {
 		"weavle:modelchanged": (e) => {
 			let n = l(e.detail.model);
-			c = $(n);
+			c = yr(n);
 			let r = u(e.detail.model);
-			d = r ? $(r) : null, r && t.onListChanged?.(JSON.stringify(r)), t.onModelChanged?.(JSON.stringify(n));
+			d = r ? yr(r) : null, r && t.onListChanged?.(JSON.stringify(r)), t.onModelChanged?.(JSON.stringify(n));
 		},
 		"weavle:selectionchanged": (e) => {
 			t.onSelectionChanged?.(e.detail.primarySelectedNodeId || "", e.detail.selectedEdgeId || "", JSON.stringify(e.detail.selectedNodeIds || []));
@@ -9360,11 +10032,11 @@ function jn(e, t = {}) {
 	for (let [e, t] of Object.entries(f)) n.addEventListener(e, t);
 	let p = () => s.emit("weavle:modelchanged", { model: s.getData() }), m = (e) => {
 		let r = i(e);
-		s.destroy(), o = e, s = new ve(n, { ...a }, r()), t.onSelectionChanged?.("", "", "[]");
+		s.destroy(), o = e, s = new pe(n, { ...a }, r()), t.onSelectionChanged?.("", "", "[]");
 	}, h = (e) => {
 		let { diagramType: t, ...n } = e;
 		s.load(JSON.parse(JSON.stringify({
-			...Dn,
+			...fr,
 			...n
 		})));
 	}, g = {
@@ -9372,7 +10044,7 @@ function jn(e, t = {}) {
 			return s;
 		},
 		setModel(e) {
-			let t = (typeof e == "string" ? Q(e) : e) || Dn, n = t.diagramType || r, i = $({
+			let t = (typeof e == "string" ? $(e) : e) || fr, n = t.diagramType || r, i = yr({
 				...t,
 				diagramType: n
 			});
@@ -9383,8 +10055,8 @@ function jn(e, t = {}) {
 		},
 		setModelFromList(e) {
 			if (typeof s.diagram.modelFromList != "function") return !1;
-			let t = (typeof e == "string" ? Q(e) : e) || [], n = $(t);
-			return n !== d && (d = n, h(s.diagram.modelFromList(t)), c = $(l(s.getData())), !0);
+			let t = (typeof e == "string" ? $(e) : e) || [], n = yr(t);
+			return n !== d && (d = n, h(s.diagram.modelFromList(t)), c = yr(l(s.getData())), !0);
 		},
 		getList() {
 			return JSON.stringify(u(s.getData()) || []);
@@ -9394,7 +10066,7 @@ function jn(e, t = {}) {
 		},
 		setDiagramType(e, t) {
 			if (e === o && t == null) return !1;
-			let n = (typeof t == "string" ? Q(t) : t) || Dn;
+			let n = (typeof t == "string" ? $(t) : t) || fr;
 			return e !== o && m(e), h(n), p(), !0;
 		},
 		undo() {
@@ -9407,16 +10079,16 @@ function jn(e, t = {}) {
 			s.clear();
 		},
 		optimizeEdges(e) {
-			return s.optimizeEdges({ nodeIds: Mn(e) });
+			return s.optimizeEdges({ nodeIds: _r(e) });
 		},
 		optimizeLayout(e) {
-			return s.optimizeLayout({ nodeIds: Mn(e) });
+			return s.optimizeLayout({ nodeIds: _r(e) });
 		},
 		setLayoutDirection(e) {
 			s.setLayoutDirection(e), a.layoutDirection = s.options.layoutDirection;
 		},
 		setTheme(e) {
-			let t = Q(e) || null;
+			let t = $(e) || null;
 			a.theme = t, s.setTheme(t);
 		},
 		getDefaultTheme() {
@@ -9424,10 +10096,10 @@ function jn(e, t = {}) {
 		},
 		setNodeStyle(e, t) {
 			let n = typeof e == "string" && e.trim().startsWith("[") ? JSON.parse(e) : e;
-			return s.setNodeStyle(n, Q(t));
+			return s.setNodeStyle(n, $(t));
 		},
 		setEdgeStyle(e, t) {
-			return s.setEdgeStyle(e, Q(t));
+			return s.setEdgeStyle(e, $(t));
 		},
 		setToolbarPosition(e) {
 			a.toolbarPosition = e, s.setToolbarPosition(e);
@@ -9440,10 +10112,10 @@ function jn(e, t = {}) {
 			a.width = e, a.height = t, s.setCanvasSize(e, t);
 		},
 		fitToContent(e) {
-			s.fitToContent(Q(e) || {});
+			s.fitToContent($(e) || {});
 		},
 		exportSvg(e) {
-			return s.exportSvg(Q(e) || {});
+			return s.exportSvg($(e) || {});
 		},
 		addNode(e, t) {
 			let n = `node_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
@@ -9465,25 +10137,25 @@ function jn(e, t = {}) {
 			s.destroy(), n._weavle === g && delete n._weavle;
 		}
 	};
-	return n._weavle = g, g.setModel(t.model ?? Dn), g;
+	return n._weavle = g, g.setModel(t.model ?? fr), g;
 }
-function Mn(e) {
+function _r(e) {
 	let t = e ? typeof e == "string" ? JSON.parse(e) : e : null;
 	return t && t.length ? t : null;
 }
-function Nn(e) {
+function vr(e) {
 	return e ? typeof e == "string" ? document.getElementById(e) || document.querySelector(e) : e : null;
 }
-function Q(e) {
+function $(e) {
 	return typeof e == "string" ? e.trim() ? JSON.parse(e) : null : e ?? null;
 }
-function $(e) {
+function yr(e) {
 	return JSON.stringify(e, (e, t) => t && typeof t == "object" && !Array.isArray(t) ? Object.fromEntries(Object.keys(t).sort().map((e) => [e, t[e]])) : t);
 }
 //#endregion
 //#region src/index.js
-var Pn = "0.9.0";
+var br = "0.9.0";
 //#endregion
-export { J as DATA_TYPES, Y as NODE_TYPES, ve as WeavleJS, S as createBpmnDefinition, c as createFlowchartDefinition, St as createFtaDefinition, Ue as createIshikawaDefinition, Tn as createNodeEditorDefinition, $t as createOrgChartDefinition, kn as getDiagramTypes, An as getInstance, jn as mount, wn as nodeEditorLink, Cn as nodeEditorNode, Zt as orgChartFromList, Qt as orgChartToList, On as registerDiagramType, Pn as version };
+export { X as DATA_TYPES, Z as NODE_TYPES, pe as WeavleJS, S as createBpmnDefinition, c as createFlowchartDefinition, xt as createFtaDefinition, Be as createIshikawaDefinition, ur as createNodeEditorDefinition, en as createOrgChartDefinition, Vn as createPedigreeDefinition, mr as getDiagramTypes, hr as getInstance, gr as mount, lr as nodeEditorLink, cr as nodeEditorNode, Qt as orgChartFromList, $t as orgChartToList, zn as pedigreeFromList, Bn as pedigreeToList, pr as registerDiagramType, br as version };
 
 //# sourceMappingURL=weavle.es.js.map

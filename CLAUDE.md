@@ -28,6 +28,9 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
   `NODE_TYPES`, `DATA_TYPES` (node editor, bezier links). Sample: `src/samples/nodeeditor-page-logic.js`.
 - `src/weavle-orgchart.js` — `export function createOrgChartDefinition()`, `orgChartFromList`, `orgChartToList`
   (org chart, automatic top-down layout, flat list in / out).
+- `src/weavle-pedigree.js` — `export function createPedigreeDefinition(options)`, `pedigreeFromList`, `pedigreeToList`
+  (family tree, hourglass around a focus person, automatic layout; host data `{ focusId, persons, families }` in / out).
+  Sample: `src/samples/pedigree-de-vries.js`.
 - `src/weavle-layout.js` — `computeLayeredLayout(graph, options)`, the layered layout behind "Flow optimaliseren".
 - `src/weavle-outsystems.js` — host adapter: `mount(container, config)` → controller, `getInstance`,
   `registerDiagramType`; JSON in / out and echo protection (`setModel` skips the model the editor reported).
@@ -77,7 +80,7 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
   newlines kept, overflow ends in "…" with the full label as a tooltip. Layout per type via the definition:
   `getLabelLayout(node)` or `nodeTypes[type].label` (`placement: "inside" | "below" | "auto"`, paddings,
   width/height factors, fontSize, maxLines). "auto" = inside if the whole label fits, else below; used for plain
-  BPMN events and gateways. Marker shapes (X, +, timer, ...) and data elements always label below.
+  BPMN events and gateways. `align: "start"` left-aligns the lines in the label box (pedigree name). Marker shapes (X, +, timer, ...) and data elements always label below.
   Inline editing uses a textarea for nodes (Enter commits, Shift+Enter = new line).
 - Containers (`nodeTypes[type].isContainer`, BPMN pools/lanes): membership via `node.parentId`, derived from
   geometry on drop/create/load (`applyContainment`). Drawn in their own layer below edges; hit testing picks the
@@ -154,6 +157,18 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
   `ocMove`, `ocRemoveOnly`, `changeType`; events `managerchanged`, `dottedlineadded`, `dottedlineremoved` (queued after
   the action's `modelchanged`). Definition `modelFromList` / `modelToList` drive the adapter's `setModelFromList` /
   `getList` / `onListChanged`.
+- Pedigree (`weavle-pedigree.js`, step 1 of the design in ARCHITECTURE.md section 6: view only, horizontal): `person`
+  nodes (`p:<id>`, fields gender / birthYear / deathYear / living / refId / photoUrl, `node.hostId`, `node.focus`) and
+  `family` nodes (`f:<id>`, a 2 × 2 junction with marriageDate / marriagePlace); edges `partner` (person → family,
+  `edge.slot` 1 | 2) and `child` (child → parent family). `layoutPedigree` works in abstract axes (generation, spread;
+  `HORIZONTAL` maps them to x / y): units (couple, person with partners, single sibling) stacked per generation, ancestor
+  and descendant blocks as tidy trees (`measure` / `placeAncestors` / `placeDescendants` / `placeRow`); every person and
+  family is claimed once; nodes outside the range are hidden; a single-parent family without shown children is left
+  out. The focus card keeps its position (a fresh model starts at 40, 40). The family shape draws a frame around all
+  partners of a unit (`out.frames`; families come first in the model so it lies under the cards) and the marriage
+  text in the band between them (`out.bands`); units are further apart than partners. Child lines of different families
+  in one generation gap get their own vertical lane where they overlap (`childLanes`). The focus card has a halo and a
+  tint of its gender colour. Dragging, connecting, editing and deleting are off.
 - Style variants: `diagram.getNodeVariant(node, engine)` → a key into `nodeVariants` (definition `defaultTheme`, then
   `theme.nodeVariants` / `theme.diagrams[id].nodeVariants`, after the per-type layers, before presets); class
   `weavle-node--variant-{name}`. Org chart: `top` / `manager` for persons, computed in the layout (`variants`).

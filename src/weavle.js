@@ -1442,8 +1442,9 @@ export class WeavleJS {
         const NS   = "http://www.w3.org/2000/svg";
         const text = document.createElementNS(NS, "text");
         const box  = this.getNodeLabelBox(node);
+        const x    = box.align === "start" ? box.centerX - box.width / 2 : box.centerX;
 
-        text.setAttribute("text-anchor", "middle");
+        text.setAttribute("text-anchor", box.align === "start" ? "start" : "middle");
         text.setAttribute("class", "weavle-node-label");
         text.setAttribute("font-size", box.fontSize);
         text.setAttribute("pointer-events", "none");
@@ -1460,7 +1461,7 @@ export class WeavleJS {
 
         box.lines.forEach((line, i) => {
             const tspan = document.createElementNS(NS, "tspan");
-            tspan.setAttribute("x", box.centerX);
+            tspan.setAttribute("x", x);
             tspan.setAttribute("y", firstBaseline + i * box.lineHeight);
             tspan.textContent = line;
             text.appendChild(tspan);
@@ -1488,6 +1489,7 @@ export class WeavleJS {
      *   belowWidth    minimum wrap width for labels below the shape
      *   maxLines      line limit (default: whatever fits inside, 3 below)
      *   offsetX/Y     shift of the label box centre for "inside" (e.g. a name in the top part of a card)
+     *   align         "middle" (default) | "start": lines start at the left edge of the label box ("inside")
      */
     getLabelLayout(node) {
         const defaults = {
@@ -1504,7 +1506,8 @@ export class WeavleJS {
             lineHeight:   1.25,
             maxLines:     null,
             offsetX:      0,
-            offsetY:      0
+            offsetY:      0,
+            align:        "middle"
         };
 
         const custom = typeof this.diagram.getLabelLayout === "function"
@@ -1588,7 +1591,8 @@ export class WeavleJS {
             ...wrapped,
             centerX: centerX + layout.offsetX,
             centerY: node.y + node.height / 2 + layout.offsetY,
-            width, height, fontSize, lineHeight
+            width, height, fontSize, lineHeight,
+            align: layout.align
         };
     }
 

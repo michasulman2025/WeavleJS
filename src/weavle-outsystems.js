@@ -39,6 +39,7 @@ import { createIshikawaDefinition } from "./weavle-ishikawa.js";
 import { createFtaDefinition } from "./weavle-fta.js";
 import { createOrgChartDefinition } from "./weavle-orgchart.js";
 import { createNodeEditorDefinition } from "./weavle-nodeeditor.js";
+import { createPedigreeDefinition } from "./weavle-pedigree.js";
 
 const DIAGRAM_TYPES = {
     bpmn:      createBpmnDefinition,
@@ -46,7 +47,8 @@ const DIAGRAM_TYPES = {
     ishikawa:  createIshikawaDefinition,
     fta:       createFtaDefinition,
     orgchart:  createOrgChartDefinition,
-    nodeeditor: createNodeEditorDefinition
+    nodeeditor: createNodeEditorDefinition,
+    pedigree:  createPedigreeDefinition
 };
 
 const EMPTY_MODEL = { nodes: [], edges: [] };
@@ -71,7 +73,7 @@ export function getInstance(container) {
  * so getInstance() finds it again). Mounting twice on the same container replaces the old editor.
  *
  * config:
- *   diagramType         "bpmn" | "flowchart" | "ishikawa" | "fta" | "orgchart" | "nodeeditor" | a registered name | a definition factory function
+ *   diagramType         "bpmn" | "flowchart" | "ishikawa" | "fta" | "orgchart" | "nodeeditor" | "pedigree" | a registered name | a definition factory function
  *                       (the type for models without their own diagramType)
  *   model               JSON text or { diagramType?, nodes, edges } (default: empty)
  *   options             editor options, object or JSON text (snapToGrid, readOnly, gridType, ...)

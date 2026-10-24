@@ -7,6 +7,16 @@
   previews the new line to the highlighted card instead, and shows no line over empty space.
 
 ### Added
+- **Pedigree (family tree) diagram type, step 1** (roadmap step 8; `createPedigreeDefinition()` in
+  `src/weavle-pedigree.js`, OutSystems `diagramType: "pedigree"`): view-only hourglass around a focus person, laid out
+  horizontally (ancestors to the right, descendants to the left). The host's data `{ focusId, persons, families }` goes
+  in and out with `pedigreeFromList` / `pedigreeToList` (adapter `setModelFromList` / `getList`). Cards with a gender
+  bar, avatar or photo, name, years and reference id; partners stacked in one frame with the marriage details between
+  them; siblings of the focus beside it; several marriages per person; elbow lines, with separate lanes where lines of
+  different families would overlap. The focus card stands out with a halo and a tint. Options `ancestorGenerations` (3),
+  `descendantGenerations` (2), `showSiblings`. Playground: "Stamboom" with a fictional sample
+  (`src/samples/pedigree-de-vries.js`).
+- Engine: label layout `align: "start"` — lines start at the left edge of the label box.
 - **Node editor diagram type** (roadmap step 6; `createNodeEditorDefinition()` in `src/weavle-nodeeditor.js`, OutSystems
   `diagramType: "nodeeditor"`): nodes with a coloured header, outputs right and inputs left with labels and data types
   (boolean, number, text), value boxes on unconnected inputs and constant nodes (double-click to type a value), bezier
