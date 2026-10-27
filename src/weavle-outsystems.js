@@ -77,6 +77,9 @@ export function getInstance(container) {
  *                       (the type for models without their own diagramType)
  *   model               JSON text or { diagramType?, nodes, edges } (default: empty)
  *   options             editor options, object or JSON text (snapToGrid, readOnly, gridType, ...)
+ *   diagramOptions      options for the diagram definition, object or JSON text — passed to its factory, e.g.
+ *                       pedigree { orientation, ancestorGenerations, descendantGenerations, showSiblings,
+ *                       showPlaceholders }, flowchart { direction }
  *   onModelChanged      (modelJson) => void       — after every change (add, move, connect, undo, ...)
  *   onSelectionChanged  (nodeId, edgeId, selectedNodeIdsJson) => void — ids are "" when nothing is selected
  *   onNodeMoved         (nodeJson) => void
@@ -88,6 +91,7 @@ export function getInstance(container) {
  *                       (org chart: [{ id, managerId, name, role, vacancy, assistant, dottedManagerIds }]);
  *                       see setModelFromList
  *   onDiagramEvent      (name, detailJson) => void — a diagram-specific event, name like "orgchart:managerchanged"
+ *                       or "pedigree:addparent"
  *                       (always on top of onModelChanged; detailJson carries diagramType and name too)
  *
  * Models describe themselves: the JSON the editor reports carries "diagramType", and setModel() with a
@@ -115,8 +119,11 @@ export function mount(container, config = {}) {
     // Kept across rebuilds; setReadOnly / setLayoutDirection update it too.
     const editorOptions = { ...(parseJson(config.options) || {}) };
 
+    // Options for the diagram definition itself (e.g. the pedigree orientation), passed to its factory.
+    const diagramOptions = { ...(parseJson(config.diagramOptions) || {}) };
+
     let diagramType = defaultType;
-    let editor = new WeavleJS(host, { ...editorOptions }, resolveType(diagramType)());
+    let editor = new WeavleJS(host, { ...editorOptions }, resolveType(diagramType)({ ...diagramOptions }));
 
     // Canonical JSON of the model the editor and the host app last agreed on (see setModel).
     let lastModel = null;
@@ -166,7 +173,7 @@ export function mount(container, config = {}) {
         const create = resolveType(type);   // throws before anything is torn down
         editor.destroy();
         diagramType = type;
-        editor = new WeavleJS(host, { ...editorOptions }, create());
+        editor = new WeavleJS(host, { ...editorOptions }, create({ ...diagramOptions }));
         config.onSelectionChanged?.("", "", "[]");
     };
 
@@ -206,8 +213,9 @@ export function mount(container, config = {}) {
         },
 
         /**
-         * Loads a flat list (JSON text or array) into a diagram type that has one — org chart:
-         * [{ id, managerId, name, role, vacancy, assistant, dottedManagerIds }]. Like setModel, it skips the list the editor itself
+         * Loads a flat list (JSON text, array or object) into a diagram type that has one — org chart:
+         * [{ id, managerId, name, role, vacancy, assistant, dottedManagerIds }]; pedigree: { focusId, persons,
+         * families } (see pedigreeFromList). Like setModel, it skips the list the editor itself
          * last reported (getList()), so a list stored from onModelChanged can be passed straight back.
          * Returns false when it did nothing (same list, or the diagram type has no list form).
          */
@@ -310,6 +318,7 @@ export function mount(container, config = {}) {
             editor.options.readOnly = value;
             editor.clearSelection?.();
             editor.clearNodeToolSurface();
+            editor.applyDiagramLayout();   // self-arranging types may draw differently (pedigree: empty slots)
             editor.render();
         },
 

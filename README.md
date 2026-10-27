@@ -1,7 +1,8 @@
 # 🧶 Weavle
 
 A lightweight, dependency-free SVG diagram editor for the browser. One engine, many diagram types:
-flowcharts, BPMN, Ishikawa (fishbone), fault tree (FTA) and org chart diagrams today, more to come. Built with OutSystems in mind, but it runs anywhere you have a DOM.
+flowcharts, BPMN, Ishikawa (fishbone), fault tree (FTA), org chart, node editor and family tree (pedigree) diagrams
+today, more to come. Built with OutSystems in mind, but it runs anywhere you have a DOM.
 
 The engine knows nothing about "gateways" or "decisions". Everything that makes a diagram type what it is —
 shapes, colours, ports, edge types, sizes, labels, rules — lives in a **diagram definition** (an add-in).
@@ -11,7 +12,8 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the design and roadmap.
 
 ## Examples
 
-All images below are exported by Weavle itself (`exportSvg()`). The BPMN, Ishikawa and fault tree diagrams are the playground samples.
+All images below are exported by Weavle itself (`exportSvg()`). The BPMN, Ishikawa, fault tree, org chart, node editor
+and family tree diagrams are the playground samples.
 
 ### Flowchart
 
@@ -50,6 +52,30 @@ Loads from and reports a flat list (`id`, `managerId`, `name`, `role`, ...).
 
 ![Org chart: a small company with three departments and two vacancies](docs/images/orgchart.svg)
 
+### Node editor
+
+Blender-style node graph: nodes with a coloured header, outputs on the right and inputs on the left, each with a
+label and a data type (boolean, number, text). Links are bezier curves in the colour of their data type. Only
+output → input of a matching type, one link per input (a new one replaces the old), no cycles — a refused connection
+shows the reason while you drag. Unconnected inputs and constants have value boxes you edit with a double-click.
+
+![Node editor: page logic with constants, comparisons and text building](docs/images/nodeeditor.svg)
+
+### Family tree (pedigree)
+
+An hourglass around one person: ancestors on one side, children and grandchildren on the other, brothers and
+sisters beside the focus. Laid out automatically, horizontally (ancestors to the right, as in FamilySearch's
+landscape view) or vertically (ancestors at the top). Partners sit in one frame with their marriage details; a person
+with several relationships shows one at a time, with a badge (rings + number) to switch. Empty slots ("Vader
+toevoegen", "Moeder toevoegen", ...) and a "+" menu on every card send requests to the host application, which owns
+the data — the chart never changes it by itself. Data goes in and out as two flat lists, persons and families.
+
+![Family tree, horizontal: Jan Hendrik de Vries with his siblings, three generations of ancestors with empty slots, children and grandchildren](docs/images/pedigree.svg)
+
+The same family vertically, read-only (no empty slots or "+" buttons):
+
+![Family tree, vertical: ancestors at the top, the focus in the middle, descendants below](docs/images/pedigree-vertical.svg)
+
 ### Themes and styles
 
 The same diagram with a house-style theme (`options.theme`): colours per node type, line colour, editor colours, and
@@ -62,7 +88,7 @@ presets users can pick per node ("Kritiek" and "Let op" here).
 ## Features
 
 - Zero runtime dependencies, plain ES modules
-- Pluggable diagram definitions — flowchart, BPMN, Ishikawa, fault tree and org chart included
+- Pluggable diagram definitions — flowchart, BPMN, Ishikawa, fault tree, org chart, node editor and family tree included
 - Flowchart: all 26 standard (ISO 5807) shapes in five groups, incl. on-page / off-page connectors and comments
 - BPMN: 23 event types (start / intermediate catch & throw / end), 10 activity types, gateways, data,
   annotations, pools & lanes — with "change type" in the node tools
@@ -86,6 +112,12 @@ presets users can pick per node ("Kritiek" and "Let op" here).
 - Fault tree (FTA): top event → gates → events, laid out automatically top-down; six gate types, k-out-of-n threshold
 - Org chart: name + job title cards and vacancies, laid out automatically (stacked leaf teams, assistants); drag to
   reassign, collapsible teams, dotted-line reporting; flat list in / out and `managerchanged` / dotted line events
+- Node editor: typed ports (boolean, number, text), bezier links coloured by type, value boxes, 15 node types in five
+  groups; connection rules with feedback (type check, one link per input, no cycles)
+- Family tree (pedigree): hourglass around a focus person, horizontal or vertical (`setOrientation`), couples in one
+  frame, one relationship at a time with a switch badge, empty "add father / mother / partner / child" slots and a "+"
+  menu that send requests (`addparent`, `addchild`, ...) to the host; persons and families in / out as flat lists
+- Connection rules per diagram type (`canConnect`): refused connections turn red and show the reason while dragging
 - Themes for a house style (`options.theme` / `setTheme()`): node and edge styles per type, font, editor colours —
   also in `exportSvg()`; presets users can give single nodes ("Stijl" in the node tools)
 - Read-only mode
@@ -104,6 +136,8 @@ presets users can pick per node ("Kritiek" and "Let op" here).
 | `src/weavle-ishikawa.js` | Ishikawa definition — `export function createIshikawaDefinition()` |
 | `src/weavle-fta.js` | Fault tree definition — `export function createFtaDefinition()` |
 | `src/weavle-orgchart.js` | Org chart definition — `createOrgChartDefinition()`, `orgChartFromList()`, `orgChartToList()` |
+| `src/weavle-nodeeditor.js` | Node editor definition — `createNodeEditorDefinition()`, `nodeEditorNode()`, `nodeEditorLink()`, `NODE_TYPES`, `DATA_TYPES` |
+| `src/weavle-pedigree.js` | Family tree definition — `createPedigreeDefinition(options)`, `pedigreeFromList()`, `pedigreeToList()` |
 | `src/samples/` | Sample diagrams and the sample house-style theme used by the playground |
 | `dist/weavle.iife.js` | Single-file build for a `<script>` tag — global `Weavle` (engine, definitions, OutSystems adapter) |
 | `dist/weavle.es.js` | Same as an ES module |
@@ -142,6 +176,49 @@ presets users can pick per node ("Kritiek" and "Let op" here).
   });
 </script>
 ```
+
+### A family tree from your own data
+
+The family tree is derived from data your application keeps — persons and families (a child points to the family
+it was born into). The chart lays it out and asks your application to add or change people.
+
+```js
+import { WeavleJS } from "./src/weavle.js";
+import { createPedigreeDefinition, pedigreeFromList } from "./src/weavle-pedigree.js";
+
+const editor = new WeavleJS("#diagram", {}, createPedigreeDefinition({ orientation: "horizontal" }));
+
+editor.load(pedigreeFromList({
+  focusId: "jan",
+  persons: [
+    { id: "jan",     name: "Jan de Vries",     gender: "male",   birthYear: 1932, deathYear: 2004, parentFamilyId: "f1" },
+    { id: "hendrik", name: "Hendrik de Vries", gender: "male",   birthYear: 1901, deathYear: 1975 },
+    { id: "antje",   name: "Antje Visser",     gender: "female", birthYear: 1904, deathYear: 1990 }
+  ],
+  families: [
+    { id: "f1", partner1Id: "hendrik", partner2Id: "antje", marriageDate: "3 juni 1928", marriagePlace: "Sneek" }
+  ]
+}));
+
+// "Vader toevoegen", "Kind toevoegen", ... arrive as requests: open your own form, save, then load the new data.
+document.getElementById("diagram").addEventListener("weavle:diagramevent", e => {
+  if (e.detail.name === "pedigree:addchild") console.log("add a child", e.detail.personId, e.detail.familyId);
+});
+```
+
+Person fields: `id`, `name`, `gender` (`"male"`, `"female"`, `"unknown"`), `birthYear`, `deathYear`, `living`,
+`refId` (shown after the years), `photoUrl`, `parentFamilyId`, `preferredFamilyId` (the relationship shown when there
+are several), `hasMoreAncestors` / `hasMoreDescendants`. Family fields: `id`, `partner1Id`, `partner2Id` (either may be
+empty), `marriageDate`, `marriagePlace`. `pedigreeToList(editor.getData())` gives the same shape back.
+
+Options of `createPedigreeDefinition`: `orientation` (`"horizontal"` / `"vertical"`), `ancestorGenerations` (3),
+`descendantGenerations` (2), `showSiblings` (true), `showPlaceholders` (true; never in read-only mode). Switch the
+orientation later with `editor.diagram.setOrientation("vertical", editor)`.
+
+Requests (diagram events, each with a `requestId`): `addparent { personId, role, familyId }`, `addpartner { personId,
+familyId }`, `addchild { personId, familyId }`, `addsibling { personId, familyId }`, `editperson { personId }`,
+`removeperson { personId }`. Plus `preferredpartnerchanged { personId, familyId }` when the user picks another
+relationship to show, and `orientationchanged { orientation }`. A `familyId` of `null` means "a new family".
 
 ### Without a build step
 
@@ -231,6 +308,8 @@ All events are `CustomEvent`s dispatched on the container element; the payload i
 | `weavle:nodemoved` | `{ node, model }` | A node was dragged to a new position |
 | `weavle:noderesized` | `{ node, model }` | A node was resized |
 | `weavle:selectionchanged` | `{ selectedNodeIds, primarySelectedNodeId, selectedEdgeId }` | Selection changed |
+| `weavle:connectionrefused` | `{ sourceNodeId, targetNodeId, sourceHandle, targetHandle, edgeId, reason }` | A connection was refused by the diagram's rules |
+| `weavle:diagramevent` | `{ diagramType, name, ...payload }` | A diagram-specific event, e.g. `name: "orgchart:managerchanged"` or `"pedigree:addparent"`. Also dispatched as `weavle:<name>` (e.g. `weavle:pedigree:addparent`) |
 
 A plain click without movement doesn't fire change events or create an undo step.
 
@@ -293,10 +372,18 @@ A definition is a plain object returned by a factory like `createBpmnDefinition(
 | `getCanvasActions(engine)` | Buttons of the canvas toolbar (default: built from `palette`); `{ type: "createNode", nodeType }` places a node |
 | `handleCanvasAction(action, engine)` | Handles other canvas toolbar actions |
 | `getRoutingConfig(edge)` | Tuning for the orthogonal router |
+| `canConnect(connection, engine)` | Connection rule: `true`, `false`, a reason (text) or `{ ok, reason }` |
+| `getPorts(node)` (port objects) | Ports may carry `side`, `direction` (`"in"` / `"out"`), `dataType`, `label`, `max`, `onFull` (node editor) |
+| `layoutDiagram(engine)` | Self-arranging types (Ishikawa, fault tree, org chart, family tree) position every node |
+| `isNodeHidden(node, engine)` | Keep a node in the model but don't draw it (collapsed teams, generations out of range) |
+| `getNodeButtons(node, engine)` | Small buttons on a node (`icon`, `text`, own glyph `path`); action `{ type: "openNodeTools", menu }` opens a named menu |
+| `getContextActions(node, engine, { menu })` | With `menu`: the smaller menu a node button asked for |
+| `getNodeClickAction(node, engine)` | An action a plain click runs instead of selecting (family tree: empty slots) |
+| `emitDiagramEvent(name, payload)` (engine) | Lets a definition send its own events (`weavle:diagramevent`) |
 
 Want a new diagram type? Copy `weavle-flowchart.js`, change the shapes and types, and pass it to the constructor.
-[ARCHITECTURE.md](ARCHITECTURE.md) describes where this is heading (connection rules, flexible ports, HTML nodes,
-auto-layout) and the planned node-editor and pedigree add-ins.
+[ARCHITECTURE.md](ARCHITECTURE.md) describes the engine / add-in split and where this is heading (HTML nodes, the
+next steps of the family tree: focus, more generations on demand and incremental updates from the host).
 
 ---
 
@@ -399,7 +486,9 @@ Weavle.getInstance($parameters.ContainerId)?.destroy();
 ```
 
 `setModel` ignores the model the editor itself just reported, so the usual *event → screen variable → block
-input* round trip keeps undo history and selection. The full step-by-step guide (block inputs, events,
+input* round trip keeps undo history and selection. The org chart and the family tree can also take your own
+entity data as flat lists (`setModelFromList`), and diagram-specific events (such as the family tree's
+"add father" request) arrive through `onDiagramEvent`. The full step-by-step guide (block inputs, events,
 client actions, storing the model) is in [wrappers/outsystems/README.md](wrappers/outsystems/README.md), with a
 runnable simulation in `wrappers/outsystems/example.html`.
 

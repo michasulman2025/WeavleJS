@@ -2,7 +2,9 @@
 
 How to wrap WeavleJS in a reusable **block** (OutSystems 11 Reactive or ODC — the JavaScript is the same).
 The block takes the model as JSON text, raises events when it changes and exposes client actions such as
-Undo / Redo.
+Undo / Redo. One block serves every diagram type: flowchart, BPMN, Ishikawa, fault tree, org chart, node editor and
+family tree. The org chart and the family tree can also be fed straight from your own entities as a flat list —
+see [section 6](#6-node-editor) and [section 7](#7-family-tree-pedigree) for the type-specific parts.
 
 `example.html` in this folder simulates exactly this block in a plain page — open it with the playground
 running (`npm run dev` → http://localhost:5173/wrappers/outsystems/example.html).
@@ -33,11 +35,13 @@ In the block, add the script under **Required Scripts** (O11) / **Scripts** (ODC
 
 | Name | Type | Default | |
 |---|---|---|---|
-| `DiagramType` | Text | `"bpmn"` | `"bpmn"`, `"flowchart"`, `"ishikawa"`, `"fta"` or `"orgchart"` — the type for models that don’t carry their own `diagramType` |
+| `DiagramType` | Text | `"bpmn"` | `"bpmn"`, `"flowchart"`, `"ishikawa"`, `"fta"`, `"orgchart"`, `"nodeeditor"` or `"pedigree"` — the type for models that don’t carry their own `diagramType` |
 | `ModelJson` | Text | `""` | The model; empty = empty diagram |
+| `ListJson` | Text | `""` | Org chart / family tree only: your own data as a flat list (see sections 7 and the controller API). When filled it is used instead of `ModelJson` |
 | `ReadOnly` | Boolean | `False` | |
 | `ToolbarPosition` | Text | `"top"` | Canvas toolbar: `"top"`, `"left"`, `"right"` or `"floating"` (draggable by its grip) |
 | `OptionsJson` | Text | `""` | Optional editor options, e.g. `{"snapToGrid":true,"gridType":"dots"}` |
+| `DiagramOptionsJson` | Text | `""` | Optional options of the diagram type itself, e.g. `{"orientation":"vertical"}` for the family tree |
 
 **Events**
 
@@ -45,11 +49,13 @@ In the block, add the script under **Required Scripts** (O11) / **Scripts** (ODC
 |---|---|
 | `OnModelChanged` | `ModelJson` (Text) |
 | `OnSelectionChanged` | `NodeId` (Text), `EdgeId` (Text), `SelectedNodeIdsJson` (Text) |
+| `OnDiagramEvent` | `Name` (Text), `DetailJson` (Text) — diagram-specific events, e.g. `"orgchart:managerchanged"` or the family tree's `"pedigree:addparent"` request |
 
-JavaScript can't trigger a block event directly, so add two small client actions that do:
+JavaScript can't trigger a block event directly, so add small client actions that do:
 
 - `RaiseModelChanged` (input `ModelJson` Text) → *Trigger Event* `OnModelChanged`
 - `RaiseSelectionChanged` (inputs `NodeId`, `EdgeId`, `SelectedNodeIdsJson` Text) → *Trigger Event* `OnSelectionChanged`
+- `RaiseDiagramEvent` (inputs `Name`, `DetailJson` Text) → *Trigger Event* `OnDiagramEvent`
 
 `OnSelectionChanged` parameters:
 
@@ -67,33 +73,44 @@ To use the list in OutSystems, `JSONDeserialize` it into a *Text List*.
 
 Give each JavaScript node an input `ContainerId` = `WeavleHost.Id`, plus the inputs it uses.
 
-**OnReady** — inputs: `ContainerId`, `DiagramType`, `ModelJson`, `ReadOnly`, `ToolbarPosition`, `OptionsJson`
+**OnReady** — inputs: `ContainerId`, `DiagramType`, `ModelJson`, `ListJson`, `ReadOnly`, `ToolbarPosition`,
+`OptionsJson`, `DiagramOptionsJson`
 
 ```js
 const options = $parameters.OptionsJson ? JSON.parse($parameters.OptionsJson) : {};
 options.readOnly = $parameters.ReadOnly;
 options.toolbarPosition = $parameters.ToolbarPosition || "top";
 
-Weavle.mount($parameters.ContainerId, {
+var weavle = Weavle.mount($parameters.ContainerId, {
     diagramType: $parameters.DiagramType || "bpmn",
-    model: $parameters.ModelJson,
+    model: $parameters.ListJson ? "" : $parameters.ModelJson,
     options: options,
+    diagramOptions: $parameters.DiagramOptionsJson,
     onModelChanged: function (json) {
         $actions.RaiseModelChanged(json);
     },
     onSelectionChanged: function (nodeId, edgeId, selectedNodeIdsJson) {
         $actions.RaiseSelectionChanged(nodeId, edgeId, selectedNodeIdsJson);
+    },
+    onDiagramEvent: function (name, detailJson) {
+        $actions.RaiseDiagramEvent(name, detailJson);
     }
 });
+
+if ($parameters.ListJson) weavle.setModelFromList($parameters.ListJson);
 ```
 
-**OnParametersChanged** — inputs: `ContainerId`, `ModelJson`, `ReadOnly`, `ToolbarPosition`
+**OnParametersChanged** — inputs: `ContainerId`, `ModelJson`, `ListJson`, `ReadOnly`, `ToolbarPosition`
 
 ```js
 var weavle = Weavle.getInstance($parameters.ContainerId);
 
 if (weavle) {
-    weavle.setModel($parameters.ModelJson);   // skipped when it's the editor's own model (see below)
+    if ($parameters.ListJson) {
+        weavle.setModelFromList($parameters.ListJson);   // skipped when it's the list the editor itself reported
+    } else {
+        weavle.setModel($parameters.ModelJson);          // skipped when it's the editor's own model (see below)
+    }
     weavle.setReadOnly($parameters.ReadOnly);
     if (weavle.editor.options.toolbarPosition !== ($parameters.ToolbarPosition || "top")) {
         weavle.setToolbarPosition($parameters.ToolbarPosition || "top");
@@ -160,6 +177,103 @@ model (e.g. another record loaded) is loaded normally.
 
 ---
 
+## 6. Node editor
+
+`DiagramType` = `"nodeeditor"`. A Blender-style node graph: nodes with outputs (right) and inputs (left), typed
+`boolean`, `number` or `text`, joined by bezier links. It works like the free-drawing types (flowchart, BPMN): the
+model JSON from `OnModelChanged` is the whole graph — store it as text (section 5) and pass it back through
+`ModelJson`.
+
+- The canvas toolbar offers 15 node types in five groups (input, logic, numbers, text, output).
+- Values typed into a node (double-click a value box) are in `node.values`, e.g. `{"a": 10, "b": 3}`; a link is an
+  edge from `out-<port>` to `in-<port>` (`sourceHandle` / `targetHandle`). Read them after `JSONDeserialize` if your
+  logic needs them.
+- Rules: output → input only, matching data types, one link per input (a new link replaces the old one), no cycles.
+  A refused connection shows the reason at the cursor; to hear about it in OutSystems, pass
+  `onConnectionRefused: function (reason, detailJson) { ... }` in `mount`.
+- The playground sample "Node-editor" shows a small page logic (`src/samples/nodeeditor-page-logic.js`).
+
+---
+
+## 7. Family tree (pedigree)
+
+`DiagramType` = `"pedigree"`. The family tree is **derived** from your data: you keep persons and families in
+entities, hand them to the block as one JSON text (`ListJson`), and the chart lays out an hourglass around one focus
+person — ancestors on one side, descendants on the other, brothers and sisters beside the focus. The chart never
+changes your data: "Vader toevoegen", "Kind toevoegen" and the like arrive as requests through `OnDiagramEvent`; you
+open your own form, save, and pass the new data back.
+
+### Data
+
+Two entities is enough — `Person` and `Family` (a child points to the family it was born into):
+
+```json
+{
+  "focusId": "jan",
+  "persons": [
+    { "id": "jan", "name": "Jan de Vries", "gender": "male", "birthYear": 1932, "deathYear": 2004,
+      "living": false, "refId": "KN6Q-LXY", "photoUrl": "", "parentFamilyId": "f1", "preferredFamilyId": "",
+      "hasMoreAncestors": false, "hasMoreDescendants": false }
+  ],
+  "families": [
+    { "id": "f1", "partner1Id": "hendrik", "partner2Id": "antje",
+      "marriageDate": "3 juni 1928", "marriagePlace": "Sneek" }
+  ]
+}
+```
+
+| Person field | |
+|---|---|
+| `id` | Your id (text; entity ids work — persons and families may use the same numbers) |
+| `name`, `gender` | `gender`: `"male"`, `"female"` or `"unknown"` (also `"m"` / `"v"`) |
+| `birthYear`, `deathYear`, `living` | `0` = unknown; `living` shows "Levend" instead of a death year |
+| `refId`, `photoUrl` | Optional: a reference shown after the years, a photo instead of the silhouette |
+| `parentFamilyId` | The family this person is a child of (`""` = parents unknown) |
+| `preferredFamilyId` | With several relationships: the one shown (default the last) |
+| `hasMoreAncestors`, `hasMoreDescendants` | You have more data that you did not send (for loading step by step, coming next) |
+
+| Family field | |
+|---|---|
+| `id`, `partner1Id`, `partner2Id` | Either partner may be `""` (one parent known) |
+| `marriageDate`, `marriagePlace` | Shown as text, e.g. `"12 mei 1956"` |
+
+Build the JSON with a structure of this shape and `JSONSerialize`, and pass it to `ListJson`. `getList()` returns the
+same shape.
+
+`DiagramOptionsJson`: `{"orientation":"horizontal"}` (default, ancestors to the right) or `"vertical"` (ancestors at
+the top), plus `ancestorGenerations` (3), `descendantGenerations` (2), `showSiblings` (true) and `showPlaceholders`
+(true). In read-only mode there are no empty slots or "+" buttons.
+
+To switch the orientation from a client action (input `Orientation` Text):
+
+```js
+var weavle = Weavle.getInstance($parameters.ContainerId);
+weavle.editor.diagram.setOrientation($parameters.Orientation, weavle.editor);
+```
+
+### Requests from the chart
+
+Handle `OnDiagramEvent` on the screen with a *Switch* on `Name`; `JSONDeserialize` the `DetailJson` into a structure
+with the fields below. Ids are your own ids; a `familyId` of `""` / null means "make a new family".
+
+| `Name` | `DetailJson` | Typical handling |
+|---|---|---|
+| `pedigree:addparent` | `requestId`, `personId`, `role` (`"father"` / `"mother"`), `familyId` | Form for a new person; create the family when `familyId` is empty and set the person's `parentFamilyId` |
+| `pedigree:addpartner` | `requestId`, `personId`, `familyId` | New person; fill the empty slot of `familyId`, or create a new family |
+| `pedigree:addchild` | `requestId`, `personId`, `familyId` | New person with `parentFamilyId` = `familyId` (or a new family with `personId` as the only parent) |
+| `pedigree:addsibling` | `requestId`, `personId`, `familyId` | New person with the same `parentFamilyId` (create the parent family when it is empty) |
+| `pedigree:editperson` | `requestId`, `personId` | Your edit form |
+| `pedigree:removeperson` | `requestId`, `personId` | Confirm and delete |
+| `pedigree:preferredpartnerchanged` | `personId`, `familyId` | The user picked another relationship to show; store it as `preferredFamilyId` if you want it to stick |
+| `pedigree:orientationchanged` | `orientation` | Optional: remember the user's choice |
+
+After saving, refresh your data and serialize it to the variable bound to `ListJson`; `OnParametersChanged` loads it.
+For now that reloads the whole tree (the focus is kept as long as you send the same `focusId`). Sending only what
+changed (`applyChanges`, with the `requestId` passed back), keeping opened branches and changing the focus from the
+chart are the next step — see ARCHITECTURE.md, section 6 "Pedigree".
+
+---
+
 ## Controller API
 
 `Weavle.mount(container, config)` returns a controller; `Weavle.getInstance(container)` finds it again.
@@ -168,8 +282,8 @@ model (e.g. another record loaded) is loaded normally.
 |---|---|
 | `setModel(jsonOrObject)` | Load a model; returns `false` when it was the editor's own model (echo). Another `diagramType` switches the editor to that type |
 | `getModel()` | Current model as JSON text, with `diagramType` |
-| `setModelFromList(listJson)` | Org chart: load a flat list `[{ id, managerId, name, role, vacancy, assistant, dottedManagerIds }]` (e.g. from an Employee entity; `dottedManagerIds` an array or `"id1,id2"`); returns `false` when it is the list the editor itself last reported (echo) |
-| `getList()` | Org chart: the current chart as that flat list (JSON text; `managerId` is `""` for the top) |
+| `setModelFromList(listJson)` | Org chart: load a flat list `[{ id, managerId, name, role, vacancy, assistant, dottedManagerIds }]` (e.g. from an Employee entity; `dottedManagerIds` an array or `"id1,id2"`). Family tree: `{ focusId, persons, families }` (section 7). Returns `false` when it is the list the editor itself last reported (echo) |
+| `getList()` | The current chart as that list (JSON text; org chart: `managerId` is `""` for the top; family tree: without the empty slots) |
 | `getDiagramType()` | `"bpmn"`, `"flowchart"`, ... |
 | `setDiagramType(type, model?)` | Switch type with an empty (or the given) model; reported via `onModelChanged` |
 | `optimizeLayout(nodeIdsJson?)` | "Flow optimaliseren": layered layout + tidy edges; one undo step |
@@ -195,6 +309,11 @@ store it and pass it back as option `toolbarFloatingPosition: { x, y }` to keep 
 through `setModelFromList`), `onDiagramEvent(name, detailJson)` (a diagram-specific event such as
 `"orgchart:managerchanged"` with `nodeId`, `oldManagerId`, `newManagerId`, or `"orgchart:dottedlineadded"` /
 `"orgchart:dottedlineremoved"` with `nodeId`, `managerId`; always in addition to `onModelChanged`, so
-handle it only when you want to store that one change — a Switch on `name` in the handler).
+handle it only when you want to store that one change — a Switch on `name` in the handler; the family tree's requests
+such as `"pedigree:addparent"` come without a model change, see section 7), `onConnectionRefused(reason, detailJson)`
+(the diagram's rules refused a connection the user tried to make).
+
+`config.diagramOptions` (object or JSON text) goes to the diagram definition, e.g. `{ "orientation": "vertical" }` for
+the family tree or `{ "direction": "LR" }` for the flowchart.
 
 Extra diagram types: `Weavle.registerDiagramType("myType", createMyDefinition)` before mounting.

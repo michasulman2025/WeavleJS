@@ -1,4 +1,4 @@
-/*! WeavleJS v0.9.0 | built 2026-10-24 08:59 UTC | (c) 2026 Micha Sulman | MIT License */
+/*! WeavleJS v0.9.0 | built 2026-10-27 16:20 UTC | (c) 2026 Micha Sulman | MIT License */
 //#region src/weavle-flowchart.js
 var e = "http://www.w3.org/2000/svg";
 function t(t, n, r) {
@@ -10363,15 +10363,15 @@ function Ir(e, t = {}) {
 		let n = e === "custom" && typeof t.diagramType == "function" ? t.diagramType : jr[e];
 		if (!n) throw Error(`Weavle: unknown diagram type "${e}" (known: ${Pr().join(", ")})`);
 		return n;
-	}, a = { ...$(t.options) || {} }, o = r, s = new he(n, { ...a }, i(o)()), c = null, l = (e) => ({
-		diagramType: o,
+	}, a = { ...$(t.options) || {} }, o = { ...$(t.diagramOptions) || {} }, s = r, c = new he(n, { ...a }, i(s)({ ...o })), l = null, u = (e) => ({
+		diagramType: s,
 		...e
-	}), u = (e) => typeof s.diagram.modelToList == "function" ? s.diagram.modelToList(e) : null, d = null, f = {
+	}), d = (e) => typeof c.diagram.modelToList == "function" ? c.diagram.modelToList(e) : null, f = null, p = {
 		"weavle:modelchanged": (e) => {
-			let n = l(e.detail.model);
-			c = zr(n);
-			let r = u(e.detail.model);
-			d = r ? zr(r) : null, r && t.onListChanged?.(JSON.stringify(r)), t.onModelChanged?.(JSON.stringify(n));
+			let n = u(e.detail.model);
+			l = zr(n);
+			let r = d(e.detail.model);
+			f = r ? zr(r) : null, r && t.onListChanged?.(JSON.stringify(r)), t.onModelChanged?.(JSON.stringify(n));
 		},
 		"weavle:selectionchanged": (e) => {
 			t.onSelectionChanged?.(e.detail.primarySelectedNodeId || "", e.detail.selectedEdgeId || "", JSON.stringify(e.detail.selectedNodeIds || []));
@@ -10387,115 +10387,115 @@ function Ir(e, t = {}) {
 		"weavle:connectionrefused": (e) => t.onConnectionRefused?.(e.detail.reason || "", JSON.stringify(e.detail)),
 		"weavle:diagramevent": (e) => t.onDiagramEvent?.(e.detail.name, JSON.stringify(e.detail))
 	};
-	for (let [e, t] of Object.entries(f)) n.addEventListener(e, t);
-	let p = () => s.emit("weavle:modelchanged", { model: s.getData() }), m = (e) => {
+	for (let [e, t] of Object.entries(p)) n.addEventListener(e, t);
+	let m = () => c.emit("weavle:modelchanged", { model: c.getData() }), h = (e) => {
 		let r = i(e);
-		s.destroy(), o = e, s = new he(n, { ...a }, r()), t.onSelectionChanged?.("", "", "[]");
-	}, h = (e) => {
+		c.destroy(), s = e, c = new he(n, { ...a }, r({ ...o })), t.onSelectionChanged?.("", "", "[]");
+	}, g = (e) => {
 		let { diagramType: t, ...n } = e;
-		s.load(JSON.parse(JSON.stringify({
+		c.load(JSON.parse(JSON.stringify({
 			...Mr,
 			...n
 		})));
-	}, g = {
+	}, _ = {
 		get editor() {
-			return s;
+			return c;
 		},
 		setModel(e) {
 			let t = (typeof e == "string" ? $(e) : e) || Mr, n = t.diagramType || r, i = zr({
 				...t,
 				diagramType: n
 			});
-			return i !== c && (n !== o && m(n), c = i, h(t), !0);
+			return i !== l && (n !== s && h(n), l = i, g(t), !0);
 		},
 		getModel() {
-			return JSON.stringify(l(s.getData()));
+			return JSON.stringify(u(c.getData()));
 		},
 		setModelFromList(e) {
-			if (typeof s.diagram.modelFromList != "function") return !1;
+			if (typeof c.diagram.modelFromList != "function") return !1;
 			let t = (typeof e == "string" ? $(e) : e) || [], n = zr(t);
-			return n !== d && (d = n, h(s.diagram.modelFromList(t)), c = zr(l(s.getData())), !0);
+			return n !== f && (f = n, g(c.diagram.modelFromList(t)), l = zr(u(c.getData())), !0);
 		},
 		getList() {
-			return JSON.stringify(u(s.getData()) || []);
+			return JSON.stringify(d(c.getData()) || []);
 		},
 		getDiagramType() {
-			return o;
+			return s;
 		},
 		setDiagramType(e, t) {
-			if (e === o && t == null) return !1;
+			if (e === s && t == null) return !1;
 			let n = (typeof t == "string" ? $(t) : t) || Mr;
-			return e !== o && m(e), h(n), p(), !0;
+			return e !== s && h(e), g(n), m(), !0;
 		},
 		undo() {
-			s.undo();
+			c.undo();
 		},
 		redo() {
-			s.redo();
+			c.redo();
 		},
 		clear() {
-			s.clear();
+			c.clear();
 		},
 		optimizeEdges(e) {
-			return s.optimizeEdges({ nodeIds: Lr(e) });
+			return c.optimizeEdges({ nodeIds: Lr(e) });
 		},
 		optimizeLayout(e) {
-			return s.optimizeLayout({ nodeIds: Lr(e) });
+			return c.optimizeLayout({ nodeIds: Lr(e) });
 		},
 		setLayoutDirection(e) {
-			s.setLayoutDirection(e), a.layoutDirection = s.options.layoutDirection;
+			c.setLayoutDirection(e), a.layoutDirection = c.options.layoutDirection;
 		},
 		setTheme(e) {
 			let t = $(e) || null;
-			a.theme = t, s.setTheme(t);
+			a.theme = t, c.setTheme(t);
 		},
 		getDefaultTheme() {
-			return JSON.stringify(s.getDefaultTheme());
+			return JSON.stringify(c.getDefaultTheme());
 		},
 		setNodeStyle(e, t) {
 			let n = typeof e == "string" && e.trim().startsWith("[") ? JSON.parse(e) : e;
-			return s.setNodeStyle(n, $(t));
+			return c.setNodeStyle(n, $(t));
 		},
 		setEdgeStyle(e, t) {
-			return s.setEdgeStyle(e, $(t));
+			return c.setEdgeStyle(e, $(t));
 		},
 		setToolbarPosition(e) {
-			a.toolbarPosition = e, s.setToolbarPosition(e);
+			a.toolbarPosition = e, c.setToolbarPosition(e);
 		},
 		setReadOnly(e) {
 			let t = !!e;
-			a.readOnly = t, s.options.readOnly !== t && (s.options.readOnly = t, s.clearSelection?.(), s.clearNodeToolSurface(), s.render());
+			a.readOnly = t, c.options.readOnly !== t && (c.options.readOnly = t, c.clearSelection?.(), c.clearNodeToolSurface(), c.applyDiagramLayout(), c.render());
 		},
 		setCanvasSize(e, t) {
-			a.width = e, a.height = t, s.setCanvasSize(e, t);
+			a.width = e, a.height = t, c.setCanvasSize(e, t);
 		},
 		fitToContent(e) {
-			s.fitToContent($(e) || {});
+			c.fitToContent($(e) || {});
 		},
 		exportSvg(e) {
-			return s.exportSvg($(e) || {});
+			return c.exportSvg($(e) || {});
 		},
 		addNode(e, t) {
 			let n = `node_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
-			return s.addNode({
+			return c.addNode({
 				id: n,
 				type: e,
-				label: t ?? s.getDefaultLabelForType(e)
+				label: t ?? c.getDefaultLabelForType(e)
 			}), n;
 		},
 		setNodeLabel(e, t) {
-			let n = s.getNode(e);
-			return !n || n.label === t ? !1 : (n.label = t, s.pushHistory(), s.render(), p(), !0);
+			let n = c.getNode(e);
+			return !n || n.label === t ? !1 : (n.label = t, c.pushHistory(), c.render(), m(), !0);
 		},
 		selectNode(e) {
-			e && s.getNode(e) ? (s.selectSingleNode(e), s.renderNodeToolSurface(s.getNode(e))) : (s.clearSelection?.(), s.clearNodeToolSurface()), s.render(), s.emitSelectionChanged();
+			e && c.getNode(e) ? (c.selectSingleNode(e), c.renderNodeToolSurface(c.getNode(e))) : (c.clearSelection?.(), c.clearNodeToolSurface()), c.render(), c.emitSelectionChanged();
 		},
 		destroy() {
-			for (let [e, t] of Object.entries(f)) n.removeEventListener(e, t);
-			s.destroy(), n._weavle === g && delete n._weavle;
+			for (let [e, t] of Object.entries(p)) n.removeEventListener(e, t);
+			c.destroy(), n._weavle === _ && delete n._weavle;
 		}
 	};
-	return n._weavle = g, g.setModel(t.model ?? Mr), g;
+	return n._weavle = _, _.setModel(t.model ?? Mr), _;
 }
 function Lr(e) {
 	let t = e ? typeof e == "string" ? JSON.parse(e) : e : null;

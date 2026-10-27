@@ -26,6 +26,12 @@
   request); a "+" button with the add menu; node tools with Toevoegen, Relatie tonen, Bewerken, Verwijderen. All
   requests are diagram events with a `requestId`: `addparent`, `addpartner`, `addchild`, `addsibling`, `editperson`,
   `removeperson`. Nothing of this in read-only mode except the badge.
+- OutSystems adapter: `config.diagramOptions` (object or JSON text) goes to the diagram definition's factory, also on
+  a rebuild (e.g. `{ "orientation": "vertical" }` for the family tree); `setModelFromList` takes the family tree's
+  `{ focusId, persons, families }`; `setReadOnly` lays out self-arranging diagrams again (empty slots disappear).
+- Docs: README and the OutSystems guide cover the node editor and the family tree (block inputs `ListJson` and
+  `DiagramOptionsJson`, event `OnDiagramEvent`, the family tree's data and requests); example images
+  `docs/images/nodeeditor.svg`, `pedigree.svg`, `pedigree-vertical.svg`.
 - Engine: node button action `{ type: "openNodeTools", menu }` (named menus via `getContextActions(node, engine,
   { menu })`, a single group opens its submenu), node buttons with an own glyph (`path`), and
   `diagram.getNodeClickAction(node, engine)` for nodes that run an action on a click.
