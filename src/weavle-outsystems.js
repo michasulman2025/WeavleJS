@@ -37,6 +37,7 @@ import { createBpmnDefinition } from "./weavle-bpmn.js";
 import { createFlowchartDefinition } from "./weavle-flowchart.js";
 import { createIshikawaDefinition } from "./weavle-ishikawa.js";
 import { createFtaDefinition } from "./weavle-fta.js";
+import { createCauseTreeDefinition } from "./weavle-causetree.js";
 import { createOrgChartDefinition } from "./weavle-orgchart.js";
 import { createNodeEditorDefinition } from "./weavle-nodeeditor.js";
 import { createPedigreeDefinition } from "./weavle-pedigree.js";
@@ -46,6 +47,7 @@ const DIAGRAM_TYPES = {
     flowchart: createFlowchartDefinition,
     ishikawa:  createIshikawaDefinition,
     fta:       createFtaDefinition,
+    causetree: createCauseTreeDefinition,
     orgchart:  createOrgChartDefinition,
     nodeeditor: createNodeEditorDefinition,
     pedigree:  createPedigreeDefinition

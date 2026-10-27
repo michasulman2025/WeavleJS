@@ -24,6 +24,8 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
 - `src/weavle-bpmn.js` — `export function createBpmnDefinition()`.
 - `src/weavle-ishikawa.js` — `export function createIshikawaDefinition()` (fishbone, automatic layout).
 - `src/weavle-fta.js` — `export function createFtaDefinition()` (fault tree, automatic top-down layout).
+- `src/weavle-causetree.js` — `export function createCauseTreeDefinition()` (INRS cause tree / ADC, automatic layout
+  right to left). Sample: `src/samples/causetree-quarry.js`.
 - `src/weavle-nodeeditor.js` — `export function createNodeEditorDefinition()`, `nodeEditorNode`, `nodeEditorLink`,
   `NODE_TYPES`, `DATA_TYPES` (node editor, bezier links). Sample: `src/samples/nodeeditor-page-logic.js`.
 - `src/weavle-orgchart.js` — `export function createOrgChartDefinition()`, `orgChartFromList`, `orgChartToList`
@@ -146,6 +148,13 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
   `outputPoint`); boxes are sized by `fitToLabel`, leaves label below. k-out-of-n threshold in `node.k`.
   Actions `ftaAddGate`, `ftaAddInput`, `ftaAddSibling`, `ftaAddCondition`, `ftaChangeGate`, `ftaSetK`, `ftaMove`,
   `changeType` (input events only).
+- Cause tree (`weavle-causetree.js`, same pattern as FTA, but a DAG): facts `variation` (circle) / `state` (rectangle)
+  and one `damage`; edges antecedent → consequent (`link`, or `uncertain` = dashed, `fixed`). `layoutCauseTree` runs
+  `computeLayeredLayout` on the reversed edges and mirrors x (layers counted from the damage, which keeps its right edge
+  and centre); `sizeFacts` gives all circles one diameter and all rectangles one height; routes are buses in the gap
+  (`BUS_SHARE`: disjunction near the source, conjunction near the target), long edges follow the layout's `bends`.
+  `getDependentNodes` = facts that only lead to the node (`onlyFor`); the damage carries all (drag). Actions
+  `ctAddCause`, `ctLink` (`startNodePick`, no cycles / duplicates), `ctToggleUncertain`, `ctUnlink`, `changeType`.
 - Org chart (`weavle-orgchart.js`, automatic layout like FTA): `person` / `vacancy` cards, name = `label`, job title =
   `node.role` (drawn by the shape, edited via `startInlineLabelEdit("node", id, { field: "role", box })`); report →
   manager `reportsTo` edges (the tree) plus `dottedLine` edges (edge type `fixed: true`, orthogonal router); a forest

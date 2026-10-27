@@ -11,6 +11,8 @@ import { createIshikawaDefinition } from "./weavle-ishikawa.js";
 import { createLateDeliverySample } from "./samples/ishikawa-late-delivery.js";
 import { createFtaDefinition } from "./weavle-fta.js";
 import { createDatacenterOutageSample } from "./samples/fta-datacenter-outage.js";
+import { createCauseTreeDefinition } from "./weavle-causetree.js";
+import { createQuarryCauseTreeSample } from "./samples/causetree-quarry.js";
 import { createOrgChartDefinition } from "./weavle-orgchart.js";
 import { createAcmeOrgChartSample } from "./samples/orgchart-acme.js";
 import { createPedigreeDefinition } from "./weavle-pedigree.js";
@@ -90,6 +92,8 @@ function getDiagramDefinition(key) {
       return createIshikawaDefinition();
     case "fta":
       return createFtaDefinition();
+    case "causetree":
+      return createCauseTreeDefinition();
     case "orgchart":
       return createOrgChartDefinition();
     case "pedigree":
@@ -109,6 +113,10 @@ function getSampleForDiagram(key) {
 
   if (key === "fta") {
     return createDatacenterOutageSample();
+  }
+
+  if (key === "causetree") {
+    return createQuarryCauseTreeSample();
   }
 
   if (key === "orgchart") {

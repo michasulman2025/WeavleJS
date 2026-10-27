@@ -61,6 +61,14 @@ export const houseStyleTheme = {
                 bone: { stroke: DEEP_NAVY }
             }
         },
+        // Cause tree: the damage in navy, variations (what drives the accident) on the warm background.
+        causetree: {
+            nodeTypes: {
+                damage:    { fill: NAVY, stroke: DEEP_NAVY, textColor: WHITE },
+                variation: { fill: WARM, stroke: ORANGE },
+                state:     { fill: WHITE, stroke: NAVY }
+            }
+        },
         // Org chart: the top in navy, managers on the warm background; everyone else a white card.
         orgchart: {
             nodeVariants: {

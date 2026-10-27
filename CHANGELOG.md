@@ -3,10 +3,25 @@
 ## Unreleased
 
 ### Fixed
+- `fitToContent` / `getContentBounds` no longer stretch to the origin when a node has an empty label (fault tree
+  gates): an empty label's `<text>` is hidden (its box sat at 0,0), so a new fault tree is centred instead of pushed
+  to the bottom right.
 - Org chart: while a card is dragged, its line no longer drags a piece of the old line to its manager along. It
   previews the new line to the highlighted card instead, and shows no line over empty space.
 
 ### Added
+- **Cause tree diagram type** (INRS "arbre des causes", ADC; `createCauseTreeDefinition()` in
+  `src/weavle-causetree.js`, OutSystems `diagramType: "causetree"`): the analysis of a work accident, from the
+  earliest facts on the left to the damage (injury) on the right. Variations (unusual facts) are circles, states (usual
+  facts) rectangles; chain, conjunction (several facts meet in a bus before their consequent) and disjunction (one fact
+  splits to several consequents) are plain antecedent → consequent edges, so a fact may lead to more than one fact. Edge
+  type `uncertain` draws a dashed link. Laid out automatically (layered, counted back from the damage, so every fact
+  stands as close to the damage as it can); node tools add a cause, link a fact to another consequent (pick, no cycles
+  or duplicates), switch variation / state, mark a link uncertain, remove a link; deleting a fact takes along the facts
+  that only led to it. Playground: "Oorzakenboom (ADC)" with example 2 of the INRS brochure ED 6163
+  (`src/samples/causetree-quarry.js`); the house-style theme has colours for it.
+- `computeLayeredLayout`: option `bends` (a Map) receives, per edge id, the points an edge spanning several layers
+  passes through.
 - **Pedigree (family tree) diagram type, step 1** (roadmap step 8; `createPedigreeDefinition()` in
   `src/weavle-pedigree.js`, OutSystems `diagramType: "pedigree"`): view-only hourglass around a focus person, laid out
   horizontally (ancestors to the right, descendants to the left). The host's data `{ focusId, persons, families }` goes

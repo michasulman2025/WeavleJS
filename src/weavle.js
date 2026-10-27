@@ -1487,6 +1487,12 @@ export class WeavleJS {
             text.setAttribute("data-full-label", node.label || "");
         }
 
+        // An empty label (FTA gates) still has a box, at 0,0, which would stretch getBBox() — and so
+        // getContentBounds / fitToContent — to the origin. Hidden elements don't count.
+        if (!box.lines.some(line => line)) {
+            text.setAttribute("display", "none");
+        }
+
         return text;
     }
 

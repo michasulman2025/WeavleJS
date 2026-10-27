@@ -1,7 +1,7 @@
 # 🧶 Weavle
 
 A lightweight, dependency-free SVG diagram editor for the browser. One engine, many diagram types:
-flowcharts, BPMN, Ishikawa (fishbone), fault tree (FTA), org chart, node editor and family tree (pedigree) diagrams
+flowcharts, BPMN, Ishikawa (fishbone), fault tree (FTA), cause tree (ADC), org chart, node editor and family tree (pedigree) diagrams
 today, more to come. Built with OutSystems in mind, but it runs anywhere you have a DOM.
 
 The engine knows nothing about "gateways" or "decisions". Everything that makes a diagram type what it is —
@@ -42,6 +42,13 @@ k-out-of-n and inhibit gates into intermediate, basic, undeveloped, house and tr
 from the node tools; the tree arranges itself.
 
 ![Fault tree: why a data centre goes down](docs/images/fta.svg)
+
+### Cause tree (ADC)
+
+The INRS "arbre des causes" for analysing work accidents: facts from the earliest causes on the left to the injury on
+the right, unusual facts (variations) as circles and usual facts (states) as rectangles, joined as chains,
+conjunctions and disjunctions; dashed links for uncertainty. Add causes and links from the node tools; the tree
+arranges itself.
 
 ### Org chart
 
@@ -110,6 +117,8 @@ presets users can pick per node ("Kritiek" and "Let op" here).
 - Containers: BPMN pools and lanes hold their contents, stack lanes and move as one
 - Ishikawa (fishbone): problem → categories → causes → sub-causes, laid out automatically; starts with the 6M
 - Fault tree (FTA): top event → gates → events, laid out automatically top-down; six gate types, k-out-of-n threshold
+- Cause tree (ADC): variations and states back from the damage, conjunction / disjunction buses, uncertain links,
+  laid out automatically right to left
 - Org chart: name + job title cards and vacancies, laid out automatically (stacked leaf teams, assistants); drag to
   reassign, collapsible teams, dotted-line reporting; flat list in / out and `managerchanged` / dotted line events
 - Node editor: typed ports (boolean, number, text), bezier links coloured by type, value boxes, 15 node types in five
@@ -135,6 +144,7 @@ presets users can pick per node ("Kritiek" and "Let op" here).
 | `src/weavle-bpmn.js` | BPMN definition — `export function createBpmnDefinition()` |
 | `src/weavle-ishikawa.js` | Ishikawa definition — `export function createIshikawaDefinition()` |
 | `src/weavle-fta.js` | Fault tree definition — `export function createFtaDefinition()` |
+| `src/weavle-causetree.js` | Cause tree definition — `export function createCauseTreeDefinition()` |
 | `src/weavle-orgchart.js` | Org chart definition — `createOrgChartDefinition()`, `orgChartFromList()`, `orgChartToList()` |
 | `src/weavle-nodeeditor.js` | Node editor definition — `createNodeEditorDefinition()`, `nodeEditorNode()`, `nodeEditorLink()`, `NODE_TYPES`, `DATA_TYPES` |
 | `src/weavle-pedigree.js` | Family tree definition — `createPedigreeDefinition(options)`, `pedigreeFromList()`, `pedigreeToList()` |

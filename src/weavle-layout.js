@@ -23,13 +23,16 @@
  * @param {object}   graph
  * @param {Array<{id: string, width: number, height: number, x?: number, y?: number}>} graph.nodes
  *        x / y (current centre) only steer the initial order, so the result stays recognisable
- * @param {Array<{source: string, target: string, secondary?: boolean}>} graph.edges
+ * @param {Array<{id?: string, source: string, target: string, secondary?: boolean}>} graph.edges
  *        secondary: a side branch (e.g. from a BPMN boundary event) — laid out after the main flow
  * @param {object}   [options]
  * @param {"LR"|"TB"} [options.direction="LR"]
  * @param {number}   [options.layerGap=80]  free space between layers (along the flow)
  * @param {number}   [options.nodeGap=50]   free space between nodes in a layer (across the flow)
  * @param {number}   [options.componentGap=80]
+ * @param {Map<string, Array<{x: number, y: number}>>} [options.bends]  filled per edge id (edges that
+ *        have one) with the points an edge spanning several layers passes through, one per layer in
+ *        between (the dummy nodes' centres) — empty for an edge between neighbouring layers
  * @returns {Map<string, {x: number, y: number}>} centre per node id, relative to (0, 0) top-left
  */
 export function computeLayeredLayout(graph, options = {}) {
@@ -55,9 +58,13 @@ export function computeLayeredLayout(graph, options = {}) {
             min = Math.min(min, p.across - half);
             max = Math.max(max, p.across + half);
         }
-        for (const [id, p] of layout.positions) {
+        const toXY = p => {
             const a = p.across - min + offset;
-            result.set(id, horizontal ? { x: p.along, y: a } : { x: a, y: p.along });
+            return horizontal ? { x: p.along, y: a } : { x: a, y: p.along };
+        };
+        for (const [id, p] of layout.positions) result.set(id, toXY(p));
+        if (opts.bends) {
+            for (const [id, points] of layout.bends) opts.bends.set(id, points.map(toXY));
         }
         offset += max - min + opts.componentGap;
     }
@@ -70,7 +77,8 @@ export function computeLayeredLayout(graph, options = {}) {
         minX = Math.min(minX, p.x - n.width / 2);
         minY = Math.min(minY, p.y - n.height / 2);
     }
-    for (const p of result.values()) {
+    const shifted = opts.bends ? [...result.values(), ...[...opts.bends.values()].flat()] : result.values();
+    for (const p of shifted) {
         p.x -= minX;
         p.y -= minY;
     }
@@ -217,10 +225,15 @@ function layoutComponent(component, opts, along, across, posAcross) {
     const acrossPos = assignAcross(layers, chains, nodeById, across, opts.nodeGap);
 
     const positions = new Map();
+    const at = new Map();
     layers.forEach((ids, i) => ids.forEach(id => {
-        if (!chains.isDummy(id)) positions.set(id, { along: layerCentre[i], across: acrossPos.get(id) });
+        at.set(id, { along: layerCentre[i], across: acrossPos.get(id) });
+        if (!chains.isDummy(id)) positions.set(id, at.get(id));
     }));
-    return { positions };
+
+    const bends = new Map();
+    for (const [edgeId, ids] of chains.dummiesOf) bends.set(edgeId, ids.map(id => at.get(id)));
+    return { positions, bends };
 }
 
 /** DFS from the sources (in current order); edges back to a node on the stack are reversed. */
@@ -250,7 +263,7 @@ function breakCycles(nodes, edges, posAcross) {
 
     // Loops (back edges) are left out: they would add long dummy chains that pull the main line
     // aside. The edge router draws them around the finished layout.
-    return edges.filter(e => !reversed.has(e)).map(e => ({ source: e.source, target: e.target, secondary: !!e.secondary }));
+    return edges.filter(e => !reversed.has(e)).map(e => ({ id: e.id, source: e.source, target: e.target, secondary: !!e.secondary }));
 }
 
 /** Longest path from the sources; a source is then pulled up to just before its nearest successor. */
@@ -291,15 +304,19 @@ function insertDummies(nodes, dag, layer, groupOf = null) {
     const sortGroup = new Map(group);
     const up   = new Map(nodes.map(n => [n.id, []]));   // neighbours in the previous layer
     const down = new Map(nodes.map(n => [n.id, []]));   // neighbours in the next layer
+    const dummiesOf = new Map();   // edge id → its dummies, in flow order
     let counter = 0;
 
     const link = (a, b) => { down.get(a).push(b); up.get(b).push(a); };
 
     dag.forEach(e => {
+        const own = [];
+        if (e.id != null) dummiesOf.set(e.id, own);
         let from = e.source;
         for (let l = layer.get(e.source) + 1; l < layer.get(e.target); l++) {
             const id = `__dummy_${counter++}`;
             dummies.add(id);
+            own.push(id);
             if (e.secondary) secondary.add(id);
             if (groupOf) {
                 const same = group.get(e.source) === group.get(e.target);
@@ -321,7 +338,7 @@ function insertDummies(nodes, dag, layer, groupOf = null) {
     });
 
     return {
-        up, down, layer,
+        up, down, layer, dummiesOf,
         isDummy:     id => dummies.has(id),
         isSecondary: id => secondary.has(id),
         group:       id => group.get(id) ?? null,

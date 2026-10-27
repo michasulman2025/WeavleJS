@@ -217,6 +217,22 @@ without sizes), the `"process"` shape fallback (now a plain box). UI colours com
 - **Later:** probabilities on basic events and the computed probability per gate / top event; minimal cut sets;
   collapsing subtrees; transfer events that link to another tree.
 
+### Cause tree / ADC (automatic layout)
+
+- **Model:** the INRS "arbre des causes": facts `variation` (unusual, circle) and `state` (usual, rectangle), plus one
+  `damage` (the injury). Edges run from antecedent to consequent; a fact with several antecedents is a conjunction, a
+  fact with several consequents a disjunction — so the model is a directed acyclic graph, not a tree. Edge type
+  `uncertain` (dashed): it is not certain how the variation came about.
+- **Layout:** `layoutDiagram` runs the layered layout on the reversed edges (from the damage, as the method asks
+  "what was needed for this?") and mirrors it: the damage on the right, every fact as close to it as its longest
+  path allows. Circles share one diameter, rectangles one height (the smallest that fits every label). `routeEdge`
+  returns stored bus lines: conjunctions meet just before their consequent, disjunctions split just after their
+  antecedent; edges across several columns follow the layout's dummy points (`bends`).
+- **Interaction:** as the FTA — no connecting or edge selection, dragging moves the whole diagram; causes, links to
+  another consequent (pick a fact), uncertainty and type through the node tools.
+- **Later:** prevention measures per fact (the action plan of step 2 of the method), FPA (potential accident factors),
+  the I / T-A / Ma / Mi observation frame per fact, vertical (bottom-up) orientation.
+
 ### Org chart (automatic layout)
 
 - **Model:** cards `person` / `vacancy` (name = `label`, job title = `node.role`) with `reportsTo` edges from report

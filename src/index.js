@@ -18,6 +18,7 @@ export { createBpmnDefinition } from "./weavle-bpmn.js";
 export { createFlowchartDefinition } from "./weavle-flowchart.js";
 export { createIshikawaDefinition } from "./weavle-ishikawa.js";
 export { createFtaDefinition } from "./weavle-fta.js";
+export { createCauseTreeDefinition } from "./weavle-causetree.js";
 export { createOrgChartDefinition, orgChartFromList, orgChartToList } from "./weavle-orgchart.js";
 export { createPedigreeDefinition, pedigreeFromList, pedigreeToList } from "./weavle-pedigree.js";
 export { createNodeEditorDefinition, nodeEditorNode, nodeEditorLink, NODE_TYPES, DATA_TYPES } from "./weavle-nodeeditor.js";
