@@ -8,8 +8,18 @@
   Node editor (Blender / Unreal style): nodes with a coloured header, outputs on the right and inputs on
   the left, each with a label and a data type; links are bezier curves in the colour of their data type.
 
+  Catalog (createNodeEditorDefinition({ nodeTypes, dataTypes, categories, includeDefaults }), all optional,
+  objects or — through the OutSystems adapter's diagramOptions — JSON):
+    nodeTypes     { [type]: { title, category, color?, outputs?, fields?, inputs? } } — ports / fields are
+                  { id, label, type, value? } (see NODE_TYPES)
+    dataTypes     { [type]: { label, color } } (see DATA_TYPES); a port of type "any" fits every type
+    categories    { [id]: { label, color } } — palette groups in this order and header colours (see CATEGORIES)
+    includeDefaults  true (default): the host's entries are added to (or replace same-named) built-in ones;
+                     false: only the host's catalog
+  Types without a (known) category go to the palette group "Overig".
+
   Model
-    node.type     a key of NODE_TYPES; node.label is the header title
+    node.type     a key of the catalog's nodeTypes; node.label is the header title
     node.values   { [fieldId]: string } — the values typed into the node: an input's own value (shown while
                   the input is not connected) or a field of a constant node
     edge          output → input: sourceHandle "out-<id>", targetHandle "in-<id>"; edge.type = the data type
@@ -45,7 +55,7 @@ export const DATA_TYPES = {
 };
 
 /** Categories: palette group and header colour. */
-const CATEGORIES = {
+export const CATEGORIES = {
     input:  { label: "Invoer",  color: "#2F6F8F" },
     logic:  { label: "Logica",  color: "#6B4FA8" },
     number: { label: "Getallen", color: "#A8483E" },
@@ -150,9 +160,52 @@ export const NODE_TYPES = {
 
 // ── Rows and geometry ───────────────────────────────────────
 
-/** The rows of a node type, top to bottom: outputs, fields, inputs. */
-function rowsOf(type) {
-    const def = NODE_TYPES[type] || {};
+// ── Catalog ─────────────────────────────────────────────────
+
+/** A catalog option: an object, JSON text, or nothing. */
+function parseOption(value) {
+    if (!value) return {};
+    if (typeof value === "string") {
+        try { return JSON.parse(value) || {}; } catch { return {}; }
+    }
+    return value;
+}
+
+/** The catalog a definition works with: the built-in tables, extended or replaced by the host's. */
+function createCatalog({ nodeTypes, dataTypes, categories, includeDefaults = true } = {}) {
+    const merge = (defaults, own) => ({ ...(includeDefaults ? defaults : {}), ...parseOption(own) });
+    return {
+        nodeTypes:  merge(NODE_TYPES, nodeTypes),
+        dataTypes:  merge(DATA_TYPES, dataTypes),
+        categories: merge(CATEGORIES, categories)
+    };
+}
+
+const DEFAULT_CATALOG = createCatalog();
+
+/** Header colour of a node type: its own colour, else its category's. */
+function headerColor(catalog, def) {
+    return def.color || catalog.categories[def.category]?.color || null;
+}
+
+/** Palette: one group per category (catalog order), types without a known category in "Overig". */
+function buildPalette(catalog) {
+    const types = Object.keys(catalog.nodeTypes);
+    const known = id => !!catalog.categories[id];
+
+    const groups = Object.entries(catalog.categories).map(([category, def]) => ({
+        group: def.label || category,
+        types: types.filter(type => catalog.nodeTypes[type].category === category)
+    }));
+    groups.push({ group: "Overig", types: types.filter(type => !known(catalog.nodeTypes[type].category)) });
+
+    return groups.filter(group => group.types.length);
+}
+
+// ── Rows and geometry ───────────────────────────────────────
+
+/** The rows of a node type definition, top to bottom: outputs, fields, inputs. */
+function rowsOf(def = {}) {
     return [
         ...(def.outputs || []).map(p => ({ kind: "out",   ...p, handle: `out-${p.id}` })),
         ...(def.fields  || []).map(f => ({ kind: "field", ...f })),
@@ -160,9 +213,9 @@ function rowsOf(type) {
     ];
 }
 
-/** Default size of a node type: fixed width, height from its rows. */
-function sizeOf(type) {
-    return { width: NODE_WIDTH, height: HEADER + PAD_Y * 2 + rowsOf(type).length * ROW };
+/** Default size of a node type definition: fixed width, height from its rows. */
+function sizeOf(def) {
+    return { width: NODE_WIDTH, height: HEADER + PAD_Y * 2 + rowsOf(def).length * ROW };
 }
 
 /** Vertical centre of row i of a node. */
@@ -184,10 +237,10 @@ function valueBox(engine, node, row, i) {
     return { x: node.x + PAD_X, y: y - BOX_H / 2, width: node.width - PAD_X * 2, height: BOX_H };
 }
 
-/** The default values of a node type: { [fieldId]: value } for fields and inputs with a value. */
-function defaultValues(type) {
+/** The default values of a node type definition: { [fieldId]: value } for fields and inputs with a value. */
+function defaultValues(def) {
     const values = {};
-    for (const row of rowsOf(type)) {
+    for (const row of rowsOf(def)) {
         if (row.kind !== "out" && row.value !== undefined) values[row.id] = row.value;
     }
     return values;
@@ -217,21 +270,22 @@ function fit(engine, value, width) {
     return engine.wrapLabel(String(value), width, 1, FONT_SIZE).lines[0] || "";
 }
 
-function drawNode(node, engine, compact = false) {
+function drawNode(catalog, node, engine, compact = false) {
+    const def = catalog.nodeTypes[node.type] || {};
+
     // Smaller than its rows need (a toolbar icon, appendTypePreview): draw it full size, scaled down,
     // with the ports but without text.
-    const full = sizeOf(node.type);
+    const full = sizeOf(def);
     if (!compact && node.height < full.height - 1) {
         const scale = node.height / full.height;
         const icon  = svgEl("g", { transform: `translate(${node.x} ${node.y}) scale(${scale})` });
-        icon.appendChild(drawNode({ ...node, x: 0, y: 0, width: node.width / scale, height: full.height }, engine, true));
+        icon.appendChild(drawNode(catalog, { ...node, x: 0, y: 0, width: node.width / scale, height: full.height }, engine, true));
         return icon;
     }
 
     const { x, y, width: w, height: h } = node;
-    const def    = NODE_TYPES[node.type] || {};
     const style  = engine.getNodeStyle(node);
-    const header = CATEGORIES[def.category]?.color || style.stroke;
+    const header = headerColor(catalog, def) || "#5B6573";
     const muted  = "#C9CED6";
     const group  = svgEl("g", {});
 
@@ -249,7 +303,7 @@ function drawNode(node, engine, compact = false) {
         fill: header, "pointer-events": "none"
     }));
 
-    rowsOf(node.type).forEach((row, i) => {
+    rowsOf(def).forEach((row, i) => {
         const cy  = rowY(node, i);
         const box = valueBox(engine, node, row, i);
 
@@ -280,7 +334,7 @@ function drawNode(node, engine, compact = false) {
         if (row.handle) {
             group.appendChild(svgEl("circle", {
                 cx: row.kind === "out" ? x + w : x, cy, r: PORT_R,
-                fill: DATA_TYPES[row.type]?.color || "#999999", stroke: "#1E2228", "stroke-width": 1.5,
+                fill: catalog.dataTypes[row.type]?.color || "#999999", stroke: "#1E2228", "stroke-width": 1.5,
                 "data-handle-position": row.handle, cursor: "crosshair", class: "weavle-nodeeditor-port"
             }));
         }
@@ -292,27 +346,34 @@ function drawNode(node, engine, compact = false) {
 // ── Theme ───────────────────────────────────────────────────
 
 // Dark nodes with white text; links in the colour of their data type. A theme may override both.
-const NODE_EDITOR_THEME = {
-    nodeTypes: Object.fromEntries(Object.keys(NODE_TYPES).map(type => [
-        type, { fill: "#3A3F47", stroke: "#1E2228", textColor: "#FFFFFF", fontWeight: "600" }
-    ])),
-    edgeTypes: Object.fromEntries(Object.entries(DATA_TYPES).map(([type, def]) => [
-        type, { stroke: def.color, strokeWidth: 2.5 }
-    ]))
-};
+function createTheme(catalog) {
+    return {
+        nodeTypes: Object.fromEntries(Object.keys(catalog.nodeTypes).map(type => [
+            type, { fill: "#3A3F47", stroke: "#1E2228", textColor: "#FFFFFF", fontWeight: "600" }
+        ])),
+        edgeTypes: {
+            link: { stroke: "#8A94A3", strokeWidth: 2.5 },
+            ...Object.fromEntries(Object.entries(catalog.dataTypes).map(([type, def]) => [
+                type, { stroke: def.color || "#8A94A3", strokeWidth: 2.5 }
+            ]))
+        }
+    };
+}
 
 // ── Helpers for hosts and samples ───────────────────────────
 
 /**
  * A node of a node-editor type with its default size and title: nodeEditorNode("and", "n1", 100, 80).
- * values: the typed-in values ({ b: "960" }).
+ * values: the typed-in values ({ b: "960" }); catalog: the same options as createNodeEditorDefinition
+ * (for a host's own node types).
  */
-export function nodeEditorNode(type, id, x, y, values = undefined) {
+export function nodeEditorNode(type, id, x, y, values = undefined, catalog = null) {
+    const def = (catalog ? createCatalog(catalog) : DEFAULT_CATALOG).nodeTypes[type] || {};
     return {
         id, type, x, y,
-        ...sizeOf(type),
-        label: NODE_TYPES[type]?.title || type,
-        values: { ...defaultValues(type), ...(values || {}) }
+        ...sizeOf(def),
+        label: def.title || type,
+        values: { ...defaultValues(def), ...(values || {}) }
     };
 }
 
@@ -328,37 +389,45 @@ export function nodeEditorLink(id, sourceNodeId, output, targetNodeId, input) {
 
 // ── Definition ──────────────────────────────────────────────
 
-export function createNodeEditorDefinition() {
+/**
+ * @param {object} [options]  the catalog (see the top of this file): nodeTypes, dataTypes, categories,
+ *                            includeDefaults — objects or JSON text
+ */
+export function createNodeEditorDefinition(options = {}) {
+    const catalog = createCatalog(options);
+    const typeDef = type => catalog.nodeTypes[type] || {};
+    const rows    = node => rowsOf(typeDef(node.type));
+
     return {
         id: "nodeeditor",
-        shapes: { node: drawNode },
-        defaultTheme: NODE_EDITOR_THEME,
-        dataTypes: DATA_TYPES,
+        shapes: { node: (node, engine) => drawNode(catalog, node, engine) },
+        defaultTheme: createTheme(catalog),
+        dataTypes: catalog.dataTypes,
 
-        nodeTypes: Object.fromEntries(Object.entries(NODE_TYPES).map(([type, def]) => [
-            type, { defaultLabel: def.title, title: def.title, shape: "node" }
+        /** The catalog in use (built-in tables plus the host's). */
+        catalog,
+
+        nodeTypes: Object.fromEntries(Object.entries(catalog.nodeTypes).map(([type, def]) => [
+            type, { defaultLabel: def.title || type, title: def.title || type, shape: "node" }
         ])),
 
-        palette: Object.entries(CATEGORIES).map(([category, def]) => ({
-            group: def.label,
-            types: Object.keys(NODE_TYPES).filter(type => NODE_TYPES[type].category === category)
-        })),
+        palette: buildPalette(catalog),
 
         // The shape draws the ports (coloured by data type); no extra handles on a selected node.
         showPortHandles: false,
 
         getDefaultSize(type) {
-            return sizeOf(type);
+            return sizeOf(typeDef(type));
         },
 
         // A new node starts with its default values (so editing a value starts from what is shown).
         onNodeCreated(node) {
-            node.values = { ...defaultValues(node.type), ...(node.values || {}) };
+            node.values = { ...defaultValues(typeDef(node.type)), ...(node.values || {}) };
         },
 
         // Width only: the height follows from the rows.
         getResizeRules(node) {
-            const { height } = sizeOf(node.type);
+            const { height } = sizeOf(typeDef(node.type));
             return { minWidth: 150, maxWidth: 420, minHeight: height, maxHeight: height, handles: ["e", "w"] };
         },
 
@@ -378,7 +447,7 @@ export function createNodeEditorDefinition() {
 
         getPorts(node) {
             const ports = {};
-            rowsOf(node.type).forEach((row, i) => {
+            rows(node).forEach((row, i) => {
                 if (!row.handle) return;
                 const isOut = row.kind === "out";
                 ports[row.handle] = {
@@ -395,16 +464,20 @@ export function createNodeEditorDefinition() {
             return ports;
         },
 
-        defaultEdgeType: "string",
+        // "link": a link whose data type has no colour of its own (e.g. from an "any" output).
+        defaultEdgeType: "link",
 
-        edgeTypes: Object.fromEntries(Object.keys(DATA_TYPES).map(type => [
-            type, { router: "bezier", marker: "none" }
-        ])),
+        edgeTypes: {
+            link: { router: "bezier", marker: "none" },
+            ...Object.fromEntries(Object.keys(catalog.dataTypes).map(type => [
+                type, { router: "bezier", marker: "none" }
+            ]))
+        },
 
         // A link has the type of the data it carries (and so its colour).
         getEdgeTypeForConnection({ source, sourceHandle }, engine) {
             const type = engine.getPort(source, sourceHandle)?.dataType;
-            return DATA_TYPES[type] ? type : "string";
+            return catalog.dataTypes[type] ? type : "link";
         },
 
         // Directions, data types and one link per input come from the ports; what is left: no cycles.
@@ -438,13 +511,13 @@ export function createNodeEditorDefinition() {
         getEditTarget(node, engine, pos) {
             if (!pos) return null;
 
-            const rows = rowsOf(node.type);
-            for (let i = 0; i < rows.length; i++) {
-                const box = valueBox(engine, node, rows[i], i);
+            const list = rows(node);
+            for (let i = 0; i < list.length; i++) {
+                const box = valueBox(engine, node, list[i], i);
                 if (!box) continue;
                 if (pos.x >= box.x && pos.x <= box.x + box.width && pos.y >= box.y && pos.y <= box.y + box.height) {
                     return {
-                        field: `values.${rows[i].id}`,
+                        field: `values.${list[i].id}`,
                         box: {
                             centerX: box.x + box.width / 2, centerY: box.y + box.height / 2,
                             width: box.width, height: box.height, fontSize: FONT_SIZE, lineHeight: FONT_SIZE * 1.25

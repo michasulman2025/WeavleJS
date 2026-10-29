@@ -21,7 +21,7 @@ export { createFtaDefinition } from "./weavle-fta.js";
 export { createCauseTreeDefinition } from "./weavle-causetree.js";
 export { createOrgChartDefinition, orgChartFromList, orgChartToList } from "./weavle-orgchart.js";
 export { createPedigreeDefinition, pedigreeFromList, pedigreeToList } from "./weavle-pedigree.js";
-export { createNodeEditorDefinition, nodeEditorNode, nodeEditorLink, NODE_TYPES, DATA_TYPES } from "./weavle-nodeeditor.js";
+export { createNodeEditorDefinition, nodeEditorNode, nodeEditorLink, NODE_TYPES, DATA_TYPES, CATEGORIES } from "./weavle-nodeeditor.js";
 export { mount, getInstance, registerDiagramType, getDiagramTypes } from "./weavle-outsystems.js";
 
 export const version = "0.9.0";

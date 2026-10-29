@@ -185,6 +185,30 @@ model JSON from `OnModelChanged` is the whole graph — store it as text (sectio
 `ModelJson`.
 
 - The canvas toolbar offers 15 node types in five groups (input, logic, numbers, text, output).
+- **Your own node types** go in `DiagramOptionsJson` (`diagramOptions`), next to or instead of the built-in ones:
+
+  ```json
+  {
+    "includeDefaults": true,
+    "dataTypes":  { "date": { "label": "Datum", "color": "#D08A1E" } },
+    "categories": { "orders": { "label": "Orders", "color": "#1B5278" } },
+    "nodeTypes": {
+      "order": { "title": "Order", "category": "orders",
+                 "outputs": [ { "id": "created", "label": "Aangemaakt", "type": "date" },
+                              { "id": "total",   "label": "Totaal",     "type": "number" } ] },
+      "isOverdue": { "title": "Te laat?", "category": "orders",
+                     "inputs":  [ { "id": "date", "label": "Datum", "type": "date" },
+                                  { "id": "days", "label": "Dagen", "type": "number", "value": "30" } ],
+                     "outputs": [ { "id": "result", "label": "Te laat", "type": "boolean" } ] }
+    }
+  }
+  ```
+
+  A node type has a `title`, a `category` (palette group and header colour; without one it goes to "Overig"), an
+  optional own header `color`, and `outputs`, `inputs` and `fields` (values without a port, for constants) as
+  `{ id, label, type, value? }`. An input with a `value` shows a value box while it is not connected. Port type
+  `"any"` fits every data type. `"includeDefaults": false` leaves only your own catalog. Same-named entries replace the
+  built-in ones.
 - Values typed into a node (double-click a value box) are in `node.values`, e.g. `{"a": 10, "b": 3}`; a link is an
   edge from `out-<port>` to `in-<port>` (`sourceHandle` / `targetHandle`). Read them after `JSONDeserialize` if your
   logic needs them.

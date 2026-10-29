@@ -26,8 +26,8 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
 - `src/weavle-fta.js` — `export function createFtaDefinition()` (fault tree, automatic top-down layout).
 - `src/weavle-causetree.js` — `export function createCauseTreeDefinition()` (INRS cause tree / ADC, automatic layout
   right to left). Sample: `src/samples/causetree-quarry.js`.
-- `src/weavle-nodeeditor.js` — `export function createNodeEditorDefinition()`, `nodeEditorNode`, `nodeEditorLink`,
-  `NODE_TYPES`, `DATA_TYPES` (node editor, bezier links). Sample: `src/samples/nodeeditor-page-logic.js`.
+- `src/weavle-nodeeditor.js` — `export function createNodeEditorDefinition(options)`, `nodeEditorNode`, `nodeEditorLink`,
+  `NODE_TYPES`, `DATA_TYPES`, `CATEGORIES` (node editor, bezier links; own catalog via options). Sample: `src/samples/nodeeditor-page-logic.js`.
 - `src/weavle-orgchart.js` — `export function createOrgChartDefinition()`, `orgChartFromList`, `orgChartToList`
   (org chart, automatic top-down layout, flat list in / out).
 - `src/weavle-pedigree.js` — `export function createPedigreeDefinition(options)`, `pedigreeFromList`, `pedigreeToList`
@@ -230,7 +230,11 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
   shapes draw their own ports (elements with `data-handle-position` start links). `diagram.getEditTarget(node, engine,
   pos)` → `{ field, box }` | null | false picks what a double-click edits; fields may be paths (`"values.b"`,
   `getFieldValue` / `setFieldValue`).
-- Node editor (`weavle-nodeeditor.js`): `NODE_TYPES` (title, category, outputs / fields / inputs with `value` defaults),
+- Node editor (`weavle-nodeeditor.js`): catalog = `createCatalog(options)` — built-in `NODE_TYPES` / `DATA_TYPES` /
+  `CATEGORIES` extended or replaced (`includeDefaults`) by the factory options `nodeTypes`, `dataTypes`, `categories`
+  (objects or JSON; adapter `diagramOptions`); helpers take a type definition (`rowsOf(def)`, `sizeOf(def)`,
+  `defaultValues(def)`), `drawNode(catalog, ...)`, `buildPalette` ("Overig" for unknown categories), `createTheme`,
+  edge type "link" for untyped / "any" links; `definition.catalog`. Node types: title, category, color?, outputs / fields / inputs with `value` defaults;
   rows outputs → fields → inputs, height from rows (`sizeOf`, width-only resize), handles `out-<id>` / `in-<id>`, values in
   `node.values` (defaults filled by `onNodeCreated`), header title via `getLabelLayout`, edge type = data type, rule
   `canConnect` = no cycles; `drawNode` draws toolbar icons scaled down without text.

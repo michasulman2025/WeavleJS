@@ -3,6 +3,8 @@
 ## Unreleased
 
 ### Fixed
+- Stored routes contain only points: `getHandlePoint` returns `{ x, y }` instead of the port object (node editor routes
+  carried side, data type and label into the model JSON).
 - `fitToContent` / `getContentBounds` no longer stretch to the origin when a node has an empty label (fault tree
   gates): an empty label's `<text>` is hidden (its box sat at 0,0), so a new fault tree is centred instead of pushed
   to the bottom right.
@@ -10,6 +12,11 @@
   previews the new line to the highlighted card instead, and shows no line over empty space.
 
 ### Added
+- Node editor: **own node types** — `createNodeEditorDefinition({ nodeTypes, dataTypes, categories, includeDefaults })`
+  (objects or JSON text; OutSystems `diagramOptions`) adds to or replaces the built-in catalog. Node types may have an
+  own header `color`; types without a known category go to the palette group "Overig"; port type `"any"` links get the
+  neutral edge type `link`. `definition.catalog` is the catalog in use; `nodeEditorNode(type, id, x, y, values, catalog)`
+  builds nodes of own types; `CATEGORIES` is exported.
 - **Cause tree diagram type** (INRS "arbre des causes", ADC; `createCauseTreeDefinition()` in
   `src/weavle-causetree.js`, OutSystems `diagramType: "causetree"`): the analysis of a work accident, from the
   earliest facts on the left to the damage (injury) on the right. Variations (unusual facts) are circles, states (usual

@@ -4038,7 +4038,10 @@ export class WeavleJS {
      */
     getHandlePoint(node, handleName) {
         const positions = this.getPorts(node);
-        return positions[handleName] || positions.right;
+        const port = positions[handleName] || positions.right;
+
+        // Only the point: routes are stored in the model, the rest of the port object must not end up there.
+        return port ? { x: port.x, y: port.y } : port;
     }
 
     /**
