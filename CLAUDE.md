@@ -16,6 +16,10 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
 - `npm run build` — library into `dist/` (weavle.iife.js with global `Weavle`, weavle.es.js, weavle.css;
   entry `src/index.js`). Commit `dist/` after changing `src/` — OutSystems users take the files from GitHub.
 - `npm run build:demo` — static build of the playground into `dist-demo/`.
+- `npm test` — regression tests (Playwright, real Chromium, ~30 s): starts the dev server on port 5199 (or reuses it) and
+  drives the playground with the real mouse and keyboard. First time on a machine: `npx playwright install chromium`.
+  One file: `npx playwright test tests/edges.spec.js`; watch: `--headed`; failures keep a trace in `test-results/`
+  (`npx playwright show-trace <trace.zip>`). Run it after every engine or definition change and before committing `dist/`.
 
 ## Files
 
@@ -308,4 +312,8 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
 ## Known issues
 
 - `weavle.js` imports both definitions (flowchart and BPMN) even though only the flowchart is the default.
-- No tests or linting yet.
+- No linting yet. Tests (`tests/`): `helpers.js` (playground helpers, `test` fixture that fails on console errors),
+  `types.spec.js` (all 8 diagram types: sample loads, interaction flags, edge tools only where edges are selectable),
+  `edges.spec.js` (manual route, labels, styles, line jumps on flowchart + BPMN, message flow style), `copypaste.spec.js`
+  (keys, edges between nodes, two editors, pools), `shapes.spec.js` (26 flowchart shapes, 104 ports). New feature or diagram
+  type → add its tests there (and to `.claude/skills/weavle-test-charts` one level up for the manual run).

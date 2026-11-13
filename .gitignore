@@ -2,3 +2,5 @@ node_modules/
 dist-demo/
 .vite/
 *.log
+test-results/
+playwright-report/
