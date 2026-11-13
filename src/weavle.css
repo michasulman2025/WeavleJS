@@ -111,6 +111,17 @@
     user-select: none;
 }
 
+/* Edge label: semi-transparent canvas-coloured background where the line runs through the text;
+   the label can be dragged. Restyle .weavle-edge-label-bg (fill, fill-opacity) to taste. */
+.weavle-edge-label-group {
+    cursor: move;
+}
+
+.weavle-edge-label-bg {
+    fill: var(--weavle-canvas-bg);
+    fill-opacity: 0.8;
+}
+
 /* Dropping a node onto an edge: the edge is drawn as the two halves it will become. These look like
    regular edges (what you see is what you get on release); restyle .weavle-edge--split-preview to mark them. */
 

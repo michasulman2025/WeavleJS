@@ -8,14 +8,20 @@
   Node editor (Blender / Unreal style): nodes with a coloured header, outputs on the right and inputs on
   the left, each with a label and a data type; links are bezier curves in the colour of their data type.
 
-  Catalog (createNodeEditorDefinition({ nodeTypes, dataTypes, categories, includeDefaults }), all optional,
-  objects or — through the OutSystems adapter's diagramOptions — JSON):
-    nodeTypes     { [type]: { title, category, color?, outputs?, fields?, inputs? } } — ports / fields are
-                  { id, label, type, value? } (see NODE_TYPES)
+  Catalog (createNodeEditorDefinition({ nodeTypes, dataTypes, categories, includeDefaults, allowCycles }), all
+  optional, objects or — through the OutSystems adapter's diagramOptions — JSON):
+    nodeTypes     { [type]: { title, category, color?, width?, outputs?, fields?, inputs?, list? } } — ports / fields are
+                  { id, label, type, value? } (see NODE_TYPES); an input with multiple: true takes more than
+                  one link (e.g. a workflow step reached from several places).
+                  list? = { id, label, type?, value?, min?, max?, port? } — rows the user adds and removes per
+                  node (e.g. conditions), after the inputs: an input of `type` with a value box (port: false = a
+                  field without port); node.items holds the ids of the rows ("<id>-<n>"), node.values their values
     dataTypes     { [type]: { label, color } } (see DATA_TYPES); a port of type "any" fits every type
     categories    { [id]: { label, color } } — palette groups in this order and header colours (see CATEGORIES)
     includeDefaults  true (default): the host's entries are added to (or replace same-named) built-in ones;
                      false: only the host's catalog
+    allowCycles   false (default): no cycles; true: cycles allowed; ["flow"]: links of these data types may
+                  close a cycle (e.g. rework loops in a workflow), the other links still may not
   Types without a (known) category go to the palette group "Overig".
 
   Model
@@ -26,10 +32,12 @@
 
   Rules
     - an output goes to an input, the data types must match (the engine's port checks, ARCHITECTURE.md 4.3);
-    - an input takes one link: a new link replaces the old one (port max 1, onFull "replace");
-    - no cycles.
+    - an input takes one link: a new link replaces the old one (port max 1, onFull "replace") — unless the
+      input has multiple: true;
+    - no cycles, except through links of the data types in allowCycles.
 
-  Editing: double-click the header to rename a node, double-click a value box to type its value.
+  Editing: double-click the header to rename a node, double-click a value box to type its value. List rows are
+  added and removed through the node tools.
 */
 
 const NS = "http://www.w3.org/2000/svg";
@@ -183,6 +191,22 @@ function createCatalog({ nodeTypes, dataTypes, categories, includeDefaults = tru
 
 const DEFAULT_CATALOG = createCatalog();
 
+/**
+ * Which links may close a cycle, from the allowCycles option: () => false (default), () => true (true), or
+ * a test on the data type (an array of data types, also as JSON text).
+ */
+function createCycleRule(allowCycles) {
+    let value = allowCycles;
+    if (typeof value === "string") {
+        try { value = JSON.parse(value); } catch { value = [value]; }
+    }
+    if (value === true) return () => true;
+    if (!Array.isArray(value) || !value.length) return () => false;
+
+    const types = new Set(value);
+    return dataType => types.has(dataType);
+}
+
 /** Header colour of a node type: its own colour, else its category's. */
 function headerColor(catalog, def) {
     return def.color || catalog.categories[def.category]?.color || null;
@@ -204,18 +228,47 @@ function buildPalette(catalog) {
 
 // ── Rows and geometry ───────────────────────────────────────
 
-/** The rows of a node type definition, top to bottom: outputs, fields, inputs. */
-function rowsOf(def = {}) {
+/** The minimum and maximum number of list rows of a node type definition. */
+function listLimits(list) {
+    const min = Math.max(0, list.min ?? 1);
+    return { min, max: Math.max(min, list.max ?? 20) };
+}
+
+/** The ids of a node's list rows: node.items, else the type's minimum ("<list id>-1", ...). */
+function listItems(def, node) {
+    if (!def.list) return [];
+    if (Array.isArray(node?.items)) return node.items;
+    return Array.from({ length: listLimits(def.list).min }, (_, i) => `${def.list.id}-${i + 1}`);
+}
+
+/** A fresh id for a new list row of a node. */
+function nextListItem(def, node) {
+    const used = new Set(listItems(def, node));
+    let n = used.size + 1;
+    while (used.has(`${def.list.id}-${n}`)) n++;
+    return `${def.list.id}-${n}`;
+}
+
+/**
+ * The rows of a node type definition, top to bottom: outputs, fields, inputs, list rows. The list rows
+ * depend on the node (node.items); without a node: the type's minimum.
+ */
+function rowsOf(def = {}, node = null) {
+    const list = def.list;
     return [
         ...(def.outputs || []).map(p => ({ kind: "out",   ...p, handle: `out-${p.id}` })),
         ...(def.fields  || []).map(f => ({ kind: "field", ...f })),
-        ...(def.inputs  || []).map(p => ({ kind: "in",    ...p, handle: `in-${p.id}` }))
+        ...(def.inputs  || []).map(p => ({ kind: "in",    ...p, handle: `in-${p.id}` })),
+        ...listItems(def, node).map((id, i) => {
+            const row = { id, label: `${list.label || list.id} ${i + 1}`, type: list.type, value: list.value ?? "", listItem: true };
+            return list.port === false || !list.type ? { kind: "field", ...row } : { kind: "in", ...row, handle: `in-${id}` };
+        })
     ];
 }
 
-/** Default size of a node type definition: fixed width, height from its rows. */
-function sizeOf(def) {
-    return { width: NODE_WIDTH, height: HEADER + PAD_Y * 2 + rowsOf(def).length * ROW };
+/** Size of a node of a type definition: the type's width (default NODE_WIDTH), height from its rows. */
+function sizeOf(def, node = null) {
+    return { width: def.width || NODE_WIDTH, height: HEADER + PAD_Y * 2 + rowsOf(def, node).length * ROW };
 }
 
 /** Vertical centre of row i of a node. */
@@ -238,9 +291,9 @@ function valueBox(engine, node, row, i) {
 }
 
 /** The default values of a node type definition: { [fieldId]: value } for fields and inputs with a value. */
-function defaultValues(def) {
+function defaultValues(def, node = null) {
     const values = {};
-    for (const row of rowsOf(def)) {
+    for (const row of rowsOf(def, node)) {
         if (row.kind !== "out" && row.value !== undefined) values[row.id] = row.value;
     }
     return values;
@@ -275,7 +328,7 @@ function drawNode(catalog, node, engine, compact = false) {
 
     // Smaller than its rows need (a toolbar icon, appendTypePreview): draw it full size, scaled down,
     // with the ports but without text.
-    const full = sizeOf(def);
+    const full = sizeOf(def, node);
     if (!compact && node.height < full.height - 1) {
         const scale = node.height / full.height;
         const icon  = svgEl("g", { transform: `translate(${node.x} ${node.y}) scale(${scale})` });
@@ -303,7 +356,7 @@ function drawNode(catalog, node, engine, compact = false) {
         fill: header, "pointer-events": "none"
     }));
 
-    rowsOf(def).forEach((row, i) => {
+    rowsOf(def, node).forEach((row, i) => {
         const cy  = rowY(node, i);
         const box = valueBox(engine, node, row, i);
 
@@ -368,12 +421,22 @@ function createTheme(catalog) {
  * (for a host's own node types).
  */
 export function nodeEditorNode(type, id, x, y, values = undefined, catalog = null) {
-    const def = (catalog ? createCatalog(catalog) : DEFAULT_CATALOG).nodeTypes[type] || {};
+    const def  = (catalog ? createCatalog(catalog) : DEFAULT_CATALOG).nodeTypes[type] || {};
+    const node = { id, type, x, y };
+
+    // List rows: as many as the given values fill ("<list id>-1", ...), at least the type's minimum.
+    if (def.list) {
+        const { min, max } = listLimits(def.list);
+        const prefix = `${def.list.id}-`;
+        const given  = Object.keys(values || {}).filter(key => key.startsWith(prefix)).length;
+        node.items = Array.from({ length: Math.min(max, Math.max(min, given)) }, (_, i) => `${prefix}${i + 1}`);
+    }
+
     return {
-        id, type, x, y,
-        ...sizeOf(def),
+        ...node,
+        ...sizeOf(def, node),
         label: def.title || type,
-        values: { ...defaultValues(def), ...(values || {}) }
+        values: { ...defaultValues(def, node), ...(values || {}) }
     };
 }
 
@@ -391,12 +454,16 @@ export function nodeEditorLink(id, sourceNodeId, output, targetNodeId, input) {
 
 /**
  * @param {object} [options]  the catalog (see the top of this file): nodeTypes, dataTypes, categories,
- *                            includeDefaults — objects or JSON text
+ *                            includeDefaults — objects or JSON text; allowCycles — true or data types
  */
 export function createNodeEditorDefinition(options = {}) {
-    const catalog = createCatalog(options);
-    const typeDef = type => catalog.nodeTypes[type] || {};
-    const rows    = node => rowsOf(typeDef(node.type));
+    const catalog  = createCatalog(options);
+    const mayCycle = createCycleRule(options.allowCycles);
+    const typeDef  = type => catalog.nodeTypes[type] || {};
+    const rows     = node => rowsOf(typeDef(node.type), node);
+
+    // A node's height follows its rows (list rows come and go).
+    const fitHeight = node => { node.height = sizeOf(typeDef(node.type), node).height; };
 
     return {
         id: "nodeeditor",
@@ -420,15 +487,21 @@ export function createNodeEditorDefinition(options = {}) {
             return sizeOf(typeDef(type));
         },
 
-        // A new node starts with its default values (so editing a value starts from what is shown).
+        // A new node starts with its default values (so editing a value starts from what is shown) and,
+        // for a type with a list, its first list rows.
         onNodeCreated(node) {
-            node.values = { ...defaultValues(typeDef(node.type)), ...(node.values || {}) };
+            const def = typeDef(node.type);
+            if (def.list && !Array.isArray(node.items)) {
+                node.items = listItems(def, null).slice();
+                fitHeight(node);
+            }
+            node.values = { ...defaultValues(def, node), ...(node.values || {}) };
         },
 
         // Width only: the height follows from the rows.
         getResizeRules(node) {
-            const { height } = sizeOf(typeDef(node.type));
-            return { minWidth: 150, maxWidth: 420, minHeight: height, maxHeight: height, handles: ["e", "w"] };
+            const { width, height } = sizeOf(typeDef(node.type), node);
+            return { minWidth: 150, maxWidth: Math.max(420, width), minHeight: height, maxHeight: height, handles: ["e", "w"] };
         },
 
         // The title in the header strip.
@@ -457,8 +530,8 @@ export function createNodeEditorDefinition(options = {}) {
                     direction: isOut ? "out" : "in",
                     dataType:  row.type,
                     label:     row.label,
-                    // An input takes one link; a new one replaces it.
-                    ...(isOut ? {} : { max: 1, onFull: "replace" })
+                    // An input takes one link (a new one replaces it), unless it takes several.
+                    ...(isOut || row.multiple ? {} : { max: 1, onFull: "replace" })
                 };
             });
             return ports;
@@ -480,11 +553,17 @@ export function createNodeEditorDefinition(options = {}) {
             return catalog.dataTypes[type] ? type : "link";
         },
 
-        // Directions, data types and one link per input come from the ports; what is left: no cycles.
-        canConnect({ source, target, edge }, engine) {
+        // Directions, data types and one link per input come from the ports; what is left: no cycles,
+        // except through links whose data type is in allowCycles (those don't count as a way back either).
+        canConnect({ source, target, sourceHandle, edge }, engine) {
+            const dataTypeOf = (node, handle) => engine.getPort(node, handle)?.dataType;
+            if (mayCycle(dataTypeOf(source, sourceHandle))) return true;
+
             const next = new Map();
             for (const e of engine.model.edges) {
                 if (e.id === edge?.id) continue;
+                const from = engine.getNode(e.sourceNodeId);
+                if (from && mayCycle(dataTypeOf(from, e.sourceHandle))) continue;
                 if (!next.has(e.sourceNodeId)) next.set(e.sourceNodeId, []);
                 next.get(e.sourceNodeId).push(e.targetNodeId);
             }
@@ -528,8 +607,82 @@ export function createNodeEditorDefinition(options = {}) {
             return null;
         },
 
-        getContextActions() {
-            return [{ type: "deleteNode", label: "Verwijderen" }];
+        getContextActions(node) {
+            const actions = [];
+            const def     = typeDef(node.type);
+
+            // List rows: add one, or remove one of them (not below the minimum).
+            if (def.list) {
+                const items      = listItems(def, node);
+                const { min, max } = listLimits(def.list);
+                const name       = def.list.label || def.list.id;
+                const list       = rows(node).filter(row => row.listItem);
+
+                if (items.length < max) {
+                    actions.push({ type: "neAddItem", label: `${name} toevoegen`, icon: "plus" });
+                }
+                if (items.length > min) {
+                    actions.push({
+                        type: "group", label: `${name} verwijderen`, icon: "delete",
+                        children: list.map(row => {
+                            const value = valueOf(node, row);
+                            return { type: "neRemoveItem", itemId: row.id, label: value ? `${row.label}: ${value}` : row.label };
+                        })
+                    });
+                }
+            }
+
+            actions.push({ type: "deleteNode", label: "Verwijderen" });
+            return actions;
+        },
+
+        handleAction(action, node, engine) {
+            const def = typeDef(node.type);
+            if (!def.list) return false;
+
+            switch (action.type) {
+                case "neAddItem": {
+                    const items = listItems(def, node);
+                    if (items.length >= listLimits(def.list).max) return false;
+
+                    const id = nextListItem(def, node);
+                    node.items  = [...items, id];
+                    node.values = { ...(node.values || {}), [id]: def.list.value ?? "" };
+                    fitHeight(node);
+
+                    // Type the new row's value straight away (once the node is drawn at its new height).
+                    setTimeout(() => {
+                        const list = rows(node);
+                        const i    = list.findIndex(row => row.id === id);
+                        const box  = i >= 0 && engine.getNode(node.id) ? valueBox(engine, node, list[i], i) : null;
+                        if (!box || engine.state.editingLabel) return;
+                        engine.startInlineLabelEdit("node", node.id, {
+                            field: `values.${id}`,
+                            box: {
+                                centerX: box.x + box.width / 2, centerY: box.y + box.height / 2,
+                                width: box.width, height: box.height, fontSize: FONT_SIZE, lineHeight: FONT_SIZE * 1.25
+                            }
+                        });
+                    }, 0);
+                    return true;
+                }
+
+                case "neRemoveItem": {
+                    const items = listItems(def, node);
+                    if (!items.includes(action.itemId) || items.length <= listLimits(def.list).min) return false;
+
+                    node.items = items.filter(id => id !== action.itemId);
+                    if (node.values) delete node.values[action.itemId];
+                    // Its link goes with it.
+                    engine.model.edges = engine.model.edges.filter(e =>
+                        !(e.targetNodeId === node.id && e.targetHandle === `in-${action.itemId}`));
+                    fitHeight(node);
+                    return true;
+                }
+
+                default:
+                    return false;
+            }
         }
     };
 }

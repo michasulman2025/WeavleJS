@@ -12,6 +12,26 @@
   previews the new line to the highlighted card instead, and shows no line over empty space.
 
 ### Added
+- **Edge tools**: a selected edge (flowchart, BPMN, node editor) gets a tool surface — "Stijl" (theme presets; with
+  `allowCustomStyles` also line style solid / dashed / dotted / dash-dot, width, line and label colour), "Automatisch
+  routeren", "Label terugzetten" and delete.
+- **Manual routes**: a selected orthogonal edge shows a handle on each inner segment (also for automatic routes); dragging
+  one (snapped to the grid with `snapToGrid`) makes the route manual. A manual route keeps its shape when nodes move or the
+  model is loaded again — only its two ends follow the ports.
+- **Edge labels** can be dragged (`edge.labelOffset`) and have a semi-transparent background in the canvas colour
+  (`.weavle-edge-label-bg`).
+- **Line jumps**: orthogonal lines hop over the lines they cross with a small arc (`lineJumps`, default on, `lineJumpRadius`).
+- **Copy / paste** (Ctrl+C / Ctrl+V) of the selected nodes with their contents and the edges between them, also between
+  editors of the same diagram type; only where nodes are placed by hand. Hook `diagram.canCopyNode`.
+- Node editor: **list rows** — a node type with `list: { id, label, type, value, min, max, port }` gets rows the user
+  adds ("<label> toevoegen") and removes ("<label> verwijderen") through the node tools, e.g. a list of conditions. Each
+  row is an input of `type` with a value box (typed while not connected, fed by a link otherwise); `port: false` makes
+  them plain fields. The node keeps its rows in `node.items` (ids `<list id>-<n>`, values in `node.values`) and grows
+  with them; `nodeEditorNode` makes as many rows as the given values fill. Node types may set an own `width`.
+- Node editor: option **`allowCycles`** (`true`, or data types such as `["flow"]`): links of those data types may close
+  a cycle (rework loops in a workflow); the other links still may not, and allowed links don't count as a way back.
+  Input ports with `multiple: true` take more than one link (a step reached from several places) instead of replacing
+  the old one.
 - Node editor: **own node types** — `createNodeEditorDefinition({ nodeTypes, dataTypes, categories, includeDefaults })`
   (objects or JSON text; OutSystems `diagramOptions`) adds to or replaces the built-in catalog. Node types may have an
   own header `color`; types without a known category go to the palette group "Overig"; port type `"any"` links get the

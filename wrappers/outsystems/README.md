@@ -149,6 +149,8 @@ Each is a client action of the block with one JavaScript node (input `ContainerI
 | `Clear` | `Weavle.getInstance($parameters.ContainerId).clear();` |
 | `AddNode` (in: `Type`, `Label`; out: `NodeId`) | `$parameters.NodeId = Weavle.getInstance($parameters.ContainerId).addNode($parameters.Type, $parameters.Label);` |
 | `SetNodeLabel` (in: `NodeId`, `Label`) | `Weavle.getInstance($parameters.ContainerId).setNodeLabel($parameters.NodeId, $parameters.Label);` |
+| `GetNode` (in: `NodeId`; out: `NodeJson`) | `$parameters.NodeJson = Weavle.getInstance($parameters.ContainerId).getNode($parameters.NodeId);` |
+| `UpdateNode` (in: `NodeId`, `PatchJson`) | `Weavle.getInstance($parameters.ContainerId).updateNode($parameters.NodeId, $parameters.PatchJson);` |
 | `SelectNode` (in: `NodeId`) | `Weavle.getInstance($parameters.ContainerId).selectNode($parameters.NodeId);` |
 | `GetModel` (out: `ModelJson`) | `$parameters.ModelJson = Weavle.getInstance($parameters.ContainerId).getModel();` |
 | `SetDiagramType` (in: `DiagramType`) | `Weavle.getInstance($parameters.ContainerId).setDiagramType($parameters.DiagramType);` |
@@ -209,10 +211,18 @@ model JSON from `OnModelChanged` is the whole graph — store it as text (sectio
   `{ id, label, type, value? }`. An input with a `value` shows a value box while it is not connected. Port type
   `"any"` fits every data type. `"includeDefaults": false` leaves only your own catalog. Same-named entries replace the
   built-in ones.
+- **Lists**: a node type with `"list": { "id": "condition", "label": "Conditie", "type": "boolean", "value": "", "min": 1,
+  "max": 20 }` gets rows the user adds and removes through the node tools ("Conditie toevoegen" / "Conditie verwijderen").
+  Each row has a value box (e.g. `Emergency = False`) and an input port: a link from a `boolean` output replaces the
+  typed value. The rows are in `node.items`, their values in `node.values`. `"width": 300` makes a node type wider.
+- **Workflows with loops**: `"allowCycles": ["flow"]` lets links of data type `flow` go back to an earlier node (rework
+  after a rejection), while the other links stay free of cycles (`true` allows every cycle). An input with
+  `"multiple": true` takes several links, e.g. a step reached both from the previous step and from a rejection.
 - Values typed into a node (double-click a value box) are in `node.values`, e.g. `{"a": 10, "b": 3}`; a link is an
   edge from `out-<port>` to `in-<port>` (`sourceHandle` / `targetHandle`). Read them after `JSONDeserialize` if your
   logic needs them.
-- Rules: output → input only, matching data types, one link per input (a new link replaces the old one), no cycles.
+- Rules: output → input only, matching data types, one link per input (a new link replaces the old one) unless the
+  input has `"multiple": true`, no cycles unless `allowCycles` allows them.
   A refused connection shows the reason at the cursor; to hear about it in OutSystems, pass
   `onConnectionRefused: function (reason, detailJson) { ... }` in `mount`.
 - The playground sample "Node-editor" shows a small page logic (`src/samples/nodeeditor-page-logic.js`).
@@ -322,6 +332,8 @@ chart are the next step — see ARCHITECTURE.md, section 6 "Pedigree".
 | `setTheme(themeJson)` | House style (node / edge colours, font, editor colours; see ARCHITECTURE.md 7.4); `""` = none. Also as `options.theme` |
 | `addNode(type, label?)` | Adds a node on a free spot in view; returns its id |
 | `setNodeLabel(nodeId, label)` | One undo step |
+| `getNode(nodeId)` | The node as JSON, `""` if it doesn't exist — e.g. to fill a property panel |
+| `updateNode(nodeId, patchJson)` | Changes node properties in place (shallow merge, `null` removes a field; `id`, `type` and geometry are ignored). One undo step; selection, zoom and collapsed state stay — unlike `setModel`, which reloads and clears undo |
 | `selectNode(nodeId)` | Empty id clears the selection |
 | `destroy()` | Removes the editor and all its listeners |
 | `editor` | The underlying `WeavleJS` instance |

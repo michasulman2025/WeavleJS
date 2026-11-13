@@ -360,6 +360,21 @@ export function mount(container, config = {}) {
             return true;
         },
 
+        /** A node as JSON text, or "" when there is no node with that id (e.g. to fill a property panel). */
+        getNode(nodeId) {
+            const node = editor.getNode(nodeId);
+            return node ? JSON.stringify(node) : "";
+        },
+
+        /**
+         * Changes a node's properties without reloading the diagram: one undo step, selection, zoom and
+         * collapsed state stay. patch = JSON text or object, merged shallowly; null removes a property.
+         * id, type and geometry are ignored. Returns false when nothing changed.
+         */
+        updateNode(nodeId, patch) {
+            return editor.updateNode(nodeId, parseJson(patch));
+        },
+
         /** Selects a node (or clears the selection with an empty id). */
         selectNode(nodeId) {
             if (nodeId && editor.getNode(nodeId)) {

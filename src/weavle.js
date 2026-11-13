@@ -38,8 +38,32 @@ function setFieldValue(object, path, value) {
     target[last] = value;
 }
 
+/**
+ * What copy (Ctrl+C) took: { diagramType, nodes, edges, pastes }. Shared by all editors on the page, so a
+ * selection can be pasted into another editor of the same diagram type.
+ */
+let clipboard = null;
+
+/** Dash patterns of the edge style menu: label, SVG stroke-dasharray ("none" = solid, even over a dashed type). */
+const EDGE_DASH_CHOICES = [
+    { label: "Doorlopend",  dash: "none" },
+    { label: "Gestreept",   dash: "8,5" },
+    { label: "Gestippeld",  dash: "2,4" },
+    { label: "Streep-punt", dash: "10,4,2,4" }
+];
+
+/** Line widths of the edge style menu. */
+const EDGE_WIDTH_CHOICES = [
+    { label: "Dun",    width: 1 },
+    { label: "Normaal", width: 1.5 },
+    { label: "Dik",    width: 3 }
+];
+
 /** The side facing the other way (for the free end of a curve that follows the cursor). */
 const OPPOSITE_SIDE = { top: "bottom", right: "left", bottom: "top", left: "right" };
+
+/** Node fields updateNode() leaves alone: identity, geometry and structure have their own paths. */
+const PROTECTED_NODE_KEYS = new Set(["id", "type", "x", "y", "width", "height", "parentId", "attachedToId"]);
 
 const THEME_UI_CSS_VARS = {
     selection:        ["--weavle-selection-color"],
@@ -135,6 +159,8 @@ export class WeavleJS {
             layoutDirection: null,     // "LR" | "TB" — flow direction; null = diagram.getLayoutConfig().direction
             theme: null,               // house style: node / edge styles, font, editor colours (ARCHITECTURE.md 7.4)
             allowCustomStyles: false,  // node.style / edge.style may carry own colours; false = theme presets only
+            lineJumps: true,           // orthogonal lines hop over lines they cross (a small arc); false = plain crossings
+            lineJumpRadius: 5,         // radius of such a hop
         }, options);
 
         // The diagram definition drives node types, port layout, routing and context actions.
@@ -172,6 +198,10 @@ export class WeavleJS {
             draggingSegmentStartMouseX: 0,
             draggingSegmentStartMouseY: 0,
             draggingSegmentOriginalPoints: null,
+
+            draggingLabelEdgeId: null,   // edge whose label is being dragged
+            labelDragStart: null,        // { mouseX, mouseY, offsetX, offsetY, moved }
+            nodeToolEdgeId: null,        // edge the open tool surface belongs to (null: it belongs to a node)
 
             reconnectingEdgeId: null,
             reconnectingSide: null,
@@ -546,6 +576,38 @@ export class WeavleJS {
         node.y      = cy - size.height / 2;
 
         this.finishNodeResize(node, previousRect);
+        return true;
+    }
+
+    /**
+     * Changes a node's properties (e.g. from a property panel) as one undo step; emits weavle:modelchanged.
+     * patch is merged shallowly: a key with null removes the property, nested objects are replaced whole.
+     * id, type, geometry and structure (x, y, width, height, parentId, attachedToId) are ignored — use
+     * setNodeSize or the canvas for those. Selection, zoom and collapsed state stay as they are.
+     * @returns {boolean} false if the node doesn't exist or nothing changed
+     */
+    updateNode(nodeId, patch) {
+        const node = this.getNode(nodeId);
+        if (!node || !patch || typeof patch !== "object") return false;
+
+        let changed = false;
+        for (const [key, value] of Object.entries(patch)) {
+            if (PROTECTED_NODE_KEYS.has(key)) continue;
+            if (value === null || value === undefined) {
+                if (!(key in node)) continue;
+                delete node[key];
+            } else {
+                if (JSON.stringify(node[key]) === JSON.stringify(value)) continue;
+                node[key] = JSON.parse(JSON.stringify(value));
+            }
+            changed = true;
+        }
+
+        if (!changed) return false;
+
+        this.pushHistory();
+        this.emitModelChanged();
+        this.render();
         return true;
     }
 
@@ -957,6 +1019,9 @@ export class WeavleJS {
         const normalEdges = this.model.edges.filter(e => e.id !== selectedEdgeId);
         const selectedEdges = this.model.edges.filter(e => e.id === selectedEdgeId);
 
+        // Pass 1: where every visible edge runs right now (so pass 2 can hop over the crossings).
+        const drawn = [];
+
         [...normalEdges, ...selectedEdges].forEach(edge => {
 
             const sourceNode = this.model.nodes.find(n => n.id === edge.sourceNodeId);
@@ -1003,9 +1068,15 @@ export class WeavleJS {
                 return;
             }
             
-            //this.debug ("points:", points);
+            drawn.push({ edge, points, sourcePoint, targetPoint });
+        });
+
+        const jumpSources = this.getLineJumpSources(drawn);
+
+        // Pass 2: draw them.
+        drawn.forEach(({ edge, points, sourcePoint, targetPoint }) => {
             
-            const pathData = this.buildEdgePathData(points, edge);
+            const pathData = this.buildEdgePathData(points, edge, this.getLineJumps(edge, jumpSources));
 
             const isSelected = edge.id === this.state.selectedEdgeId;
 
@@ -1022,7 +1093,7 @@ export class WeavleJS {
 
             //If edge has a label, we place it on the right spot..
             if (edge.label) {
-                const label = this.createEdgeLabelFromPoints(points, edge.label, this.getEdgeStyle(edge));
+                const label = this.createEdgeLabelFromPoints(points, edge.label, this.getEdgeStyle(edge), edge);
                 this.layers.edges.appendChild(label);
             }
 
@@ -1045,9 +1116,9 @@ export class WeavleJS {
                 this.layers.edges.appendChild(targetHandleCircle);
             }
 
-            const isEditableRoute = edge.isAutoRoute === false || this.isFallbackRoute(edge);
-
-            if (isSelected && isEditableRoute && Array.isArray(points) && points.length >= 2) {
+            // A selected orthogonal edge shows a handle on each inner segment: dragging one makes the
+            // route manual (see "Automatisch routeren" in the edge tools to go back).
+            if (isSelected && this.canEditEdgeRoute(edge) && Array.isArray(points) && points.length >= 2) {
                 const segmentHandles = this.getSegmentHandles(points);
 
                 segmentHandles.forEach(h => {
@@ -2085,7 +2156,7 @@ export class WeavleJS {
      * Creates an SVG text label placed near the middle of an edge.
      * For edges with 4+ points the label is placed at the midpoint of the middle segment.
      */
-    createEdgeLabelFromPoints(points, textValue, style = null) {
+    createEdgeLabelFromPoints(points, textValue, style = null, edge = null) {
         const NS   = "http://www.w3.org/2000/svg";
         const text = document.createElementNS(NS, "text");
 
@@ -2100,16 +2171,46 @@ export class WeavleJS {
             labelY = (points[0].y + points[points.length - 1].y) / 2;
         }
 
+        // The user may have dragged the label away from its default spot (edge.labelOffset).
+        labelX += edge?.labelOffset?.x || 0;
+        labelY += edge?.labelOffset?.y || 0;
+
+        const fontSize = 12;
+
         text.setAttribute("x",           labelX);
         text.setAttribute("y",           labelY - 6);
         text.setAttribute("text-anchor", "middle");
         text.setAttribute("class", "weavle-edge-label");
-        text.setAttribute("font-size", 12);
+        text.setAttribute("font-size", fontSize);
         text.setAttribute("fill", "#444");
         if (style) this.applyTextStyle(text, style);
         text.textContent    = textValue;
 
-        return text;
+        // A semi-transparent background (canvas colour, see .weavle-edge-label-bg) keeps the text readable
+        // where the line runs through it.
+        const width = this.measureLabelText(String(textValue), fontSize, style) + 8;
+        const back  = document.createElementNS(NS, "rect");
+        back.setAttribute("x",            labelX - width / 2);
+        back.setAttribute("y",            labelY - 6 - fontSize + 1);
+        back.setAttribute("width",        width);
+        back.setAttribute("height",       fontSize + 5);
+        back.setAttribute("rx",           3);
+        back.setAttribute("fill",         "#ffffff");
+        back.setAttribute("fill-opacity", "0.75");
+        back.setAttribute("class",        "weavle-edge-label-bg");
+
+        const group = document.createElementNS(NS, "g");
+        group.setAttribute("class", "weavle-edge-label-group");
+        if (edge?.id) group.setAttribute("data-edge-label-id", edge.id);
+        group.append(back, text);
+
+        return group;
+    }
+
+    /** Id of the edge whose label (group) the event target is part of, or null. */
+    findEdgeLabelAtEventTarget(target) {
+        const group = target?.closest ? target.closest("[data-edge-label-id]") : null;
+        return group ? group.getAttribute("data-edge-label-id") : null;
     }
 
     /** Creates a small draggable circle for a bend-point control handle on an edge. */
@@ -2189,11 +2290,8 @@ export class WeavleJS {
             nodeIds.includes(e.targetNodeId)
         );
 
-        affectedEdges.forEach(edge => {
-            if (edge.isAutoRoute !== false) {
-                this.updateEdgeRoute(edge);
-            }
-        });
+        // updateEdgeRoute re-routes automatic edges and re-anchors manual ones.
+        affectedEdges.forEach(edge => this.updateEdgeRoute(edge));
     }
 
     updateEdgeRoute(edge) {
@@ -2339,6 +2437,34 @@ export class WeavleJS {
         return this.simplify(fallback);
     }
 
+    /**
+     * Whether the user may draw this edge's route by hand: the edge is selectable and runs orthogonally
+     * (not a straight or curved type). Diagrams that route their lines themselves switch selectEdges off.
+     */
+    canEditEdgeRoute(edge) {
+        return !!edge &&
+            !this.options.readOnly &&
+            this.getInteraction().selectEdges &&
+            this.getEdgeTypeDefinition(edge).router === "orthogonal";
+    }
+
+    /** Gives a hand-drawn edge back to the automatic router. Records one undo step; false if it was automatic already. */
+    resetEdgeToAutoRoute(edgeId) {
+        const edge = this.model.edges.find(e => e.id === edgeId);
+        if (!edge || edge.isAutoRoute !== false) return false;
+
+        edge.isAutoRoute = true;
+        edge.routePoints = [];
+        edge.routingMeta = null;
+        delete edge.bendPoints;
+        this.updateEdgeRoute(edge);
+
+        this.pushHistory();
+        this.emit("weavle:modelchanged", { model: this.getData() });
+        this.render();
+        return true;
+    }
+
     getSegmentHandles(points) {
         const handles = [];
 
@@ -2393,8 +2519,6 @@ export class WeavleJS {
             return [];
         }
 
-        const cfg = this.getRoutingConfig(edge);
-
         const sourceNode = this.getNode(edge.sourceNodeId);
         const targetNode = this.getNode(edge.targetNodeId);
 
@@ -2402,43 +2526,32 @@ export class WeavleJS {
             return edge.routePoints || [];
         }
 
-        const sourcePoint = this.getHandlePoint(sourceNode, edge.sourceHandle);
-        const targetPoint = this.getHandlePoint(targetNode, edge.targetHandle);
+        // Keep the route the user drew; only its two ends follow the ports. The first and last segment keep
+        // their direction (out of the port), so the neighbouring corner slides along — and so does every
+        // segment that runs in line with it.
+        const old = edge.routePoints.map(p => ({ x: p.x, y: p.y }));
+        const out = old.map(p => ({ ...p }));
+        const n   = out.length;
 
-        const sourceExit = this.getHandleExitPoint(
-            sourcePoint,
-            edge.sourceHandle,
-            cfg.stubLength
-        );
+        out[0]     = { ...this.getHandlePoint(sourceNode, edge.sourceHandle) };
+        out[n - 1] = { ...this.getHandlePoint(targetNode, edge.targetHandle) };
 
-        const targetExit = this.getHandleExitPoint(
-            targetPoint,
-            edge.targetHandle,
-            cfg.stubLength
-        );
+        const anchor = (end, next, step, node, handle) => {
+            const side = this.getPortSide(node, handle);
+            const axis = side === "left" || side === "right" ? "y" : "x";   // the coordinate the first segment keeps
+            const value = out[end][axis];
 
-        const internal = edge.routePoints.slice(2, -2);
-
-        let points = [sourcePoint, sourceExit];
-
-        if (internal.length === 0) {
-            points.push(...this.buildOrthogonalJoin(sourceExit, targetExit).slice(1));
-        } else {
-            points.push(...this.buildOrthogonalJoin(sourceExit, internal[0]).slice(1));
-
-            if (internal.length > 1) {
-                points.push(...internal.slice(1, -1));
+            for (let i = next; i > 0 && i < n - 1; i += step) {
+                out[i][axis] = value;
+                // Carry on while the next segment runs along the same line (it shared this coordinate).
+                if (old[i + step]?.[axis] !== old[i][axis]) break;
             }
+        };
 
-            points.push(...this.buildOrthogonalJoin(
-                internal[internal.length - 1],
-                targetExit
-            ).slice(1));
-        }
+        anchor(0,     1,     1,  sourceNode, edge.sourceHandle);
+        anchor(n - 1, n - 2, -1, targetNode, edge.targetHandle);
 
-        points.push(targetPoint);
-
-        return this.simplify(points);
+        return this.simplify(out);
     }
 
 
@@ -3159,12 +3272,38 @@ export class WeavleJS {
      * SVG path data for an edge's points: a cubic curve for a bezier edge type (four points from
      * buildBezierRoute), otherwise the rounded orthogonal path. edge may be an edge or { type }.
      */
-    buildEdgePathData(points, edge = null) {
+    buildEdgePathData(points, edge = null, jumps = null) {
         if (points?.length === 4 && this.getEdgeTypeDefinition(edge).router === "bezier") {
             const [a, c1, c2, b] = points;
             return `M ${a.x} ${a.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${b.x} ${b.y}`;
         }
-        return this.buildRoundedOrthogonalPath(points, this.options.edgeCornerRadius);
+        return this.buildRoundedOrthogonalPath(points, this.options.edgeCornerRadius, jumps);
+    }
+
+    /**
+     * The vertical line segments of all drawn orthogonal edges ({ edgeId, x, y1, y2 }), which the horizontal
+     * segments of the other edges hop over (options.lineJumps). `drawn` = [{ edge, points }].
+     */
+    getLineJumpSources(drawn) {
+        if (this.options.lineJumps === false) return [];
+
+        const sources = [];
+        drawn.forEach(({ edge, points }) => {
+            if (this.getEdgeTypeDefinition(edge).router !== "orthogonal") return;
+
+            for (let i = 0; i < points.length - 1; i++) {
+                const a = points[i];
+                const b = points[i + 1];
+                if (a.x === b.x && a.y !== b.y) sources.push({ edgeId: edge.id, x: a.x, y1: Math.min(a.y, b.y), y2: Math.max(a.y, b.y) });
+            }
+        });
+        return sources;
+    }
+
+    /** The segments `edge` hops over: those of the other edges (null when it does not hop, e.g. curves). */
+    getLineJumps(edge, sources) {
+        if (!sources.length || this.getEdgeTypeDefinition(edge).router !== "orthogonal") return null;
+        return sources.filter(s => s.edgeId !== edge.id);
     }
 
     /**
@@ -3172,16 +3311,43 @@ export class WeavleJS {
      * Each interior corner is replaced by a quadratic bezier arc of the given radius,
      * capped at half the length of each adjacent segment.
      */
-    buildRoundedOrthogonalPath(points, radius) {
+    buildRoundedOrthogonalPath(points, radius, jumps = null) {
         this.debug("buildRoundedOrthogonalPath points:", points, radius);
 
         if (!points || points.length < 2) return "";
 
+        // A straight run from a to b. A horizontal run hops over the vertical segments in `jumps`
+        // (a small arc, so it reads as passing over / under the other line).
+        const hop = jumps?.length ? this.options.lineJumpRadius : 0;
+        const margin = Math.max(hop, radius);   // keep clear of the other line's ends and its rounded corners
+
+        const run = (a, b) => {
+            if (!hop || a.y !== b.y || a.x === b.x) return ` L ${b.x} ${b.y}`;
+
+            const dir = b.x > a.x ? 1 : -1;
+            const lo  = Math.min(a.x, b.x) + hop;
+            const hi  = Math.max(a.x, b.x) - hop;
+            const xs  = jumps
+                .filter(j => j.x > lo && j.x < hi && a.y > j.y1 + margin && a.y < j.y2 - margin)
+                .map(j => j.x)
+                .sort((p, q) => (p - q) * dir);
+
+            let d    = "";
+            let prev = null;
+            for (const x of xs) {
+                if (prev !== null && Math.abs(x - prev) < 2 * hop + 2) continue;   // too close for two arcs
+                prev = x;
+                d += ` L ${x - dir * hop} ${a.y} A ${hop} ${hop} 0 0 ${dir > 0 ? 1 : 0} ${x + dir * hop} ${a.y}`;
+            }
+            return d + ` L ${b.x} ${b.y}`;
+        };
+
         if (points.length === 2) {
-            return `M ${points[0].x} ${points[0].y} L ${points[1].x} ${points[1].y}`;
+            return `M ${points[0].x} ${points[0].y}` + run(points[0], points[1]);
         }
 
-        let d = `M ${points[0].x} ${points[0].y}`;
+        let d   = `M ${points[0].x} ${points[0].y}`;
+        let cur = points[0];
 
         for (let i = 1; i < points.length - 1; i++) {
 
@@ -3199,6 +3365,7 @@ export class WeavleJS {
 
             if (len1 === 0 || len2 === 0) {
                 d += ` L ${curr.x} ${curr.y}`;
+                cur = curr;
                 continue;
             }
 
@@ -3214,12 +3381,12 @@ export class WeavleJS {
                 y: curr.y + (dy2 / len2) * r
             };
 
-            d += ` L ${p1.x} ${p1.y}`;
+            d += run(cur, p1);
             d += ` Q ${curr.x} ${curr.y} ${p2.x} ${p2.y}`;
+            cur = p2;
         }
 
-        const last = points[points.length - 1];
-        d += ` L ${last.x} ${last.y}`;
+        d += run(cur, points[points.length - 1]);
 
         return d;
     }
@@ -4663,7 +4830,12 @@ export class WeavleJS {
             return { x: 0, y: 0 };
         }
 
-        return this.getEdgeMiddlePoint(points);
+        const middle = this.getEdgeMiddlePoint(points);
+
+        return {
+            x: middle.x + (edge.labelOffset?.x || 0),
+            y: middle.y + (edge.labelOffset?.y || 0)
+        };
     }
 
     /** Returns true if the canvas point {x, y} is within the canvas bounds. */
@@ -5488,6 +5660,11 @@ export class WeavleJS {
             add("circle", { cx: 27, cy: 14, r: 2.4, fill: "currentColor" });
         } else if (action.stylePreview) {
             this.appendStyleSwatch(svg, action.stylePreview);
+        } else if (action.linePreview) {
+            // A sample of a line style (edge "Stijl" menu): the dash pattern / width, scaled up for the small icon.
+            const { dash, width } = action.linePreview;
+            const pattern = dash && dash !== "none" ? dash.split(",").map(v => Number(v) * 1.6).join(",") : "none";
+            add("path", { d: "M 3 20 L 37 20", fill: "none", stroke: "currentColor", "stroke-width": width ?? 2.4, "stroke-dasharray": pattern });
         } else if (icon === "branch") {
             // A line with a slanted twig and a small plus: "add a sub-item".
             add("path", { d: "M 4 30 L 36 30 M 12 30 L 4 16", fill: "none", stroke: "currentColor", "stroke-width": 2.5, "stroke-linecap": "round" });
@@ -5618,6 +5795,7 @@ export class WeavleJS {
         }
 
         this.state.nodeToolNodeId = null;
+        this.state.nodeToolEdgeId = null;
     }
 
     /**
@@ -5625,6 +5803,15 @@ export class WeavleJS {
      * Handy for future pan/zoom/selection refresh scenarios.
      */
     refreshNodeToolSurface() {
+        // The open tools belong to an edge: rebuild them for it (gone or deselected: close).
+        const edgeId = this.state.nodeToolEdgeId;
+        if (edgeId) {
+            const edge = this.model.edges.find(e => e.id === edgeId);
+            if (edge && this.state.selectedEdgeId === edgeId) this.renderEdgeToolSurface(edge);
+            else this.clearNodeToolSurface();
+            return;
+        }
+
         const nodeId = this.state.nodeToolNodeId;
         if (!nodeId) return;
 
@@ -5722,6 +5909,141 @@ export class WeavleJS {
         }
 
         return { type: "group", label: "Stijl", icon: "style", children };
+    }
+
+    // ------------------------------------------------------------
+    // Edge tools: the floating surface next to a selected edge (style, automatic route, label, delete)
+    // ------------------------------------------------------------
+
+    /** Opens the tool surface of an edge next to the middle of its route (replaces any open surface). */
+    renderEdgeToolSurface(edge) {
+        this.clearNodeToolSurface();
+        if (!edge || this.options.readOnly || !this.getInteraction().selectEdges) return;
+
+        const actions = this.getEdgeContextActions(edge);
+        if (!actions.length) return;
+
+        const surfaceEl = this.createToolSurfaceShell(edge, "action-surface");
+        const run       = action => this.handleEdgeAction(action, edge.id);
+        const main      = actions.filter(a => !a.danger);
+        const danger    = actions.filter(a => a.danger);
+
+        main.forEach(action => surfaceEl.appendChild(this.createToolButton(action, edge, surfaceEl, run)));
+
+        if (main.length && danger.length) {
+            const separator = document.createElement("div");
+            separator.className = "weavle-tool-separator";
+            surfaceEl.appendChild(separator);
+        }
+
+        danger.forEach(action => surfaceEl.appendChild(this.createToolButton(action, edge, surfaceEl, run)));
+
+        const middle = this.getEdgeMiddlePoint(edge.routePoints || []);
+        const view   = this.modelToView(middle.x, middle.y);
+        surfaceEl.style.left = `${view.x + 12}px`;
+        surfaceEl.style.top  = `${view.y - 40}px`;
+
+        this.uiLayer.appendChild(surfaceEl);
+
+        this.nodeToolEl = surfaceEl;
+        this.state.nodeToolEdgeId = edge.id;
+    }
+
+    /** The edge tools: style, "Automatisch routeren" (hand-drawn routes), "Label terugzetten", delete. */
+    getEdgeContextActions(edge) {
+        const actions = [];
+
+        const style = this.getEdgeStyleAction(edge);
+        if (style) actions.push(style);
+
+        if (this.canEditEdgeRoute(edge) && edge.isAutoRoute === false) {
+            actions.push({ type: "autoRoute", label: "Automatisch routeren", icon: "tidyEdges" });
+        }
+
+        if (edge.label && edge.labelOffset) {
+            actions.push({ type: "resetLabel", label: "Label terugzetten", icon: "edit" });
+        }
+
+        actions.push({ type: "deleteEdge", label: "Verwijderen", icon: "delete", danger: true });
+        return actions;
+    }
+
+    /**
+     * The "Stijl" tool of an edge: "Standaard" plus the theme's presets; with options.allowCustomStyles also
+     * line style (solid, dashed, dotted, dash-dot), width and colours. Null when there is nothing to choose.
+     */
+    getEdgeStyleAction(edge) {
+        const presets = Object.entries(this.getPresets());
+        const custom  = !!this.options.allowCustomStyles;
+        if (!presets.length && !custom) return null;
+
+        const own      = edge.style || {};
+        const ownProps = Object.keys(pickStyle(own)).length > 0;
+        const resolved = this.getEdgeStyle(edge);
+
+        const children = [
+            { type: "setEdgeStyle", style: null, label: "Standaard", active: !edge.style },
+            ...presets.map(([name, preset]) => ({
+                type: "setEdgeStyle", style: { preset: name }, label: preset.label || name,
+                active: own.preset === name && !ownProps
+            }))
+        ];
+
+        if (custom) {
+            children.push(
+                { type: "heading", label: "Lijnstijl" },
+                ...EDGE_DASH_CHOICES.map(c => ({
+                    type: "setEdgeStyle", property: "dash", value: c.dash, label: c.label,
+                    linePreview: { dash: c.dash }, active: (own.dash ?? null) === c.dash
+                })),
+                { type: "heading", label: "Dikte" },
+                ...EDGE_WIDTH_CHOICES.map(c => ({
+                    type: "setEdgeStyle", property: "strokeWidth", value: c.width, label: c.label,
+                    linePreview: { dash: "none", width: c.width * 1.6 }, active: own.strokeWidth === c.width
+                })),
+                { type: "heading", label: "Kleuren" },
+                { type: "setEdgeStyle", input: "color", property: "stroke",    label: "Lijn",  value: toHexColor(resolved.stroke) },
+                { type: "setEdgeStyle", input: "color", property: "textColor", label: "Label", value: toHexColor(resolved.textColor || "#444444") }
+            );
+        }
+
+        return { type: "group", label: "Stijl", icon: "style", children };
+    }
+
+    /** Runs an action of the edge tools on the edge with this id. */
+    handleEdgeAction(action, edgeId) {
+        const edge = this.model.edges.find(e => e.id === edgeId);
+        if (!edge || !action) return;
+
+        if (action.type === "setEdgeStyle") {
+            const style = action.property ? { ...(edge.style || {}), [action.property]: action.value } : action.style;
+            this.setEdgeStyle(edge.id, style);   // one undo step, notifies, redraws
+            return;
+        }
+
+        if (action.type === "autoRoute") {
+            this.resetEdgeToAutoRoute(edge.id);
+            return;
+        }
+
+        if (action.type === "resetLabel") {
+            delete edge.labelOffset;
+            this.pushHistory();
+            this.emit("weavle:modelchanged", { model: this.getData() });
+            this.render();
+            return;
+        }
+
+        if (action.type === "deleteEdge") {
+            this.model.edges = this.model.edges.filter(e => e.id !== edge.id);
+            this.state.selectedEdgeId = null;
+            this.clearNodeToolSurface();
+
+            this.pushHistory();
+            this.emitSelectionChanged();
+            this.emit("weavle:modelchanged", { model: this.getData() });
+            this.render();
+        }
     }
 
     getNodeToolRenderer(node) {
@@ -8336,7 +8658,8 @@ export class WeavleJS {
         const handleInfo        = interaction.connect     ? this.findHandleAtEventTarget(evt.target) : null;
         const edgeEndpointInfo  = interaction.selectEdges ? this.findEdgeEndpointAtEventTarget(evt.target) : null;
         const edgeSegmentInfo   = interaction.selectEdges ? this.findEdgeSegmentHandleAtEventTarget(evt.target) : null;
-        const edgeId            = interaction.selectEdges ? this.findEdgeAtEventTarget(evt.target) : null;
+        const labelEdgeId       = interaction.selectEdges ? this.findEdgeLabelAtEventTarget(evt.target) : null;
+        const edgeId            = interaction.selectEdges ? (labelEdgeId || this.findEdgeAtEventTarget(evt.target)) : null;
         const pos               = this.getMousePosition(evt);
         const node              = this.findNodeAt(pos.x, pos.y);
         const isCtrlToggle     = evt.ctrlKey || evt.metaKey;
@@ -8402,6 +8725,7 @@ export class WeavleJS {
             this.clearNodeToolSurface();
 
             this.selectSingleEdge(edge.id);
+            this.renderEdgeToolSurface(edge);
 
             this.state.draggingSegmentEdgeId = edge.id;
             this.state.draggingSegmentIndex = edgeSegmentInfo.segmentIndex;
@@ -8415,7 +8739,8 @@ export class WeavleJS {
             return;
         }
 
-         // 4. Click on an edge body → select the edge.
+         // 4. Click on an edge body → select the edge (and show its tools). Pressing on its label also
+         //    starts dragging the label.
         if (edgeId) {
             this.clearNodeToolSurface();
 
@@ -8423,7 +8748,21 @@ export class WeavleJS {
             this.state.draggingNodeId = null;
             this.state.draggingEdgeHandleId = null;
 
+            const edge = this.model.edges.find(e => e.id === edgeId);
+
+            if (labelEdgeId && edge) {
+                this.state.draggingLabelEdgeId = edgeId;
+                this.state.labelDragStart = {
+                    mouseX: pos.x, mouseY: pos.y,
+                    offsetX: edge.labelOffset?.x || 0, offsetY: edge.labelOffset?.y || 0,
+                    moved: false
+                };
+                this.clearTextSelection();
+                evt.preventDefault();
+            }
+
             this.render();
+            if (edge) this.renderEdgeToolSurface(edge);
             this.emitSelectionChanged();
             return;
         }
@@ -8671,10 +9010,21 @@ export class WeavleJS {
                 return;
             }
 
-            const dx = pos.x - this.state.draggingSegmentStartMouseX;
-            const dy = pos.y - this.state.draggingSegmentStartMouseY;
+            let dx = pos.x - this.state.draggingSegmentStartMouseX;
+            let dy = pos.y - this.state.draggingSegmentStartMouseY;
 
             const originalPoints = JSON.parse(JSON.stringify(this.state.draggingSegmentOriginalPoints));
+
+            // With snap on, the dragged segment lands on a grid line.
+            if (this.options.snapToGrid) {
+                const g   = this.options.gridSize || 20;
+                const seg = originalPoints[this.state.draggingSegmentIndex];
+                if (seg) {
+                    if (this.state.draggingSegmentOrientation === "vertical") dx = this.snapToGrid(seg.x + dx, g) - seg.x;
+                    else dy = this.snapToGrid(seg.y + dy, g) - seg.y;
+                }
+            }
+
             edge.routePoints = originalPoints;
 
             this.moveSegment(
@@ -8684,6 +9034,24 @@ export class WeavleJS {
                 dy
             );
 
+            this.render();
+            return;
+        }
+
+        // Dragging an edge label: it moves relative to its default spot on the edge.
+        if (this.state.draggingLabelEdgeId) {
+            const edge  = this.model.edges.find(e => e.id === this.state.draggingLabelEdgeId);
+            const start = this.state.labelDragStart;
+            if (!edge || !start) return;
+
+            const dx = pos.x - start.mouseX;
+            const dy = pos.y - start.mouseY;
+
+            // A click is not a drag: wait for a few pixels of movement.
+            if (!start.moved && Math.hypot(dx, dy) < 3) return;
+            start.moved = true;
+
+            edge.labelOffset = { x: Math.round(start.offsetX + dx), y: Math.round(start.offsetY + dy) };
             this.render();
             return;
         }
@@ -8880,7 +9248,8 @@ export class WeavleJS {
         }
 
         if (this.state.draggingSegmentEdgeId) {
-            const edge = this.model.edges.find(e => e.id === this.state.draggingSegmentEdgeId);
+            const edge     = this.model.edges.find(e => e.id === this.state.draggingSegmentEdgeId);
+            const original = this.state.draggingSegmentOriginalPoints;
 
             this.state.draggingSegmentEdgeId = null;
             this.state.draggingSegmentIndex = null;
@@ -8889,9 +9258,30 @@ export class WeavleJS {
             this.state.draggingSegmentStartMouseY = 0;
             this.state.draggingSegmentOriginalPoints = null;
 
-            if (edge) {
+            // A click on the handle without moving changes nothing.
+            if (edge && JSON.stringify(edge.routePoints) !== JSON.stringify(original)) {
                 edge.isAutoRoute = false;
                 edge.routingMeta = { algorithm: "manual", found: true };
+                this.pushHistory();
+                this.emit("weavle:modelchanged", { model: this.getData() });
+            }
+
+            this.render();
+            return;
+        }
+
+        // Finalise dragging an edge label (one undo step, only when it moved).
+        if (this.state.draggingLabelEdgeId) {
+            const edge  = this.model.edges.find(e => e.id === this.state.draggingLabelEdgeId);
+            const start = this.state.labelDragStart;
+
+            this.state.draggingLabelEdgeId = null;
+            this.state.labelDragStart      = null;
+
+            if (edge && start?.moved) {
+                // Back on its default spot: no offset to store.
+                if (!edge.labelOffset?.x && !edge.labelOffset?.y) delete edge.labelOffset;
+
                 this.pushHistory();
                 this.emit("weavle:modelchanged", { model: this.getData() });
             }
@@ -9152,6 +9542,111 @@ export class WeavleJS {
         this.container.focus({ preventScroll: true });
     }
 
+    // ------------------------------------------------------------
+    // Copy / paste (Ctrl+C, Ctrl+V)
+    // ------------------------------------------------------------
+
+    /** Copy / paste only exists where nodes are placed by hand (not in the self-arranging diagram types). */
+    canCopyPaste() {
+        const interaction = this.getInteraction();
+        return !this.options.readOnly && interaction.dragNodes && interaction.connect;
+    }
+
+    /**
+     * Copies the selected nodes — with what they contain (pool → lanes → tasks) or carry (boundary events),
+     * and the edges between the copied nodes — to the clipboard. Nodes that may not be deleted (diagram.
+     * canDeleteNode) or copied (diagram.canCopyNode) are left out. Returns false when nothing was copied.
+     */
+    copySelection() {
+        if (!this.canCopyPaste()) return false;
+
+        const selected = new Set(this.getSelectedNodeIds());
+        const roots = [...selected]
+            .map(id => this.getNode(id))
+            .filter(node => node &&
+                this.canDeleteNode(node) &&
+                !(typeof this.diagram.canCopyNode === "function" && this.diagram.canCopyNode(node, this) === false) &&
+                !(node.attachedToId && !selected.has(node.attachedToId)) &&                    // a boundary event without its host
+                !(this.isContainer(node) && node.parentId && !selected.has(node.parentId)));   // a lane without its pool
+
+        if (!roots.length) return false;
+
+        const nodes = [...this.withDescendants(roots)];
+        const ids   = new Set(nodes.map(node => node.id));
+        const edges = this.model.edges.filter(edge => ids.has(edge.sourceNodeId) && ids.has(edge.targetNodeId));
+
+        clipboard = {
+            diagramType: this.diagram.id || null,
+            nodes:   JSON.parse(JSON.stringify(nodes)),
+            edges:   JSON.parse(JSON.stringify(edges)),
+            rootIds: roots.map(node => node.id),
+            pastes:  0
+        };
+        return true;
+    }
+
+    /**
+     * Pastes the clipboard as new nodes and edges (new ids), a little down and to the right of the original;
+     * each further paste moves one step further. The pasted nodes become the selection. One undo step.
+     * Returns false when there is nothing (of this diagram type) to paste.
+     */
+    pasteClipboard() {
+        if (!clipboard || !this.canCopyPaste()) return false;
+        if (clipboard.diagramType !== (this.diagram.id || null)) return false;
+
+        clipboard.pastes += 1;
+        const step  = (this.options.gridSize || 20) * 2 * clipboard.pastes;
+        const idMap = new Map(clipboard.nodes.map(node => [node.id, this.generateId()]));
+
+        const nodes = clipboard.nodes.map(source => {
+            const node = JSON.parse(JSON.stringify(source));
+            node.id = idMap.get(source.id);
+            node.x  = source.x + step;
+            node.y  = source.y + step;
+
+            // Inside a copied container: its copy. Otherwise the container it stood in, if it is still here.
+            if (source.parentId && idMap.has(source.parentId)) node.parentId = idMap.get(source.parentId);
+            else if (source.parentId && !this.getNode(source.parentId)) delete node.parentId;
+
+            if (source.attachedToId) {
+                if (idMap.has(source.attachedToId)) node.attachedToId = idMap.get(source.attachedToId);
+                else delete node.attachedToId;
+            }
+            return node;
+        });
+
+        const edges = clipboard.edges.map(source => {
+            const edge = JSON.parse(JSON.stringify(source));
+            edge.id           = this.generateId();
+            edge.sourceNodeId = idMap.get(source.sourceNodeId);
+            edge.targetNodeId = idMap.get(source.targetNodeId);
+            if (Array.isArray(edge.routePoints)) edge.routePoints = edge.routePoints.map(p => ({ x: p.x + step, y: p.y + step }));
+            return edge;
+        });
+
+        this.model.nodes.push(...nodes);
+        this.model.edges.push(...edges);
+
+        // The copies of the nodes that were selected land in the container they now lie on (a lane, say).
+        const rootCopyIds = new Set(clipboard.rootIds.map(id => idMap.get(id)));
+        const roots = nodes.filter(node => rootCopyIds.has(node.id));
+        this.applyContainment(roots, { reason: "add" });
+        edges.forEach(edge => this.updateEdgeRoute(edge));
+
+        this.state.selectedNodeIds       = roots.map(node => node.id);
+        this.state.primarySelectedNodeId = this.state.selectedNodeIds[this.state.selectedNodeIds.length - 1] || null;
+        this.state.selectedEdgeId        = null;
+        this.clearNodeToolSurface();
+
+        this.pushHistory();
+        this.emit("weavle:modelchanged", { model: this.getData() });
+        this.render();
+        this.emitSelectionChanged();
+
+        if (roots.length === 1) this.renderNodeToolSurface(roots[0]);
+        return true;
+    }
+
     /** True when keyboard shortcuts are meant for this editor (see options.keyboardScope). */
     hasKeyboardFocus() {
         if (this.options.keyboardScope === "global") return true;
@@ -9274,6 +9769,21 @@ export class WeavleJS {
                 this.emitSelectionChanged();
                 this.emit("weavle:modelchanged", { model: this.getData() });
                 this.render();
+                evt.preventDefault();
+                return;
+            }
+        }
+
+        // Ctrl+C / Ctrl+V: copy and paste the selected nodes (and the edges between them).
+        if ((evt.ctrlKey || evt.metaKey) && !evt.shiftKey && !evt.altKey) {
+            const key = evt.key.toLowerCase();
+
+            if (key === "c" && this.copySelection()) {
+                evt.preventDefault();
+                return;
+            }
+
+            if (key === "v" && this.pasteClipboard()) {
                 evt.preventDefault();
                 return;
             }

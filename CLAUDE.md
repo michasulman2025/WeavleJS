@@ -55,7 +55,8 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
   defaults to `createFlowchartDefinition()`.
 - Data: `this.model = { nodes, edges }` (plain objects). Transient UI state lives in `this.state`.
 - Public API: `getVersion()`, `load(data)`, `getData()`, `addNode()`, `clear()`, `undo()`, `redo()`, `destroy()`,
-  `setNodeSize(id, w, h)`.
+  `setNodeSize(id, w, h)`, `updateNode(id, patch)` (property panels: shallow merge, null removes a field,
+  `PROTECTED_NODE_KEYS` id / type / geometry / structure are ignored; one undo step, no reload — adapter `getNode` / `updateNode`).
   Every model change a user can make pushes one undo step (`pushHistory()`) and emits `weavle:modelchanged`;
   a click without movement does neither. `addNode()` without x/y auto-places the node on a free spot in the
   visible area (`findFreePosition`); `createConnectedNode()` picks a free spot with a working route.
@@ -130,6 +131,21 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
   `scoreEdgeRoute` (`countRouteConflicts`, shared ports, flow direction from `getLayoutDirection`); short edges
   first, two passes. While it runs `state.routeOccupancy` (`buildRouteOccupancy`) adds A* step costs
   (`getOccupancyPenalty`). Toolbar entries come from `getTidyActions()`. Roadmap: optimise flow (layered layout).
+- Edge tools (selected edge, `renderEdgeToolSurface` / `getEdgeContextActions` / `handleEdgeAction`, state `nodeToolEdgeId`;
+  not where `interaction.selectEdges` is false): "Stijl" (presets; with `allowCustomStyles` line style solid / dashed / dotted /
+  dash-dot via `EDGE_DASH_CHOICES`, width, line and label colour → `setEdgeStyle`), "Automatisch routeren" (`resetEdgeToAutoRoute`,
+  only for hand-drawn routes), "Label terugzetten", delete.
+- Manual routes: a selected orthogonal edge (`canEditEdgeRoute`) always shows a handle on each inner segment; dragging one (snaps to
+  the grid with `snapToGrid`) stores the route with `isAutoRoute: false`. `buildManualEdgeAnchoredRoute` keeps the drawn route and only
+  re-anchors its two ends to the ports (the corner next to a port slides along), so it survives node moves and `load`.
+- Edge labels: `edge.labelOffset` {x, y} moves the label away from its default spot (drag it; `findEdgeLabelAtEventTarget`,
+  state `draggingLabelEdgeId`); drawn as `<g class="weavle-edge-label-group">` with a semi-transparent `.weavle-edge-label-bg` rect
+  (canvas colour via CSS, restyle in weavle.css) behind the text.
+- Line jumps (`options.lineJumps`, default on, `lineJumpRadius` 5): horizontal segments of orthogonal edges hop over the vertical
+  segments of other edges (a small arc; `getLineJumpSources` / `getLineJumps` → `buildRoundedOrthogonalPath(points, r, jumps)`).
+- Copy / paste (Ctrl+C / Ctrl+V, `copySelection` / `pasteClipboard`, module-level `clipboard` shared by editors of the same diagram
+  type): selected nodes plus contents / attached nodes and the edges between them, new ids, offset by 2 grid cells per paste; only when
+  `interaction.dragNodes` and `connect` are on. Hooks: `canDeleteNode`, optional `diagram.canCopyNode(node, engine)`.
 - Edge routing: orthogonal — straight or simple routes first, then A* on a grid (`findPathWithAStar`),
   tuned per definition via `getRoutingConfig`.
 - Self-arranging diagram types (Ishikawa): `diagram.layoutDiagram(engine)` positions every node; the engine runs it
@@ -237,7 +253,11 @@ Rule of thumb: if you need to name a node type, it belongs in the add-in (diagra
   edge type "link" for untyped / "any" links; `definition.catalog`. Node types: title, category, color?, outputs / fields / inputs with `value` defaults;
   rows outputs → fields → inputs, height from rows (`sizeOf`, width-only resize), handles `out-<id>` / `in-<id>`, values in
   `node.values` (defaults filled by `onNodeCreated`), header title via `getLabelLayout`, edge type = data type, rule
-  `canConnect` = no cycles; `drawNode` draws toolbar icons scaled down without text.
+  `canConnect` = no cycles, except links whose data type passes option `allowCycles` (`createCycleRule`: true or data
+  types; such links are skipped when looking for a way back); inputs take one link (`max: 1`, "replace") unless the row
+  has `multiple: true`; list rows (`def.list`, ids in `node.items`, `listItems` / `listLimits` / `nextListItem`) come after
+  the inputs, so `rowsOf(def, node)` / `sizeOf(def, node)` / `defaultValues(def, node)` take the node; actions
+  `neAddItem` / `neRemoveItem` (`handleAction`, `fitHeight`; removing drops the row's link); `def.width` = own width; `drawNode` draws toolbar icons scaled down without text.
 - The engine names no node or shape types: highlight outlines come from `nodeTypes[type].outline` (`getNodeOutline`),
   extra routing clearance from `nodeTypes[type].extraObstacleMargin`; a type without shape function draws
   `createFallbackShape`. `addNode()` fills id / size / label from the definition.
